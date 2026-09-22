@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0b1020">
+<title>スタックタワー</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <canvas id="game"></canvas>
+
+  <div id="hud">
+    <div class="score-block">
+      <div class="score-label">SCORE</div>
+      <div id="score" class="score-value">0</div>
+    </div>
+    <div class="best-block">
+      <div class="best-label">BEST</div>
+      <div id="best" class="best-value">0</div>
+    </div>
+  </div>
+
+  <div id="tap-hint" class="hint">タップして積み上げよう</div>
+
+  <div id="start-screen" class="overlay">
+    <div class="panel">
+      <h1>スタックタワー</h1>
+      <p class="lead">動くブロックをタップして<br>ぴったり重ねよう</p>
+      <ul class="rules">
+        <li>タップでブロックを落とす</li>
+        <li>ズレると幅がどんどん小さくなる</li>
+        <li>ぴったり重ねると<b>PERFECT!</b></li>
+      </ul>
+      <button id="start-btn" class="btn primary">スタート</button>
+    </div>
+  </div>
+
+  <div id="gameover-screen" class="overlay hidden">
+    <div class="panel">
+      <h2>GAME OVER</h2>
+      <div class="result-row">
+        <span>SCORE</span>
+        <b id="final-score">0</b>
+      </div>
+      <div class="result-row">
+        <span>BEST</span>
+        <b id="final-best">0</b>
+      </div>
+      <button id="retry-btn" class="btn primary">もう一度</button>
+    </div>
+  </div>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>
