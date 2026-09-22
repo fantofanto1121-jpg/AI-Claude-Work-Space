@@ -366,10 +366,10 @@
       const halfW = state.moving.width / 2;
       const leftBound = halfW + 10;
       const rightBound = viewW - halfW - 10;
-      if (state.moving.x < leftBound) {
+      if (state.moving.x < leftBound && state.direction < 0) {
         state.moving.x = leftBound;
         state.direction = 1;
-      } else if (state.moving.x > rightBound) {
+      } else if (state.moving.x > rightBound && state.direction > 0) {
         state.moving.x = rightBound;
         state.direction = -1;
       }
