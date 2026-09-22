@@ -23,22 +23,103 @@
 
   const BLOCK_HEIGHT = 34;
   const BASE_WIDTH_RATIO = 0.62;
-  const TOP_ANCHOR_RATIO = 0.5;
+  const MOVING_ANCHOR_RATIO = 0.22;
+  const PERFECT_THRESHOLD = 4;
 
   const state = {
     running: false,
     score: 0,
     best: 0,
+    combo: 0,
     stack: [],
     moving: null,
     speed: 2.4,
     direction: 1,
     cameraY: 0,
     cameraTargetY: 0,
+    shake: 0,
     particles: [],
+    sparkles: [],
     flashes: [],
     hueBase: 200,
   };
+
+  const comboEl = document.createElement("div");
+  comboEl.id = "combo";
+  comboEl.className = "combo hidden";
+  document.getElementById("app").appendChild(comboEl);
+  let comboHideTimer = null;
+
+  function showCombo(n) {
+    if (n < 2) return;
+    comboEl.textContent = "×" + n + " COMBO!";
+    comboEl.classList.remove("hidden");
+    comboEl.classList.remove("pop");
+    void comboEl.offsetWidth;
+    comboEl.classList.add("pop");
+    if (comboHideTimer) clearTimeout(comboHideTimer);
+    comboHideTimer = setTimeout(() => comboEl.classList.add("hidden"), 900);
+  }
+  function hideCombo() {
+    comboEl.classList.add("hidden");
+    if (comboHideTimer) {
+      clearTimeout(comboHideTimer);
+      comboHideTimer = null;
+    }
+  }
+
+  let audioCtx = null;
+  let audioEnabled = true;
+  function ensureAudio() {
+    if (audioCtx) return audioCtx;
+    if (!audioEnabled) return null;
+    try {
+      const Ctor = window.AudioContext || window.webkitAudioContext;
+      if (!Ctor) return null;
+      audioCtx = new Ctor();
+    } catch (e) {
+      audioEnabled = false;
+      return null;
+    }
+    return audioCtx;
+  }
+  function playTone(freq, duration, type, gain) {
+    const ctx = ensureAudio();
+    if (!ctx) return;
+    if (ctx.state === "suspended") ctx.resume().catch(() => {});
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.type = type || "sine";
+    osc.frequency.setValueAtTime(freq, now);
+    g.gain.setValueAtTime(0, now);
+    g.gain.linearRampToValueAtTime(gain || 0.15, now + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.001, now + duration);
+    osc.connect(g).connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + duration + 0.05);
+  }
+  function playDrop() {
+    playTone(180 + Math.min(600, state.stack.length * 25), 0.12, "sine", 0.14);
+  }
+  function playPerfect(streak) {
+    const base = 660;
+    const step = Math.min(6, streak - 1);
+    playTone(base + step * 80, 0.09, "triangle", 0.16);
+    setTimeout(() => playTone(base * 1.5 + step * 100, 0.14, "triangle", 0.13), 55);
+  }
+  function playMiss() {
+    playTone(120, 0.22, "sawtooth", 0.16);
+    playTone(70, 0.32, "sine", 0.1);
+  }
+
+  function vibrate(pattern) {
+    if (!("vibrate" in navigator)) return;
+    try { navigator.vibrate(pattern); } catch (e) {}
+  }
+  function triggerShake(amount) {
+    state.shake = Math.max(state.shake, amount);
+  }
 
   function loadBest() {
     try {
@@ -92,15 +173,19 @@
 
   function resetState() {
     state.score = 0;
+    state.combo = 0;
     state.stack = [];
     state.particles = [];
+    state.sparkles = [];
     state.flashes = [];
     state.cameraY = 0;
     state.cameraTargetY = 0;
+    state.shake = 0;
     state.speed = 2.4;
     state.direction = 1;
     state.hueBase = 190 + Math.random() * 60;
     scoreEl.textContent = "0";
+    hideCombo();
 
     const baseWidth = Math.min(viewW * BASE_WIDTH_RATIO, 320);
     const base = createBlock(baseX, baseWidth, 0);
@@ -112,10 +197,10 @@
   }
 
   function updateCameraTarget() {
-    const topIndex = state.stack.length - 1;
-    const naturalTopY = baseY - topIndex * BLOCK_HEIGHT + BLOCK_HEIGHT;
-    const desiredTopY = viewH * TOP_ANCHOR_RATIO;
-    state.cameraTargetY = Math.max(0, desiredTopY - naturalTopY);
+    const nextMovingLevel = state.stack.length;
+    const naturalMovingY = baseY - nextMovingLevel * BLOCK_HEIGHT + BLOCK_HEIGHT;
+    const desiredY = viewH * MOVING_ANCHOR_RATIO;
+    state.cameraTargetY = Math.max(0, desiredY - naturalMovingY);
   }
 
   function spawnMoving() {
@@ -163,24 +248,36 @@
       };
       state.particles.push(fallen);
       state.moving = null;
+      state.combo = 0;
+      hideCombo();
+      playMiss();
+      vibrate([30, 40, 60]);
+      triggerShake(14);
       gameOver();
       return;
     }
 
     const diff = Math.abs(moving.x - top.x);
-    const perfect = diff < 4;
+    const perfect = diff < PERFECT_THRESHOLD;
 
     let newBlock;
     if (perfect) {
       newBlock = createBlock(top.x, top.width, moving.level);
+      const bonusY = baseY - moving.level * BLOCK_HEIGHT;
       state.flashes.push({
         x: top.x,
-        y: baseY - moving.level * BLOCK_HEIGHT,
+        y: bonusY,
         r: 0,
         max: Math.max(top.width, 120),
         alpha: 1,
       });
-      state.score += 2;
+      state.combo += 1;
+      spawnSparkles(top.x, bonusY, state.combo);
+      const bonus = 2 + Math.min(8, state.combo);
+      state.score += bonus;
+      playPerfect(state.combo);
+      vibrate(state.combo >= 3 ? [10, 30, 20] : 12);
+      if (state.combo >= 2) showCombo(state.combo);
     } else {
       const newX = (overlapLeft + overlapRight) / 2;
       newBlock = createBlock(newX, overlap, moving.level);
@@ -203,6 +300,12 @@
         yOffset: 0,
       });
       state.score += 1;
+      if (state.combo > 0) {
+        state.combo = 0;
+        hideCombo();
+      }
+      playDrop();
+      vibrate(8);
     }
 
     state.stack.push(newBlock);
@@ -211,11 +314,34 @@
 
     if (newBlock.width < 6) {
       state.moving = null;
+      state.combo = 0;
+      hideCombo();
+      playMiss();
+      vibrate([20, 30, 50]);
+      triggerShake(12);
       gameOver();
       return;
     }
 
     spawnMoving();
+  }
+
+  function spawnSparkles(x, y, combo) {
+    const count = 8 + Math.min(12, combo * 2);
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count + Math.random() * 0.3;
+      const speed = 1.5 + Math.random() * 2 + Math.min(1.5, combo * 0.15);
+      state.sparkles.push({
+        x: x,
+        y: y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 0.5,
+        life: 1,
+        decay: 0.02 + Math.random() * 0.02,
+        size: 2 + Math.random() * 2,
+        hue: (state.hueBase + 40 + Math.random() * 60) % 360,
+      });
+    }
   }
 
   function gameOver() {
@@ -266,6 +392,21 @@
       f.r += 4 * dt * 0.06;
       f.alpha -= 0.03 * dt * 0.06;
       if (f.alpha <= 0) state.flashes.splice(i, 1);
+    }
+
+    for (let i = state.sparkles.length - 1; i >= 0; i--) {
+      const s = state.sparkles[i];
+      s.vy += 0.25 * dt * 0.06;
+      s.x += s.vx * dt * 0.6;
+      s.y += s.vy * dt * 0.6;
+      s.life -= s.decay * dt * 0.06;
+      if (s.life <= 0) state.sparkles.splice(i, 1);
+    }
+
+    if (state.shake > 0.05) {
+      state.shake *= Math.pow(0.86, dt * 0.06);
+    } else {
+      state.shake = 0;
     }
   }
 
@@ -322,6 +463,14 @@
   function render() {
     ctx.clearRect(0, 0, viewW, viewH);
 
+    let sx = 0, sy = 0;
+    if (state.shake > 0.05) {
+      sx = (Math.random() - 0.5) * state.shake;
+      sy = (Math.random() - 0.5) * state.shake;
+      ctx.save();
+      ctx.translate(sx, sy);
+    }
+
     drawGround();
 
     for (let i = 0; i < state.stack.length; i++) {
@@ -353,6 +502,19 @@
       ctx.beginPath();
       ctx.arc(f.x, y - BLOCK_HEIGHT / 2, f.r, 0, Math.PI * 2);
       ctx.stroke();
+    }
+
+    for (const s of state.sparkles) {
+      const y = s.y + state.cameraY;
+      const alpha = Math.max(0, Math.min(1, s.life));
+      ctx.fillStyle = `hsla(${s.hue}, 90%, 70%, ${alpha})`;
+      ctx.beginPath();
+      ctx.arc(s.x, y, s.size * alpha, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    if (sx !== 0 || sy !== 0) {
+      ctx.restore();
     }
   }
 
@@ -392,12 +554,24 @@
 
   function handleTap(e) {
     if (e.cancelable) e.preventDefault();
+    ensureAudio();
+    if (audioCtx && audioCtx.state === "suspended") {
+      audioCtx.resume().catch(() => {});
+    }
     if (!state.running) return;
     drop();
   }
 
-  startBtn.addEventListener("click", startGame);
-  retryBtn.addEventListener("click", startGame);
+  function startWithAudio() {
+    ensureAudio();
+    if (audioCtx && audioCtx.state === "suspended") {
+      audioCtx.resume().catch(() => {});
+    }
+    startGame();
+  }
+
+  startBtn.addEventListener("click", startWithAudio);
+  retryBtn.addEventListener("click", startWithAudio);
 
   canvas.addEventListener("pointerdown", handleTap, { passive: false });
   window.addEventListener("keydown", (e) => {

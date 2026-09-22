@@ -91,6 +91,41 @@ html, body {
   pointer-events: none;
 }
 
+.combo {
+  position: absolute;
+  top: 22%;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 30px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  background: linear-gradient(120deg, #ffd06a, #ff7ab6);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 4px 30px rgba(255, 122, 182, 0.55);
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  opacity: 1;
+  z-index: 3;
+}
+
+.combo.hidden {
+  opacity: 0;
+}
+
+.combo.pop {
+  animation: combo-pop 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes combo-pop {
+  0% { transform: scale(0.6) translateY(6px); opacity: 0; }
+  30% { transform: scale(1.15) translateY(0); opacity: 1; }
+  70% { transform: scale(1) translateY(0); opacity: 1; }
+  100% { transform: scale(1) translateY(-4px); opacity: 1; }
+}
+
 .hint.hidden {
   display: none;
 }
