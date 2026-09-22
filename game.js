@@ -23,7 +23,7 @@
 
   const BLOCK_HEIGHT = 34;
   const BASE_WIDTH_RATIO = 0.62;
-  const CAMERA_OFFSET_TARGET = 5;
+  const TOP_ANCHOR_RATIO = 0.5;
 
   const state = {
     running: false,
@@ -105,8 +105,17 @@
     const baseWidth = Math.min(viewW * BASE_WIDTH_RATIO, 320);
     const base = createBlock(baseX, baseWidth, 0);
     state.stack.push(base);
+    updateCameraTarget();
+    state.cameraY = state.cameraTargetY;
 
     spawnMoving();
+  }
+
+  function updateCameraTarget() {
+    const topIndex = state.stack.length - 1;
+    const naturalTopY = baseY - topIndex * BLOCK_HEIGHT + BLOCK_HEIGHT;
+    const desiredTopY = viewH * TOP_ANCHOR_RATIO;
+    state.cameraTargetY = Math.max(0, desiredTopY - naturalTopY);
   }
 
   function spawnMoving() {
@@ -198,7 +207,7 @@
 
     state.stack.push(newBlock);
     scoreEl.textContent = state.score;
-    state.cameraTargetY = Math.max(0, (state.stack.length - CAMERA_OFFSET_TARGET) * BLOCK_HEIGHT);
+    updateCameraTarget();
 
     if (newBlock.width < 6) {
       state.moving = null;
@@ -224,7 +233,7 @@
   }
 
   function update(dt) {
-    state.cameraY += (state.cameraTargetY - state.cameraY) * Math.min(1, dt * 0.008);
+    state.cameraY += (state.cameraTargetY - state.cameraY) * Math.min(1, dt * 0.014);
 
     if (state.moving) {
       state.moving.x += state.speed * state.direction * dt * 0.06;
@@ -406,6 +415,9 @@
 
   window.addEventListener("resize", resize);
   window.addEventListener("orientationchange", () => setTimeout(resize, 200));
+  document.addEventListener("touchmove", (e) => {
+    if (e.cancelable) e.preventDefault();
+  }, { passive: false });
 
   resize();
   loadBest();
