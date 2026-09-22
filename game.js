@@ -246,7 +246,7 @@
       p.yOffset += p.vy * dt * 0.06;
       p.x += p.vx * dt * 0.6;
       p.rot += p.vrot * dt * 0.06;
-      const worldY = baseY - p.level * BLOCK_HEIGHT + p.yOffset - state.cameraY;
+      const worldY = baseY - p.level * BLOCK_HEIGHT + p.yOffset + state.cameraY;
       if (worldY > viewH + 200) {
         state.particles.splice(i, 1);
       }
@@ -317,13 +317,13 @@
 
     for (let i = 0; i < state.stack.length; i++) {
       const b = state.stack[i];
-      const y = baseY - i * BLOCK_HEIGHT - state.cameraY + BLOCK_HEIGHT;
+      const y = baseY - i * BLOCK_HEIGHT + state.cameraY + BLOCK_HEIGHT;
       if (y < -BLOCK_HEIGHT || y > viewH + BLOCK_HEIGHT * 2) continue;
       drawBlock(b.x, y, b.width, BLOCK_HEIGHT, b.color, b.shadow);
     }
 
     for (const p of state.particles) {
-      const y = baseY - p.level * BLOCK_HEIGHT + p.yOffset - state.cameraY + BLOCK_HEIGHT;
+      const y = baseY - p.level * BLOCK_HEIGHT + p.yOffset + state.cameraY + BLOCK_HEIGHT;
       ctx.save();
       ctx.translate(p.x, y - BLOCK_HEIGHT / 2);
       ctx.rotate(p.rot);
@@ -333,12 +333,12 @@
     }
 
     if (state.moving) {
-      const y = baseY - state.moving.level * BLOCK_HEIGHT - state.cameraY + BLOCK_HEIGHT;
+      const y = baseY - state.moving.level * BLOCK_HEIGHT + state.cameraY + BLOCK_HEIGHT;
       drawBlock(state.moving.x, y, state.moving.width, BLOCK_HEIGHT, state.moving.color, state.moving.shadow);
     }
 
     for (const f of state.flashes) {
-      const y = f.y - state.cameraY + BLOCK_HEIGHT;
+      const y = f.y + state.cameraY + BLOCK_HEIGHT;
       ctx.strokeStyle = `rgba(255, 240, 180, ${Math.max(0, f.alpha)})`;
       ctx.lineWidth = 3;
       ctx.beginPath();
@@ -348,7 +348,7 @@
   }
 
   function drawGround() {
-    const groundY = baseY - state.cameraY + BLOCK_HEIGHT;
+    const groundY = baseY + state.cameraY + BLOCK_HEIGHT;
     const grad = ctx.createLinearGradient(0, groundY, 0, viewH);
     grad.addColorStop(0, "rgba(20, 26, 66, 0.0)");
     grad.addColorStop(1, "rgba(20, 26, 66, 0.7)");
