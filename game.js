@@ -44,6 +44,16 @@
     hueBase: 200,
   };
 
+  let scoreBumpTimer = null;
+  function setScore(v) {
+    scoreEl.textContent = v;
+    scoreEl.classList.remove("bump");
+    void scoreEl.offsetWidth;
+    scoreEl.classList.add("bump");
+    if (scoreBumpTimer) clearTimeout(scoreBumpTimer);
+    scoreBumpTimer = setTimeout(() => scoreEl.classList.remove("bump"), 300);
+  }
+
   const comboEl = document.createElement("div");
   comboEl.id = "combo";
   comboEl.className = "combo hidden";
@@ -185,6 +195,7 @@
     state.direction = 1;
     state.hueBase = 190 + Math.random() * 60;
     scoreEl.textContent = "0";
+    scoreEl.classList.remove("bump");
     hideCombo();
 
     const baseWidth = Math.min(viewW * BASE_WIDTH_RATIO, 320);
@@ -309,7 +320,7 @@
     }
 
     state.stack.push(newBlock);
-    scoreEl.textContent = state.score;
+    setScore(state.score);
     updateCameraTarget();
 
     if (newBlock.width < 6) {
