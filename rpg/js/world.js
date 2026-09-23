@@ -25,6 +25,7 @@ Game.World = (function () {
   let fade = 0, fadeDir = 0;  // 遷移フェード
   let time = 0;
   let npcAnimT = 0;
+  let nameBanner = { text: '', t: 0 };  // マップ名の入場表示
 
   function isSolidTile(ch) { return D().SOLID.has(ch); }
   function tileAt(x, y) {
@@ -56,6 +57,9 @@ Game.World = (function () {
     updateCamera(true);
     A().playBgm(map.bgm || 'field');
     UI().setControlsVisible(true);
+    nameBanner = { text: map.name, t: 2.4 };
+    // マップ移動ごとのオートセーブ（進行が消えにくいように）
+    if (Game.state) Game.saveGame();
   }
 
   function resize(w, h) {
@@ -89,6 +93,7 @@ Game.World = (function () {
 
   function update(dt) {
     time += dt; npcAnimT += dt;
+    if (nameBanner.t > 0) nameBanner.t -= dt;
     if (fadeDir !== 0) { fade += fadeDir * dt * 3; if (fade >= 1) { fade = 1; fadeDir = 0; if (pendingWarp) doWarp(); } else if (fade <= 0) { fade = 0; fadeDir = 0; } }
     if (busy || fadeDir !== 0 || fade > 0.01) { updateCamera(false); return; }
 
@@ -207,9 +212,21 @@ Game.World = (function () {
     const fx = player.tx + dx, fy = player.ty + dy;
     const npc = npcAt(fx, fy);
     if (npc) { await talk(npc); return; }
+    // 正面の回復ポイント（星の泉など・繰り返し可）
+    const heal = (map.events || []).find((e) => e.x === fx && e.y === fy && e.type === 'heal');
+    if (heal) { await restAt(); return; }
     // 正面のイベント（祭壇など）
     const evt = (map.events || []).find((e) => e.x === fx && e.y === fy && !e.done && e.story);
     if (evt) { await triggerEvent(evt); }
+  }
+
+  async function restAt() {
+    busy = true;
+    A().sfx('heal');
+    Game.fullHeal();
+    await UI().message('星の泉に手をひたすと、あたたかな光がパーティを包んだ。\nHPとMPが かんぜんに かいふくした!', { name: '星の泉' });
+    UI().hideDialogue();
+    busy = false;
   }
 
   async function talk(npc) {
@@ -365,8 +382,16 @@ Game.World = (function () {
     });
     // イベント（宝箱など未取得）
     (map.events || []).forEach((e) => {
-      if (e.done || !e.tile) return;
-      // タイルは既にマップに描かれている（'C'等）
+      if (e.marker && !e.done) {
+        // 回復ポイント等の目印：ゆらめく星のきらめき
+        const ex = Math.round(e.x * tile - cam.x + tile / 2);
+        const ey = Math.round(e.y * tile - cam.y + tile / 2);
+        ctx.save();
+        ctx.globalAlpha = 0.5 + 0.4 * Math.sin(time * 3);
+        ctx.fillStyle = '#bfe0ff';
+        G().star(ctx, ex, ey - tile * 0.2, tile * 0.28, tile * 0.12, 4);
+        ctx.restore();
+      }
     });
     // プレイヤー
     const psize = actorSize();
@@ -385,6 +410,23 @@ Game.World = (function () {
     // マップ名（入場時にフェードは省略、常時上部に薄く）
     // フェード
     if (fade > 0) { ctx.fillStyle = 'rgba(0,0,0,' + fade + ')'; ctx.fillRect(0, 0, w, h); }
+    // マップ名バナー
+    if (nameBanner.t > 0) {
+      const a = Math.min(1, nameBanner.t) * Math.min(1, (2.4 - nameBanner.t) * 3);
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, a);
+      const bw = Math.min(w * 0.7, 320), bh = 44, bx = (w - bw) / 2, by = h * 0.08;
+      ctx.fillStyle = 'rgba(8,10,26,0.86)';
+      ctx.strokeStyle = 'rgba(120,150,255,0.6)'; ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.rect(bx, by, bw, bh); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#ffd66a';
+      ctx.font = 'bold 20px system-ui, sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(nameBanner.text, w / 2, by + bh / 2);
+      ctx.restore();
+      ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    }
   }
   function actorSize() { return Math.round(tile * 1.3); }
 

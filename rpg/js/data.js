@@ -226,7 +226,9 @@ Game.Data = (function () {
         { x: 13, y: 6, sprite: 'villager2', dir: 'down', name: '子ども', story: 'child' },
         { x: 5, y: 15, sprite: 'villager1', dir: 'left', name: '漁師', story: 'fisher' }
       ],
-      events: []
+      events: [
+        { x: 4, y: 13, id: 'village_spring', type: 'heal', repeat: true, marker: true }
+      ]
     },
 
     forest: {
