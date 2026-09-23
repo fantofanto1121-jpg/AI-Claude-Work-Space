@@ -1,9 +1,9 @@
-const CACHE_NAME = 'stack-tower-v1';
+const CACHE_NAME = 'roulette-v1';
 const APP_SHELL = [
   './',
   'index.html',
   'style.css',
-  'game.js',
+  'roulette.js',
   'sw-register.js',
   'manifest.webmanifest',
   'icon-192.svg',

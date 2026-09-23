@@ -1,7 +1,7 @@
 {
-  "name": "スタックタワー",
-  "short_name": "Stack",
-  "description": "動くブロックをタップして、ぴったり重ねて積み上げるシンプルなタワーゲーム。",
+  "name": "ルーレット",
+  "short_name": "ルーレット",
+  "description": "項目を自由に追加して回せる、シンプルな抽選ルーレットアプリ。",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",

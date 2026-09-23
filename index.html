@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0b1020">
-<title>スタックタワー</title>
+<title>ルーレット</title>
 <link rel="stylesheet" href="style.css">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.svg">
@@ -16,50 +16,51 @@
 </head>
 <body>
 <div id="app">
-  <canvas id="game"></canvas>
+  <header id="topbar">
+    <h1 class="title">ルーレット</h1>
+    <p class="subtitle">タップして今日の運試し</p>
+  </header>
 
-  <div id="hud">
-    <div class="score-block">
-      <div class="score-label">SCORE</div>
-      <div id="score" class="score-value">0</div>
+  <main id="stage">
+    <div id="wheel-wrap">
+      <div id="pointer" aria-hidden="true"></div>
+      <canvas id="wheel"></canvas>
+      <button id="spin-btn" type="button" aria-label="ルーレットを回す">SPIN</button>
     </div>
-    <div class="best-block">
-      <div class="best-label">BEST</div>
-      <div id="best" class="best-value">0</div>
-    </div>
-  </div>
+    <div id="result" class="result" aria-live="polite"></div>
+  </main>
 
-  <div id="tap-hint" class="hint">タップして積み上げよう</div>
-
-  <div id="start-screen" class="overlay">
-    <div class="panel">
-      <h1>スタックタワー</h1>
-      <p class="lead">動くブロックをタップして<br>ぴったり重ねよう</p>
-      <ul class="rules">
-        <li>タップでブロックを落とす</li>
-        <li>ズレると幅がどんどん小さくなる</li>
-        <li>ぴったり重ねると<b>PERFECT!</b></li>
-      </ul>
-      <button id="start-btn" class="btn primary">スタート</button>
+  <section id="editor" aria-label="項目の編集">
+    <div class="editor-head">
+      <h2>項目</h2>
+      <label class="toggle">
+        <input type="checkbox" id="remove-winner">
+        <span>当たった項目を消す</span>
+      </label>
     </div>
-  </div>
 
-  <div id="gameover-screen" class="overlay hidden">
-    <div class="panel">
-      <h2>GAME OVER</h2>
-      <div class="result-row">
-        <span>SCORE</span>
-        <b id="final-score">0</b>
-      </div>
-      <div class="result-row">
-        <span>BEST</span>
-        <b id="final-best">0</b>
-      </div>
-      <button id="retry-btn" class="btn primary">もう一度</button>
+    <form id="add-form" autocomplete="off">
+      <input type="text" id="item-input" maxlength="24" placeholder="項目を追加（例：ラーメン）" aria-label="追加する項目">
+      <button type="submit" class="btn add" aria-label="追加">＋</button>
+    </form>
+
+    <ul id="item-list" class="item-list"></ul>
+
+    <div class="editor-actions">
+      <button type="button" id="reset-btn" class="btn ghost">初期化</button>
+      <button type="button" id="shuffle-btn" class="btn ghost">シャッフル</button>
     </div>
+  </section>
+</div>
+
+<div id="win-modal" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="win-title">
+  <div class="panel">
+    <div class="win-label">結果</div>
+    <div id="win-title" class="win-name">—</div>
+    <button type="button" id="win-close" class="btn primary">閉じる</button>
   </div>
 </div>
 
-<script src="game.js"></script>
+<script src="roulette.js" defer></script>
 </body>
 </html>
