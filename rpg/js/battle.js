@@ -586,6 +586,7 @@ Game.Battle = (function () {
   function finish(result) {
     active = false;
     UI().hideBattleStatus();
+    UI().hideDialogue();  // 戦闘メッセージ窓を確実に閉じる（勝利後の残留を防ぐ）
     UI().hide();
     // HP/MP は hero に反映済み（getter/setter）
     if (onEnd) onEnd(result);
