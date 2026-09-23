@@ -105,26 +105,33 @@ html, body {
 
 .combo {
   position: absolute;
-  top: 22%;
-  left: 0;
-  right: 0;
-  text-align: center;
-  font-size: 30px;
+  top: 38%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 10px 20px;
+  border-radius: 999px;
+  background: rgba(11, 16, 32, 0.78);
+  border: 2px solid #ffd06a;
+  box-shadow:
+    0 8px 30px rgba(255, 122, 182, 0.35),
+    0 0 24px rgba(255, 208, 106, 0.55),
+    inset 0 0 12px rgba(255, 208, 106, 0.25);
+  font-size: 32px;
   font-weight: 900;
-  letter-spacing: 0.06em;
-  background: linear-gradient(120deg, #ffd06a, #ff7ab6);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  text-shadow: 0 4px 30px rgba(255, 122, 182, 0.55);
+  letter-spacing: 0.08em;
+  color: #fff2b8;
+  text-shadow:
+    0 0 12px rgba(255, 208, 106, 0.9),
+    0 2px 4px rgba(0, 0, 0, 0.6);
   pointer-events: none;
-  transition: opacity 0.2s ease;
   opacity: 1;
-  z-index: 3;
+  white-space: nowrap;
+  z-index: 4;
 }
 
 .combo.hidden {
   opacity: 0;
+  transition: opacity 0.25s ease;
 }
 
 .combo.pop {
@@ -132,10 +139,10 @@ html, body {
 }
 
 @keyframes combo-pop {
-  0% { transform: scale(0.6) translateY(6px); opacity: 0; }
-  30% { transform: scale(1.15) translateY(0); opacity: 1; }
-  70% { transform: scale(1) translateY(0); opacity: 1; }
-  100% { transform: scale(1) translateY(-4px); opacity: 1; }
+  0% { transform: translate(-50%, -50%) scale(0.55); opacity: 0; }
+  35% { transform: translate(-50%, -50%) scale(1.22); opacity: 1; }
+  70% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -60%) scale(1); opacity: 1; }
 }
 
 .hint.hidden {

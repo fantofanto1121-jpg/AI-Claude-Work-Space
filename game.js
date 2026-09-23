@@ -503,24 +503,40 @@
 
     if (state.moving) {
       const y = baseY - state.moving.level * BLOCK_HEIGHT + state.cameraY + BLOCK_HEIGHT;
+      const pulse = 0.5 + 0.5 * Math.sin(performance.now() * 0.008);
+      const glowAlpha = 0.35 + pulse * 0.35;
+      ctx.save();
+      ctx.shadowColor = `rgba(255, 255, 255, ${glowAlpha})`;
+      ctx.shadowBlur = 18;
       drawBlock(state.moving.x, y, state.moving.width, BLOCK_HEIGHT, state.moving.color, state.moving.shadow);
+      ctx.restore();
     }
 
     for (const f of state.flashes) {
-      const y = f.y + state.cameraY + BLOCK_HEIGHT;
-      ctx.strokeStyle = `rgba(255, 240, 180, ${Math.max(0, f.alpha)})`;
-      ctx.lineWidth = 3;
+      const cy = f.y + state.cameraY + BLOCK_HEIGHT / 2;
+      const a = Math.max(0, f.alpha);
+      ctx.strokeStyle = `rgba(255, 220, 120, ${a})`;
+      ctx.lineWidth = 5;
       ctx.beginPath();
-      ctx.arc(f.x, y - BLOCK_HEIGHT / 2, f.r, 0, Math.PI * 2);
+      ctx.arc(f.x, cy, f.r, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = `rgba(255, 255, 220, ${a * 0.7})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(f.x, cy, f.r * 0.55, 0, Math.PI * 2);
       ctx.stroke();
     }
 
     for (const s of state.sparkles) {
       const y = s.y + state.cameraY;
       const alpha = Math.max(0, Math.min(1, s.life));
-      ctx.fillStyle = `hsla(${s.hue}, 90%, 70%, ${alpha})`;
+      ctx.fillStyle = `hsla(${s.hue}, 95%, 78%, ${alpha})`;
       ctx.beginPath();
-      ctx.arc(s.x, y, s.size * alpha, 0, Math.PI * 2);
+      ctx.arc(s.x, y, s.size * (0.6 + 0.4 * alpha), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = `hsla(${s.hue}, 100%, 92%, ${alpha * 0.7})`;
+      ctx.beginPath();
+      ctx.arc(s.x, y, s.size * 0.4 * alpha, 0, Math.PI * 2);
       ctx.fill();
     }
 
