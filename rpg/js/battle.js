@@ -56,6 +56,45 @@ Game.Battle = (function () {
     };
   }
 
+  /* -------- 属性相性（battle.js 内で定義。data.js は変更しない） --------
+   * weak … その属性で こうかばつぐん(×1.6) / resist … いまひとつ(×0.5)
+   * キーは敵ID。味方は id を持たないため常に等倍で安全。 */
+  const AFFINITY = {
+    slime:    { weak: ['fire'],    resist: [] },
+    bat:      { weak: ['light'],   resist: [] },
+    wolf:     { weak: ['fire'],    resist: [] },
+    wisp:     { weak: ['light'],   resist: ['dark'] },
+    golem:    { weak: ['thunder'], resist: ['earth', 'fire'] },
+    shade:    { weak: ['light'],   resist: ['dark'] },
+    revenant: { weak: ['light'],   resist: ['dark'] },
+    warden:   { weak: ['thunder'], resist: ['earth'] },
+    nox:      { weak: ['light'],   resist: ['dark'] }
+  };
+  function affinityMult(target, element) {
+    if (!element || element === 'none') return 1;
+    const a = AFFINITY[target.id];
+    if (!a) return 1;
+    if (a.weak && a.weak.indexOf(element) >= 0) return 1.6;
+    if (a.resist && a.resist.indexOf(element) >= 0) return 0.5;
+    return 1;
+  }
+
+  /* -------- 陣営ヘルパ（詠唱者から見た敵/味方を返す） -------- */
+  function foesOf(c) { return c.side === 'ally' ? enemies : allies; }
+  function friendsOf(c) { return c.side === 'ally' ? allies : enemies; }
+  // 単体攻撃対象が死んでいたら生存者へ取り直す
+  function validFoe(caster, target) {
+    if (target && target.alive) return target;
+    const pool = foesOf(caster).filter((c) => c.alive);
+    return pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
+  }
+  // 回復系対象が死んでいたら最も瀕死の生存者へ取り直す（蘇生は含めない）
+  function neediestFriend(caster) {
+    const pool = friendsOf(caster).filter((c) => c.alive);
+    if (!pool.length) return null;
+    return pool.reduce((a, b) => (b.hp / b.maxhp < a.hp / a.maxhp ? b : a));
+  }
+
   function layout() {
     // 敵配置（上半分）
     const n = enemies.length;
@@ -118,10 +157,11 @@ Game.Battle = (function () {
       // コマンド入力
       const actions = await inputPhase();
       if (actions === 'flee') { if (await tryFlee()) return; else continue; }
-      // 敵の行動決定
-      enemies.forEach((e) => { if (e.alive && !e.stunned) actions.push(enemyDecide(e)); });
-      // 速度順
-      actions.sort((x, y) => (y.actor.spd + rand(-2, 2)) - (x.actor.spd + rand(-2, 2)));
+      // 敵の行動決定（ひるみ中の敵も列に入れ、解決時に解除する）
+      enemies.forEach((e) => { if (e.alive) actions.push(enemyDecide(e)); });
+      // 速度順（イニシアチブを一度だけ確定させて安定ソート／ぼうぎょは最優先で先に発動）
+      actions.forEach((a) => { a._init = a.type === 'guard' ? 9999 : (a.actor.spd + rand(-2, 2)); });
+      actions.sort((x, y) => y._init - x._init);
       // 解決
       for (const act of actions) {
         if (!active) return;
@@ -224,14 +264,15 @@ Game.Battle = (function () {
       return;
     }
     if (act.type === 'attack') {
-      if (!act.target.alive) act.target = pickAlt(act.target.side);
-      if (!act.target) return;
-      await lunge(me, act.target);
+      const t = validFoe(me, act.target);
+      if (!t) return;
+      act.target = t;
+      await lunge(me, t);
       A().sfx('hit');
-      const dmg = physDamage(me, act.target);
-      applyDamage(act.target, dmg);
-      hitFx(act.target, '#ffd24a');
-      await showMsg(me.name + ' の こうげき! ' + act.target.name + ' に ' + dmg + ' のダメージ!', 650);
+      const dmg = physDamage(me, t);
+      applyDamage(t, dmg);
+      hitFx(t, '#ffd24a');
+      await showMsg(me.name + ' の こうげき! ' + t.name + ' に ' + dmg + ' のダメージ!' + (t._crit ? ' 会心の一撃!' : ''), 650);
       return;
     }
     if (act.type === 'skill') {
@@ -252,23 +293,27 @@ Game.Battle = (function () {
     }
   }
 
-  function pickAlt(side) {
-    const pool = (side === 'enemy' ? enemies : allies).filter((c) => c.alive);
-    return pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
-  }
-
   async function applySkill(me, s, target) {
     A().sfx(s.type === 'heal' ? 'heal' : (s.type === 'magic' ? 'magic' : 'slash'));
     if (s.type === 'phys') {
-      const targets = s.target === 'all-enemy' ? enemies.filter((e) => e.alive) : [target];
+      let targets = s.target === 'all-enemy' ? foesOf(me).filter((c) => c.alive) : [validFoe(me, target)];
+      targets = targets.filter(Boolean);
+      if (!targets.length) { await showMsg('しかし 対象がいなかった。', 500); return; }
       for (const t of targets) {
-        const dmg = Math.round(physDamage(me, t) * s.power / 1.0);
-        applyDamage(t, dmg); hitFx(t, '#ffe08a');
+        const mult = affinityMult(t, s.element);
+        const dmg = Math.max(1, Math.round(physDamage(me, t) * s.power * mult));
+        t._eff = mult > 1 ? 'weak' : (mult < 1 ? 'resist' : null);
+        applyDamage(t, dmg);
+        hitFx(t, s.element && s.element !== 'none' ? elementColor(s.element) : '#ffe08a');
+        if (s.element && s.element !== 'none') elementBurst(t, s.element);
       }
+      const stunned = applyStun(targets, s);
       shake = 8;
-      await showMsg(me.name + ' の ' + s.name + '! ' + msgTargets(targets), 700);
+      await showMsg(me.name + ' の ' + s.name + '! ' + msgTargets(targets) + effSuffix(targets) + (stunned ? ' ひるませた!' : ''), 750);
     } else if (s.type === 'magic') {
-      const targets = s.target === 'all-enemy' ? enemies.filter((e) => e.alive) : [target];
+      let targets = s.target === 'all-enemy' ? foesOf(me).filter((c) => c.alive) : [validFoe(me, target)];
+      targets = targets.filter(Boolean);
+      if (!targets.length) { await showMsg('しかし 対象がいなかった。', 500); return; }
       let total = 0;
       for (const t of targets) {
         const dmg = magicDamage(me, t, s);
@@ -276,21 +321,25 @@ Game.Battle = (function () {
         hitFx(t, elementColor(s.element));
         elementBurst(t, s.element);
       }
-      if (s.drain) { me.hp = Math.min(me.maxhp, me.hp + Math.round(total * 0.5)); }
+      if (s.drain) { const gain = Math.round(total * 0.5); me.hp = Math.min(me.maxhp, me.hp + gain); healFx(me); spawnHealNumber(me, gain); }
       shake = 6;
-      await showMsg(me.name + ' は ' + s.name + ' を となえた! ' + msgTargets(targets), 750);
+      await showMsg(me.name + ' は ' + s.name + ' を となえた! ' + msgTargets(targets) + effSuffix(targets), 750);
     } else if (s.type === 'heal') {
-      const targets = s.target === 'all-ally' ? allies.filter((a) => a.alive) : [target];
+      const primary = (target && target.alive) ? target : neediestFriend(me);
+      const targets = s.target === 'all-ally' ? friendsOf(me).filter((c) => c.alive) : [primary].filter(Boolean);
+      if (!targets.length) { await showMsg('しかし 対象がいなかった。', 500); return; }
       for (const t of targets) {
         const heal = Math.round(s.power + me.mag * 0.6);
-        t.hp = Math.min(t.maxhp, t.hp + heal); healFx(t);
+        const before = t.hp;
+        t.hp = Math.min(t.maxhp, t.hp + heal); healFx(t); spawnHealNumber(t, t.hp - before);
       }
       await showMsg(me.name + ' の ' + s.name + '! HPが かいふくした!', 700);
       UI().battleStatus(allies);
     } else if (s.type === 'revive') {
-      if (target && target.hp <= 0) {
-        target.hp = Math.round(target.maxhp * (s.power || 0.5)); healFx(target);
-        await showMsg(target.name + ' が いきをふきかえした!', 750);
+      let t = (target && target.hp <= 0) ? target : friendsOf(me).filter((c) => c.hp <= 0)[0];
+      if (t) {
+        t.hp = Math.round(t.maxhp * (s.power || 0.5)); healFx(t); spawnHealNumber(t, t.hp);
+        await showMsg(t.name + ' が いきをふきかえした!', 750);
       } else { await showMsg('しかし なにも おこらなかった。', 600); }
       UI().battleStatus(allies);
     } else if (s.type === 'buff') {
@@ -298,13 +347,26 @@ Game.Battle = (function () {
       await showMsg(me.name + ' の ' + s.name + '!', 600);
     }
   }
+  // ひるみ付与（shieldBash 等の s.stun 確率）
+  function applyStun(targets, s) {
+    if (!s.stun) return false;
+    let any = false;
+    targets.forEach((t) => { if (t.alive && Math.random() < s.stun) { t.stunned = true; any = true; } });
+    return any;
+  }
+  // こうかばつぐん/いまひとつ の一言
+  function effSuffix(targets) {
+    if (targets.some((t) => t._eff === 'weak')) return ' こうかは ばつぐんだ!';
+    if (targets.length && targets.every((t) => t._eff === 'resist')) return ' こうかは いまひとつだ…';
+    return '';
+  }
 
   function applyBuff(me, s, target) {
     if (s.taunt) { me.taunt = s.taunt; }
     if (s.selfBuff) { me.buffs.push(Object.assign({ stat: 'atk' }, s.selfBuff)); }
     if (s.buff) {
-      const targets = s.target === 'all-ally' ? allies.filter((a) => a.alive)
-        : s.target === 'self' ? [me] : [target || me];
+      const targets = s.target === 'all-ally' ? friendsOf(me).filter((a) => a.alive)
+        : s.target === 'self' ? [me] : [(target && target.alive) ? target : me];
       targets.forEach((t) => t.buffs.push({ stat: 'def', def: s.buff.def, turns: s.buff.turns }));
     }
   }
@@ -324,15 +386,30 @@ Game.Battle = (function () {
   }
 
   async function applyItem(me, it, target) {
-    if (it.type === 'heal') { target.hp = Math.min(target.maxhp, target.hp + it.power); healFx(target);
-      await showMsg(me.name + ' は ' + it.name + ' をつかった! ' + target.name + ' のHPが かいふく!', 700); }
-    else if (it.type === 'mpheal') { target.mp = Math.min(target.maxmp, target.mp + it.power);
-      await showMsg(me.name + ' は ' + it.name + ' をつかった! ' + target.name + ' のMPが かいふく!', 700); }
-    else if (it.type === 'revive') { if (target.hp <= 0) { target.hp = Math.round(target.maxhp * it.power); healFx(target);
-      await showMsg(target.name + ' が よみがえった!', 700); } else await showMsg('しかし なにも おこらなかった。', 600); }
-    else if (it.type === 'offense') { const dmg = it.power + Math.round(rand(-8, 8)); applyDamage(target, dmg);
-      hitFx(target, elementColor(it.element)); elementBurst(target, it.element); shake = 6;
-      await showMsg(me.name + ' は ' + it.name + ' をなげた! ' + target.name + ' に ' + dmg + ' のダメージ!', 700); }
+    if (it.type === 'heal') {
+      const t = (target && target.alive) ? target : neediestFriend(me);
+      if (!t) { await showMsg('しかし 対象がいなかった。', 500); return; }
+      const before = t.hp; t.hp = Math.min(t.maxhp, t.hp + it.power); healFx(t); spawnHealNumber(t, t.hp - before);
+      await showMsg(me.name + ' は ' + it.name + ' をつかった! ' + t.name + ' のHPが かいふく!', 700);
+    } else if (it.type === 'mpheal') {
+      const t = (target && target.alive) ? target : friendsOf(me).filter((c) => c.alive)[0];
+      if (!t) { await showMsg('しかし 対象がいなかった。', 500); return; }
+      t.mp = Math.min(t.maxmp, t.mp + it.power);
+      await showMsg(me.name + ' は ' + it.name + ' をつかった! ' + t.name + ' のMPが かいふく!', 700);
+    } else if (it.type === 'revive') {
+      let t = (target && target.hp <= 0) ? target : friendsOf(me).filter((c) => c.hp <= 0)[0];
+      if (t) { t.hp = Math.round(t.maxhp * it.power); healFx(t); spawnHealNumber(t, t.hp);
+        await showMsg(t.name + ' が よみがえった!', 700); } else await showMsg('しかし なにも おこらなかった。', 600);
+    } else if (it.type === 'offense') {
+      const t = validFoe(me, target);
+      if (!t) { await showMsg('しかし 対象がいなかった。', 500); return; }
+      const mult = affinityMult(t, it.element);
+      const dmg = Math.max(1, Math.round((it.power + rand(-8, 8)) * mult));
+      t._eff = mult > 1 ? 'weak' : (mult < 1 ? 'resist' : null);
+      applyDamage(t, dmg);
+      hitFx(t, elementColor(it.element)); elementBurst(t, it.element); shake = 6;
+      await showMsg(me.name + ' は ' + it.name + ' をなげた! ' + t.name + ' に ' + dmg + ' のダメージ!' + effSuffix([t]), 700);
+    }
   }
 
   function msgTargets(targets) {
@@ -344,7 +421,10 @@ Game.Battle = (function () {
     let base = att.atk * atkMult(att) * 1.0 - def.def * defMult(def) * 0.5;
     base *= rand(0.88, 1.12);
     let crit = false;
-    if (Math.random() < 0.08) { base *= 1.7; crit = true; }
+    // 会心：味方はやや高め＆爽快に、敵は控えめにして理不尽な即死を避ける
+    const critRate = att.side === 'ally' ? 0.11 : 0.06;
+    const critMul = att.side === 'ally' ? 1.8 : 1.5;
+    if (Math.random() < critRate) { base *= critMul; crit = true; }
     if (def.guard) base *= 0.5;
     const dmg = Math.max(1, Math.round(base));
     def._crit = crit;
@@ -353,33 +433,99 @@ Game.Battle = (function () {
   function magicDamage(att, def, s) {
     let base = att.mag * s.power - def.def * defMult(def) * 0.2;
     base *= rand(0.9, 1.1);
+    const mult = affinityMult(def, s.element);
+    base *= mult;
+    def._eff = mult > 1 ? 'weak' : (mult < 1 ? 'resist' : null);
+    def._crit = false;
     if (def.guard) base *= 0.6;
     return Math.max(1, Math.round(base));
   }
   function applyDamage(target, dmg) {
     target._lastDmg = dmg;
+    const was = target.hp;
     target.hp = Math.max(0, target.hp - dmg);
     spawnDamageNumber(target, dmg, target._crit);
-    if (target.hp <= 0 && target.alive !== false && target.side === 'enemy') { target.alive = false; }
-    if (target.side === 'ally' && target.hp <= 0) { /* alive getter reflects */ }
+    if (target._crit) shake = Math.max(shake, 10);
+    if (target.hp <= 0) {
+      if (target.side === 'enemy' && target.alive) {
+        // 撃破演出：閃光＋粒子＋フェード
+        target.alive = false;
+        target.dying = 0.7;
+        particles.spawn({ x: target.baseX + target.size / 2, y: target.baseY + target.size / 2,
+          count: 26, speed: 170, life: 0.7, col: ['#ffffff', '#b8c4ff', '#6a80ff'], size: 5, grav: 40 });
+        flash('#ffffff', 0.22);
+      } else if (target.side === 'ally' && was > 0) {
+        // 味方戦闘不能演出
+        target.flash = 0.5;
+        particles.spawn({ x: target.baseX + target.size / 2, y: target.baseY + target.size / 2,
+          count: 14, speed: 90, life: 0.55, col: ['#ff6a6a', '#803030'], size: 4, grav: 60 });
+      }
+    }
   }
 
   /* -------- 敵AI -------- */
-  function enemyDecide(e) {
-    const livingAllies = allies.filter((a) => a.alive);
-    // 挑発対象がいれば優先
-    const taunter = livingAllies.find((a) => a.taunt > 0);
-    const pickTarget = () => taunter || livingAllies[Math.floor(Math.random() * livingAllies.length)];
-    // ボスや魔法持ちはスキル多用
-    const useSkill = e.skills.length > 0 && (e.boss ? Math.random() < 0.7 : Math.random() < 0.45);
-    if (useSkill) {
-      const sid = e.skills[Math.floor(Math.random() * e.skills.length)];
-      const s = D().SKILLS[sid];
-      let target = null;
-      if (s.target === 'enemy') target = pickTarget();
-      return { actor: e, type: 'skill', skill: s, target };
+  // 状況に応じた狙い：挑発最優先→瀕死のとどめ→賢い敵は柔らかい魔法役を優先
+  function chooseAITarget(e) {
+    const foes = allies.filter((a) => a.alive);
+    if (!foes.length) return null;
+    const taunter = foes.find((a) => a.taunt > 0);
+    if (taunter) return taunter;
+    const smart = e.boss || e.mag >= 18; // 賢い敵：術者や柔らかい相手を狙う
+    const scored = foes.map((a) => {
+      let w = 1;
+      const hpr = a.hp / a.maxhp;
+      if (hpr < 0.3) w += 2.6;        // とどめを狙う
+      else if (hpr < 0.6) w += 0.8;
+      if (smart) { w += a.mag * 0.05; w += Math.max(0, 12 - a.def) * 0.08; }
+      return { a, w };
+    });
+    const total = scored.reduce((s, x) => s + x.w, 0);
+    let r = Math.random() * total;
+    for (const x of scored) { r -= x.w; if (r <= 0) return x.a; }
+    return scored[scored.length - 1].a;
+  }
+  // 通常敵のスキル選択：自己強化済みなら再強化を避け、単体戦では全体技を避ける
+  function pickEnemySkill(e, foeCount) {
+    let ids = e.skills.slice();
+    if (e.buffs.some((b) => b.atk)) {
+      const f = ids.filter((id) => !D().SKILLS[id].selfBuff);
+      if (f.length) ids = f;
     }
-    return { actor: e, type: 'attack', target: pickTarget() };
+    if (foeCount < 2) {
+      const f = ids.filter((id) => D().SKILLS[id].target !== 'all-enemy');
+      if (f.length) ids = f;
+    }
+    return ids[Math.floor(Math.random() * ids.length)];
+  }
+  // ボスAI：HPフェーズで強技の使いどころを変える
+  function bossDecide(e, target, foeCount) {
+    const hpr = e.hp / e.maxhp;
+    const has = (id) => e.skills.indexOf(id) >= 0;
+    const r = Math.random();
+    // 2割は通常攻撃で緩急をつける
+    if (r < 0.2) return { actor: e, type: 'attack', target };
+    let sid = null;
+    if (hpr < 0.4 && has('e_devour') && Math.random() < 0.55) sid = 'e_devour';          // 追い詰められたら大技連発
+    else if (has('e_starfall') && foeCount >= 2 && Math.random() < 0.45) sid = 'e_starfall'; // 複数居れば全体技
+    else if (hpr < 0.7 && has('e_drain') && Math.random() < 0.45) sid = 'e_drain';        // 中盤は吸収で粘る
+    else if (has('e_darkball')) sid = 'e_darkball';
+    else sid = e.skills[Math.floor(Math.random() * e.skills.length)];
+    const s = D().SKILLS[sid];
+    // 強化技を持つボス（守番など）：強化済みなら通常攻撃に切替
+    if (s.selfBuff && e.buffs.some((b) => b.atk)) return { actor: e, type: 'attack', target };
+    return { actor: e, type: 'skill', skill: s, target: s.target === 'enemy' ? target : null };
+  }
+  function enemyDecide(e) {
+    const foes = allies.filter((a) => a.alive);
+    if (!foes.length) return { actor: e, type: 'guard' }; // 保険（通常この時点で戦闘は終了済み）
+    const target = chooseAITarget(e);
+    if (e.boss && e.skills.length) return bossDecide(e, target, foes.length);
+    const useSkill = e.skills.length > 0 && Math.random() < 0.45;
+    if (useSkill) {
+      const s = D().SKILLS[pickEnemySkill(e, foes.length)];
+      return { actor: e, type: 'skill', skill: s, target: s.target === 'enemy' ? target : null };
+    }
+    return { actor: e, type: 'attack', target };
   }
 
   /* -------- 逃走 -------- */
@@ -397,7 +543,10 @@ Game.Battle = (function () {
     await showMsg('しかし まわりこまれてしまった!');
     // 逃走失敗：敵ターンだけ処理
     for (const e of enemies.filter((x) => x.alive)) {
-      const act = enemyDecide(e); await resolveAction(act);
+      if (!active) return true;
+      if (e.stunned) { e.stunned = false; await showMsg(e.name + ' はひるんでいる!'); continue; }
+      await resolveAction(enemyDecide(e));
+      tickBuffs(e);
       if (allies.every((a) => !a.alive)) { await defeat(); return true; }
     }
     return false;
@@ -491,6 +640,11 @@ Game.Battle = (function () {
     dmgNumbers.push({ x: t.baseX + t.size / 2, y: t.baseY + t.size * 0.3, txt: '' + dmg,
       life: 0.9, crit: crit, side: t.side });
   }
+  function spawnHealNumber(t, amt) {
+    if (amt <= 0) return;
+    dmgNumbers.push({ x: t.baseX + t.size / 2, y: t.baseY + t.size * 0.3, txt: '+' + amt,
+      life: 0.9, crit: false, heal: true, side: t.side });
+  }
 
   /* -------- 更新・描画 -------- */
   function update(dt) {
@@ -500,6 +654,7 @@ Game.Battle = (function () {
     if (flashAlpha > 0) flashAlpha = Math.max(0, flashAlpha - dt * 1.5);
     if (bannerT > 0) bannerT -= dt;
     all.forEach((c) => { if (c.flash > 0) c.flash = Math.max(0, c.flash - dt * 4); });
+    enemies.forEach((e) => { if (e.dying > 0) e.dying = Math.max(0, e.dying - dt); });
     particles.update(dt);
     for (let i = dmgNumbers.length - 1; i >= 0; i--) {
       const d = dmgNumbers[i]; d.life -= dt; d.y -= dt * 40; if (d.life <= 0) dmgNumbers.splice(i, 1);
@@ -512,10 +667,13 @@ Game.Battle = (function () {
     ctx.save();
     if (shake > 0) ctx.translate(rand(-shake, shake), rand(-shake, shake));
     G().battleBackground(ctx, w, h, theme, time);
-    // 敵
+    // 敵（撃破後は dying の間だけフェードして消える）
     enemies.forEach((e) => {
-      if (!e.alive) return;
+      if (!e.alive && !(e.dying > 0)) return;
+      ctx.save();
+      if (!e.alive) ctx.globalAlpha = Math.max(0, e.dying / 0.7);
       G().drawEnemy(ctx, e.sprite, e.baseX + e.offx, e.baseY + e.offy, e.size, { t: time, hitFlash: e.flash > 0 });
+      ctx.restore();
     });
     // 味方（横向き＝左を向く=flip）
     allies.forEach((a, i) => {
@@ -534,7 +692,7 @@ Game.Battle = (function () {
       ctx.font = 'bold ' + (d.crit ? 28 : 22) + 'px system-ui, sans-serif';
       ctx.textAlign = 'center';
       ctx.lineWidth = 4; ctx.strokeStyle = '#000';
-      ctx.fillStyle = d.side === 'ally' ? '#ff8a8a' : (d.crit ? '#ffef6a' : '#ffffff');
+      ctx.fillStyle = d.heal ? '#8affc0' : (d.side === 'ally' ? '#ff8a8a' : (d.crit ? '#ffef6a' : '#ffffff'));
       ctx.strokeText(d.txt, d.x, d.y); ctx.fillText(d.txt, d.x, d.y);
       if (d.crit) { ctx.font = 'bold 12px system-ui'; ctx.fillText('CRITICAL!', d.x, d.y - 22); }
     });

@@ -78,6 +78,7 @@ window.Game = window.Game || {};
 
   /* ---------- ニューゲーム ---------- */
   Game.newGame = function () {
+    hideOverlay();
     Game.state = {
       party: [makeHero('lio', 1)],
       inventory: { herb: 3 },
@@ -104,6 +105,7 @@ window.Game = window.Game || {};
       const raw = localStorage.getItem(SAVE_KEY); if (!raw) return false;
       const data = JSON.parse(raw);
       Game.state = data.state;
+      hideOverlay();
       Game.World.load(Game.state.currentMap || 'village');
       setScene('world');
       return true;
