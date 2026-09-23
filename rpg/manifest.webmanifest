@@ -1,0 +1,15 @@
+{
+  "name": "星継ぎのエテルナ",
+  "short_name": "エテルナ",
+  "description": "消えゆく星を継ぐ、スマホで遊べる王道ターン制RPG。",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0f28",
+  "theme_color": "#0a0f28",
+  "icons": [
+    { "src": "icon-192.svg", "sizes": "192x192", "type": "image/svg+xml", "purpose": "any maskable" },
+    { "src": "icon-512.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
