@@ -2181,6 +2181,7 @@
   // ---------------------------------------------------------------------
   el("start-btn").addEventListener("click", startRun);
   el("retry-btn").addEventListener("click", startRun);
+  el("home-btn").addEventListener("click", () => setState("menu"));
   el("resume-btn").addEventListener("click", () => setState("playing"));
   el("quit-btn").addEventListener("click", () => setState("menu"));
   el("pause-btn").addEventListener("click", togglePause);
