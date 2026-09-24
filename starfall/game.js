@@ -31,7 +31,26 @@
   const gameoverScreen = el("gameover-screen");
   const upgradeCards = el("upgrade-cards");
 
-  const STORAGE_KEY = "starfall-arena-best";
+  const STORAGE_KEY = "starfall-arena-best-v2";
+  const DIFF_KEY = "starfall-arena-diff";
+  const modeEl = el("mode");
+
+  // ---------------------------------------------------------------------
+  //  Difficulty settings
+  // ---------------------------------------------------------------------
+  const DIFFICULTIES = {
+    easy:   { key: "easy",   label: "イージー", hud: "EASY",
+      enemyHpMul: 0.7, enemyDmgMul: 0.6, spawnMul: 1.35, bossHpMul: 0.78, xpMul: 1.15, startHp: 120,
+      desc: "敵が柔らかく攻撃も控えめ。じっくり試したい人向け。" },
+    normal: { key: "normal", label: "ノーマル", hud: "NORMAL",
+      enemyHpMul: 1.0, enemyDmgMul: 1.0, spawnMul: 1.0, bossHpMul: 1.0, xpMul: 1.0, startHp: 100,
+      desc: "設計どおりの標準バランス。" },
+    hard:   { key: "hard",   label: "ハード", hud: "HARD",
+      enemyHpMul: 1.4, enemyDmgMul: 1.35, spawnMul: 0.72, bossHpMul: 1.45, xpMul: 0.9, startHp: 80,
+      desc: "敵が硬く手数も多い。ビルドの完成度が問われる。" },
+  };
+  let difficulty = "normal";
+  let diff = DIFFICULTIES.normal;
 
   // Arena is a bounded world larger than the viewport; camera follows player.
   const WORLD = { w: 3200, h: 3200 };
@@ -214,6 +233,7 @@
     time: 0,
     kills: 0,
     best: 0,
+    bests: { easy: 0, normal: 0, hard: 0 },
     shake: 0,
     hitFlash: 0,
     cam: { x: 0, y: 0 },
@@ -239,9 +259,10 @@
     projectiles: 1,
     critChance: 0.05,
     xpMul: 1,
-    armor: 0,          // fraction of damage reduced
-    lifesteal: 0,      // hp healed per kill
-    projectileSize: 1, // bullet radius multiplier
+    armor: 0,             // fraction of damage reduced
+    lifestealChance: 0,   // chance to heal on kill
+    lifestealHeal: 6,     // hp healed when it procs
+    projectileSize: 1,    // bullet radius multiplier
     revives: 0,        // extra lives
     weapons: {},   // id -> level
     passives: {},  // id -> level
@@ -377,8 +398,8 @@
       desc: () => "獲得経験値 +20%。" },
     armor: { name: "アダマント装甲", icon: "⬡", tag: "PASSIVE", accent: "#9fb4ff", glow: "rgba(159,180,255,0.5)", max: 6,
       desc: () => "被ダメージを 10% 軽減。" },
-    lifesteal: { name: "ヴァンパイアコア", icon: "♥", tag: "PASSIVE", accent: "#ff5a8a", glow: "rgba(255,90,138,0.5)", max: 4,
-      desc: () => "撃破ごとにHPを 0.6 回復。" },
+    lifesteal: { name: "ヴァンパイアコア", icon: "♥", tag: "PASSIVE", accent: "#ff5a8a", glow: "rgba(255,90,138,0.5)", max: 5,
+      desc: () => "撃破時 10% の確率でHPを 6 回復。" },
     bigshot: { name: "ヘヴィラウンド", icon: "⬤", tag: "PASSIVE", accent: "#ffb84d", glow: "rgba(255,184,77,0.5)", max: 5,
       desc: () => "弾のサイズ +20%（＆威力 +6%）。" },
     revive: { name: "フェニックスコア", icon: "✧", tag: "PASSIVE", accent: "#ff9d5a", glow: "rgba(255,157,90,0.55)", max: 1,
@@ -502,7 +523,7 @@
     const e = {
       type, x, y,
       r: t.r, maxHp: t.hp * (hpScale || 1), hp: t.hp * (hpScale || 1),
-      speed: t.speed, dmg: t.dmg, xp: t.xp,
+      speed: t.speed, dmg: t.dmg * enemyDmgScale(), xp: t.xp,
       color: t.color, glow: t.glow, shape: t.shape,
       splits: !!t.splits, boss: !!t.boss, bossKind: t.bossKind || null,
       hitFlash: 0, phase: Math.random() * TAU, angle: 0,
@@ -527,13 +548,22 @@
   // ---------------------------------------------------------------------
   //  Difficulty / spawner
   // ---------------------------------------------------------------------
+  // Enemies scale with elapsed time, the player's power (upgrades taken), and difficulty.
+  function powerLevel() { return Math.max(0, player.level - 1); }
+  function enemyHpScale() {
+    return (1 + game.time / 55 + powerLevel() * 0.06) * diff.enemyHpMul;
+  }
+  function enemyDmgScale() {
+    return (1 + game.time / 150 + powerLevel() * 0.03) * diff.enemyDmgMul;
+  }
+
   function updateSpawner(dt) {
     game.difficulty = 1 + game.time / 45;
-    const hpScale = 1 + game.time / 55;
+    const hpScale = enemyHpScale();
 
-    // steady stream, faster over time
+    // steady stream, faster over time (difficulty adjusts the interval)
     game.spawnTimer -= dt;
-    const interval = clamp(1.15 - game.time * 0.007, 0.22, 1.15);
+    const interval = clamp(1.15 - game.time * 0.007, 0.22, 1.15) * diff.spawnMul;
     if (game.spawnTimer <= 0) {
       game.spawnTimer = interval;
       const batch = 1 + Math.floor(game.time / 40);
@@ -549,7 +579,7 @@
       if (game.waveCount % 2 === 0) {
         const kind = BOSS_KINDS[game.bossIndex % BOSS_KINDS.length];
         game.bossIndex++;
-        spawnAtEdge(kind, hpScale * (1 + game.waveCount * 0.12));
+        spawnAtEdge(kind, hpScale * (1 + game.waveCount * 0.12) * diff.bossHpMul);
         showWave("警告 — " + BOSS_NAMES[ENEMY_TYPES[kind].bossKind] + " 出現");
       } else {
         const n = 8 + game.waveCount * 2;
@@ -632,8 +662,9 @@
   function killEnemy(e) {
     e.dead = true;
     game.kills++;
-    if (player.lifesteal > 0 && player.hp < player.maxHp) {
-      player.hp = Math.min(player.maxHp, player.hp + player.lifesteal);
+    if (player.lifestealChance > 0 && player.hp < player.maxHp && Math.random() < player.lifestealChance) {
+      player.hp = Math.min(player.maxHp, player.hp + player.lifestealHeal);
+      floater(player.x, player.y - player.r, "+" + player.lifestealHeal, "#ff9dc0", false);
     }
     burst(e.x, e.y, e.color, e.boss ? 46 : 14, e.boss ? 320 : 190, [1.5, e.boss ? 5 : 3.5], e.boss ? 0.9 : 0.55);
     shockwave(e.x, e.y, e.boss ? 180 : 46, e.glow);
@@ -1284,7 +1315,7 @@
         case "crit": player.critChance = clamp(player.critChance + 0.08, 0, 0.9); break;
         case "greed": player.xpMul += 0.2; break;
         case "armor": player.armor = clamp(player.armor + 0.1, 0, 0.75); break;
-        case "lifesteal": player.lifesteal += 0.6; break;
+        case "lifesteal": player.lifestealChance = clamp(player.lifestealChance + 0.1, 0, 0.6); break;
         case "bigshot": player.projectileSize += 0.2; player.damageMul += 0.06; break;
         case "revive": player.revives += 1; break;
       }
@@ -1998,12 +2029,13 @@
     orbitAngle = 0;
 
     player.x = WORLD.w / 2; player.y = WORLD.h / 2;
-    player.speed = 240; player.maxHp = 100; player.hp = 100;
+    player.speed = 240; player.maxHp = diff.startHp; player.hp = diff.startHp;
     player.regen = 0; player.level = 1; player.xp = 0; player.xpNext = 5;
     player.pickupRange = 120; player.invuln = 0; player.facing = -Math.PI / 2;
     player.damageMul = 1; player.fireRateMul = 1; player.projectiles = 1;
-    player.critChance = 0.05; player.xpMul = 1;
-    player.armor = 0; player.lifesteal = 0; player.projectileSize = 1; player.revives = 0;
+    player.critChance = 0.05; player.xpMul = diff.xpMul;
+    player.armor = 0; player.lifestealChance = 0; player.lifestealHeal = 6;
+    player.projectileSize = 1; player.revives = 0;
     player.weapons = { pulse: 1 };
     player.passives = {};
     player.trail = [];
@@ -2012,6 +2044,9 @@
 
   function startRun() {
     audio();
+    diff = DIFFICULTIES[difficulty];
+    game.best = game.bests[difficulty] || 0;
+    modeEl.textContent = diff.hud;
     resetRun();
     setState("playing");
     showWave("SURVIVE");
@@ -2042,7 +2077,11 @@
     game.shake = 16;
     burst(player.x, player.y, "rgba(56,246,255,1)", 40, 300, [2, 5], 0.9);
     const isBest = game.time > game.best;
-    if (isBest) { game.best = game.time; saveBest(); }
+    if (isBest) {
+      game.best = game.time;
+      game.bests[difficulty] = game.time;
+      saveBest();
+    }
     el("final-time").textContent = fmtTime(game.time);
     el("final-level").textContent = player.level;
     el("final-kills").textContent = game.kills;
@@ -2052,14 +2091,24 @@
 
   function loadBest() {
     try {
-      const v = parseFloat(localStorage.getItem(STORAGE_KEY) || "0");
-      game.best = isFinite(v) ? v : 0;
-    } catch (e) { game.best = 0; }
-    el("start-best").textContent = fmtTime(game.best);
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const o = JSON.parse(raw);
+        game.bests.easy = +o.easy || 0;
+        game.bests.normal = +o.normal || 0;
+        game.bests.hard = +o.hard || 0;
+      }
+    } catch (e) { /* keep zeros */ }
+    game.best = game.bests[difficulty] || 0;
+    updateBestLabels();
   }
   function saveBest() {
-    try { localStorage.setItem(STORAGE_KEY, String(game.best)); } catch (e) {}
-    el("start-best").textContent = fmtTime(game.best);
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(game.bests)); } catch (e) {}
+    updateBestLabels();
+  }
+  function updateBestLabels() {
+    el("start-best").textContent = fmtTime(game.bests[difficulty] || 0);
+    bestEl.textContent = fmtTime(game.best);
   }
 
   // ---------------------------------------------------------------------
@@ -2137,10 +2186,34 @@
   el("pause-btn").addEventListener("click", togglePause);
 
   // ---------------------------------------------------------------------
+  //  Difficulty selection
+  // ---------------------------------------------------------------------
+  function setDifficulty(key) {
+    if (!DIFFICULTIES[key]) key = "normal";
+    difficulty = key;
+    diff = DIFFICULTIES[key];
+    game.best = game.bests[key] || 0;
+    const btns = document.querySelectorAll(".diff-btn");
+    btns.forEach((b) => b.classList.toggle("active", b.dataset.diff === key));
+    el("diff-desc").textContent = diff.desc;
+    updateBestLabels();
+    try { localStorage.setItem(DIFF_KEY, key); } catch (e) {}
+  }
+  document.querySelectorAll(".diff-btn").forEach((b) => {
+    b.addEventListener("click", () => setDifficulty(b.dataset.diff));
+  });
+  function loadDifficulty() {
+    let saved = "normal";
+    try { saved = localStorage.getItem(DIFF_KEY) || "normal"; } catch (e) {}
+    setDifficulty(saved);
+  }
+
+  // ---------------------------------------------------------------------
   //  Boot
   // ---------------------------------------------------------------------
   resize();
   loadBest();
+  loadDifficulty();
   setState("menu");
   requestAnimationFrame(frame);
 })();

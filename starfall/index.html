@@ -32,6 +32,10 @@
           <span class="stat-label">KILLS</span>
           <span id="kills" class="stat-value">0</span>
         </div>
+        <div class="stat">
+          <span class="stat-label">MODE</span>
+          <span id="mode" class="stat-value mode-value">NORMAL</span>
+        </div>
       </div>
       <div class="hud-right">
         <div class="stat">
@@ -69,6 +73,15 @@
         <li>3択で武器・能力を強化してビルドを作れ</li>
         <li><kbd>P</kbd> / <kbd>Esc</kbd> で一時停止</li>
       </ul>
+      <div class="difficulty">
+        <div class="diff-label">難易度</div>
+        <div class="diff-options" id="diff-options">
+          <button class="diff-btn" data-diff="easy">イージー</button>
+          <button class="diff-btn active" data-diff="normal">ノーマル</button>
+          <button class="diff-btn" data-diff="hard">ハード</button>
+        </div>
+        <div id="diff-desc" class="diff-desc"></div>
+      </div>
       <button id="start-btn" class="btn primary">ゲーム開始</button>
       <div class="best-line">BEST SURVIVAL &nbsp;<b id="start-best">0:00</b></div>
     </div>
