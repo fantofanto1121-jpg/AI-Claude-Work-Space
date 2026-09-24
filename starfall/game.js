@@ -238,6 +238,10 @@
     projectiles: 1,
     critChance: 0.05,
     xpMul: 1,
+    armor: 0,          // fraction of damage reduced
+    lifesteal: 0,      // hp healed per kill
+    projectileSize: 1, // bullet radius multiplier
+    revives: 0,        // extra lives
     weapons: {},   // id -> level
     passives: {},  // id -> level
     trail: [],
@@ -251,6 +255,7 @@
   let floaters = []; // damage numbers / text
   let shockwaves = [];
   let orbiters = [];
+  let lightnings = []; // chain-lightning arcs (visual, short-lived)
 
   // ---------------------------------------------------------------------
   //  Audio (light WebAudio SFX)
@@ -328,6 +333,27 @@
       desc: (lv) => lv === 0 ? "貫通する高速の光線を最も近い敵へ撃つ。"
         : "貫通・威力・連射が上がる。(Lv" + (lv + 1) + ")",
     },
+    chain: {
+      name: "チェインライトニング", icon: "⚡", tag: "WEAPON",
+      color: "rgba(140,220,255,1)", accent: "#8cdcff", glow: "rgba(140,220,255,0.55)",
+      max: 6,
+      desc: (lv) => lv === 0 ? "敵から敵へ連鎖する稲妻を放つ。"
+        : "連鎖数と威力が増す。(Lv" + (lv + 1) + ")",
+    },
+    homing: {
+      name: "ホーミングドローン", icon: "◈", tag: "WEAPON",
+      color: "rgba(120,255,190,1)", accent: "#68ffc0", glow: "rgba(120,255,190,0.55)",
+      max: 6,
+      desc: (lv) => lv === 0 ? "敵を追尾する誘導弾を射出する。"
+        : "弾数と旋回・威力が上がる。(Lv" + (lv + 1) + ")",
+    },
+    aura: {
+      name: "パルサーオーラ", icon: "◉", tag: "WEAPON",
+      color: "rgba(255,120,210,1)", accent: "#ff78d2", glow: "rgba(255,120,210,0.5)",
+      max: 6,
+      desc: (lv) => lv === 0 ? "自機を包む破壊の光輪。触れた敵を焼く。"
+        : "範囲と威力が拡大する。(Lv" + (lv + 1) + ")",
+    },
   };
 
   const PASSIVES = {
@@ -347,6 +373,14 @@
       desc: () => "クリティカル率 +8%（2倍ダメージ）。" },
     greed: { name: "スターグリード", icon: "★", tag: "PASSIVE", accent: "#ffd166", glow: "rgba(255,209,102,0.5)", max: 5,
       desc: () => "獲得経験値 +20%。" },
+    armor: { name: "アダマント装甲", icon: "⛨", tag: "PASSIVE", accent: "#9fb4ff", glow: "rgba(159,180,255,0.5)", max: 6,
+      desc: () => "被ダメージを 10% 軽減。" },
+    lifesteal: { name: "ヴァンパイアコア", icon: "🜲", tag: "PASSIVE", accent: "#ff5a8a", glow: "rgba(255,90,138,0.5)", max: 5,
+      desc: () => "撃破ごとにHPを 1.5 回復。" },
+    bigshot: { name: "ヘヴィラウンド", icon: "⬤", tag: "PASSIVE", accent: "#ffb84d", glow: "rgba(255,184,77,0.5)", max: 5,
+      desc: () => "弾のサイズ +20%（＆威力 +6%）。" },
+    revive: { name: "フェニックスコア", icon: "✦", tag: "PASSIVE", accent: "#ff9d5a", glow: "rgba(255,157,90,0.55)", max: 3,
+      desc: () => "力尽きても1度だけ復活（HP全回復）。" },
   };
 
   // ---------------------------------------------------------------------
@@ -409,9 +443,39 @@
       range: 720,
     };
   }
+  function chainStats() {
+    const lv = weaponLv("chain");
+    return {
+      cooldown: 1.1 / player.fireRateMul,
+      damage: (14 + lv * 8) * player.damageMul,
+      jumps: 3 + lv,           // number of enemies hit
+      range: 620,              // first-target range
+      jumpRange: 220,          // arc distance between enemies
+    };
+  }
+  function homingStats() {
+    const lv = weaponLv("homing");
+    return {
+      cooldown: 0.75 / player.fireRateMul,
+      damage: (9 + lv * 5) * player.damageMul,
+      speed: 300,
+      turn: 3.2 + lv * 0.4,    // steering rate (rad/s)
+      count: 1 + Math.floor((lv + 1) / 2),
+      radius: 6,
+      range: 640,
+    };
+  }
+  function auraStats() {
+    const lv = weaponLv("aura");
+    return {
+      tick: 0.35,              // damage interval
+      damage: (6 + lv * 4) * player.damageMul,
+      radius: 78 + lv * 16,
+    };
+  }
 
   // weapon timers
-  const wt = { pulse: 0, nova: 0, spread: 0, beam: 0 };
+  const wt = { pulse: 0, nova: 0, spread: 0, beam: 0, chain: 0, homing: 0, aura: 0 };
 
   // ---------------------------------------------------------------------
   //  Enemy types
@@ -557,6 +621,9 @@
   function killEnemy(e) {
     e.dead = true;
     game.kills++;
+    if (player.lifesteal > 0 && player.hp < player.maxHp) {
+      player.hp = Math.min(player.maxHp, player.hp + player.lifesteal);
+    }
     burst(e.x, e.y, e.color, e.boss ? 46 : 14, e.boss ? 320 : 190, [1.5, e.boss ? 5 : 3.5], e.boss ? 0.9 : 0.55);
     shockwave(e.x, e.y, e.boss ? 180 : 46, e.glow);
     if (e.boss) { game.shake = Math.max(game.shake, 14); sfx.nova(); }
@@ -652,6 +719,75 @@
         burst(player.x, player.y, WEAPONS.nova.color, 26, 260, [2, 4], 0.6);
       }
     }
+    // CHAIN LIGHTNING
+    if (weaponLv("chain") > 0) {
+      wt.chain -= dt;
+      if (wt.chain <= 0) {
+        const s = chainStats();
+        const first = nearestEnemy(player.x, player.y, s.range * s.range);
+        if (first) {
+          wt.chain = s.cooldown;
+          fireChain(first, s);
+          sfx.shoot();
+        }
+      }
+    }
+    // HOMING DRONES
+    if (weaponLv("homing") > 0) {
+      wt.homing -= dt;
+      if (wt.homing <= 0) {
+        const s = homingStats();
+        const target = nearestEnemy(player.x, player.y, s.range * s.range);
+        if (target) {
+          wt.homing = s.cooldown;
+          for (let i = 0; i < s.count; i++) {
+            const a = player.facing + (i - (s.count - 1) / 2) * 0.5 + rand(-0.15, 0.15);
+            const b = fireBullet(a, s.speed, s.damage, s.radius, WEAPONS.homing.color, WEAPONS.homing.glow, 1, false);
+            b.homing = true;
+            b.turn = s.turn;
+            b.life = 2.6;
+          }
+          sfx.shoot();
+        }
+      }
+    }
+    // PULSAR AURA (continuous field)
+    if (weaponLv("aura") > 0) {
+      wt.aura -= dt;
+      if (wt.aura <= 0) {
+        const s = auraStats();
+        wt.aura = s.tick;
+        const r2 = s.radius * s.radius;
+        for (const e of enemies) {
+          if (dist2(player.x, player.y, e.x, e.y) < r2) {
+            const a = Math.atan2(e.y - player.y, e.x - player.x);
+            damageEnemy(e, s.damage, Math.cos(a) * 40, Math.sin(a) * 40, false);
+          }
+        }
+      }
+    }
+  }
+
+  // Chain lightning: hop from enemy to enemy, damaging each and drawing arcs.
+  function fireChain(first, s) {
+    let current = first;
+    const hit = new Set();
+    let prevX = player.x, prevY = player.y;
+    for (let j = 0; j < s.jumps && current; j++) {
+      lightnings.push({ x1: prevX, y1: prevY, x2: current.x, y2: current.y, life: 1, color: WEAPONS.chain.glow });
+      damageEnemy(current, s.damage, 0, 0, false);
+      burst(current.x, current.y, WEAPONS.chain.color, 5, 140, [1, 2.5], 0.3);
+      hit.add(current);
+      prevX = current.x; prevY = current.y;
+      // find nearest un-hit enemy within jumpRange
+      let next = null, bd = s.jumpRange * s.jumpRange;
+      for (const e of enemies) {
+        if (e.dead || hit.has(e)) continue;
+        const d = dist2(prevX, prevY, e.x, e.y);
+        if (d < bd) { bd = d; next = e; }
+      }
+      current = next;
+    }
   }
 
   function fireBullet(angle, speed, damage, radius, color, glow, pierce, isBeam) {
@@ -659,9 +795,11 @@
     const b = {
       x: player.x, y: player.y,
       vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+      speed: speed,
       damage: crit ? damage * 2 : damage, crit,
-      r: radius, color, glow, pierce, hits: new Set(),
+      r: radius * player.projectileSize, color, glow, pierce, hits: new Set(),
       life: isBeam ? 0.9 : 1.6, angle, long: false,
+      homing: false, turn: 0,
       trail: [],
     };
     bullets.push(b);
@@ -791,20 +929,54 @@
 
   function hurtPlayer(amount) {
     if (player.invuln > 0) return;
-    player.hp -= amount;
+    player.hp -= amount * (1 - player.armor);
     player.invuln = 0.6;
     game.shake = Math.max(game.shake, 10);
     game.hitFlash = 1;
     burst(player.x, player.y, "rgba(255,90,90,1)", 12, 200, [2, 4], 0.5);
     sfx.hurt();
     if (player.hp <= 0) {
+      if (player.revives > 0) {
+        revivePlayer();
+        return;
+      }
       player.hp = 0;
       die();
     }
   }
 
+  function revivePlayer() {
+    player.revives -= 1;
+    player.hp = player.maxHp;
+    player.invuln = 2.4;
+    game.shake = Math.max(game.shake, 18);
+    sfx.level();
+    shockwave(player.x, player.y, 260, "rgba(255,157,90,0.6)");
+    burst(player.x, player.y, "rgba(255,157,90,1)", 40, 340, [2, 5], 0.9);
+    floater(player.x, player.y - 30, "REVIVE!", "#ff9d5a", true);
+    // clear nearby threats
+    const r2 = 240 * 240;
+    for (const e of enemies) {
+      if (!e.boss && dist2(player.x, player.y, e.x, e.y) < r2) killEnemy(e);
+    }
+  }
+
   function updateBullets(dt) {
     for (const b of bullets) {
+      // homing: steer velocity toward nearest enemy
+      if (b.homing) {
+        const target = nearestEnemy(b.x, b.y);
+        if (target) {
+          const desired = Math.atan2(target.y - b.y, target.x - b.x);
+          let cur = Math.atan2(b.vy, b.vx);
+          let diff = desired - cur;
+          while (diff > Math.PI) diff -= TAU;
+          while (diff < -Math.PI) diff += TAU;
+          cur += clamp(diff, -b.turn * dt, b.turn * dt);
+          b.vx = Math.cos(cur) * b.speed;
+          b.vy = Math.sin(cur) * b.speed;
+        }
+      }
       b.trail.push({ x: b.x, y: b.y });
       if (b.trail.length > (b.long ? 10 : 6)) b.trail.shift();
       b.x += b.vx * dt;
@@ -879,6 +1051,9 @@
       s.life -= dt * 1.8;
     }
     shockwaves = shockwaves.filter((s) => s.life > 0);
+
+    for (const ln of lightnings) ln.life -= dt * 4.5;
+    lightnings = lightnings.filter((ln) => ln.life > 0);
 
     if (game.shake > 0) game.shake = Math.max(0, game.shake - dt * 34);
     if (game.hitFlash > 0) game.hitFlash = Math.max(0, game.hitFlash - dt * 2.4);
@@ -1003,6 +1178,10 @@
         case "magnet": player.pickupRange *= 1.4; break;
         case "crit": player.critChance = clamp(player.critChance + 0.08, 0, 0.9); break;
         case "greed": player.xpMul += 0.2; break;
+        case "armor": player.armor = clamp(player.armor + 0.1, 0, 0.75); break;
+        case "lifesteal": player.lifesteal += 1.5; break;
+        case "bigshot": player.projectileSize += 0.2; player.damageMul += 0.06; break;
+        case "revive": player.revives += 1; break;
       }
     }
   }
@@ -1031,8 +1210,10 @@
     drawBackground(camX, camY);
     drawArenaBorder();
     drawGems();
+    drawAura();
     drawEnemies();
     drawBullets();
+    drawLightnings();
     drawOrbiters();
     drawPlayer();
     drawShockwaves();
@@ -1161,59 +1342,243 @@
     ctx.restore();
   }
 
-  function drawEnemies() {
-    for (const e of enemies) {
-      drawGlow(e.x, e.y, e.r * 2.1, e.glow, e.boss ? 0.9 : 0.7);
+  // --- enemy rendering helpers ------------------------------------------
+  const _rgbaCache = new Map();
+  function rgbaParse(str) {
+    if (_rgbaCache.has(str)) return _rgbaCache.get(str);
+    const m = /rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)/.exec(str);
+    const o = m ? { r: +m[1], g: +m[2], b: +m[3] } : { r: 255, g: 255, b: 255 };
+    _rgbaCache.set(str, o);
+    return o;
+  }
+  function rgba(r, g, b, a) { return "rgba(" + (r | 0) + "," + (g | 0) + "," + (b | 0) + "," + a + ")"; }
+  function eColors(e) {
+    const c = rgbaParse(e.color);
+    return {
+      base: e.color,
+      light: rgba(Math.min(255, c.r + 95), Math.min(255, c.g + 95), Math.min(255, c.b + 95), 1),
+      dark: rgba(c.r * 0.4, c.g * 0.4, c.b * 0.4, 1),
+    };
+  }
+  function bodyGrad(r, light, base) {
+    const g = ctx.createRadialGradient(-r * 0.35, -r * 0.4, r * 0.12, 0, 0, r * 1.1);
+    g.addColorStop(0, light);
+    g.addColorStop(0.62, base);
+    g.addColorStop(1, base);
+    return g;
+  }
+  function diamondPath(r) {
+    ctx.beginPath();
+    ctx.moveTo(0, -r); ctx.lineTo(r, 0); ctx.lineTo(0, r); ctx.lineTo(-r, 0); ctx.closePath();
+  }
+  function hexPath(r) {
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = (TAU * i) / 6 + Math.PI / 6;
+      const x = Math.cos(a) * r, y = Math.sin(a) * r;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
     }
+    ctx.closePath();
+  }
+  function starPath(ro, ri, points) {
+    ctx.beginPath();
+    for (let i = 0; i < points * 2; i++) {
+      const a = (TAU * i) / (points * 2) - Math.PI / 2;
+      const rr = i % 2 === 0 ? ro : ri;
+      const x = Math.cos(a) * rr, y = Math.sin(a) * rr;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+  }
+
+  function drawEnemies() {
+    // outer aura glow pass (behind bodies)
+    for (const e of enemies) drawGlow(e.x, e.y, e.r * 2.1, e.glow, e.boss ? 0.95 : 0.7);
+
     for (const e of enemies) {
+      const flash = e.hitFlash > 0;
       ctx.save();
       ctx.translate(e.x, e.y);
-      ctx.rotate(e.angle + e.phase * 0.2);
-      const flash = e.hitFlash > 0;
-      ctx.fillStyle = flash ? "#ffffff" : e.color;
-      ctx.strokeStyle = "rgba(255,255,255,0.7)";
-      ctx.lineWidth = e.boss ? 3 : 1.6;
-      drawShape(e.shape, e.r, e.phase);
-      ctx.fill();
-      ctx.stroke();
+      switch (e.type) {
+        case "rusher": drawRusher(e, flash); break;
+        case "tank": drawTank(e, flash); break;
+        case "orbiter": drawOrbiterEnemy(e, flash); break;
+        case "splitter": drawSplitter(e, flash); break;
+        case "boss": drawBoss(e, flash); break;
+        default: drawDrifter(e, flash); break;
+      }
       ctx.restore();
 
-      // boss hp bar
       if (e.boss) {
-        const w = e.r * 2.2, h = 6;
+        const w = e.r * 2.4, h = 7;
         const p = clamp(e.hp / e.maxHp, 0, 1);
-        ctx.fillStyle = "rgba(0,0,0,0.5)";
-        ctx.fillRect(e.x - w / 2, e.y - e.r - 16, w, h);
+        ctx.fillStyle = "rgba(0,0,0,0.55)";
+        ctx.fillRect(e.x - w / 2, e.y - e.r - 20, w, h);
         ctx.fillStyle = "#ff3ea5";
-        ctx.fillRect(e.x - w / 2, e.y - e.r - 16, w * p, h);
+        ctx.fillRect(e.x - w / 2, e.y - e.r - 20, w * p, h);
+        ctx.strokeStyle = "rgba(255,120,210,0.7)";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(e.x - w / 2, e.y - e.r - 20, w, h);
       }
     }
   }
 
-  function drawShape(shape, r, phase) {
+  function drawDrifter(e, flash) {
+    const c = eColors(e), r = e.r;
+    ctx.rotate(e.phase * 0.25);
+    diamondPath(r);
+    ctx.fillStyle = flash ? "#ffffff" : bodyGrad(r, c.light, c.base);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.55)";
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+    // facet lines
     ctx.beginPath();
-    if (shape === "diamond") {
-      ctx.moveTo(0, -r); ctx.lineTo(r, 0); ctx.lineTo(0, r); ctx.lineTo(-r, 0); ctx.closePath();
-    } else if (shape === "tri") {
-      ctx.moveTo(0, -r); ctx.lineTo(r * 0.9, r * 0.7); ctx.lineTo(-r * 0.9, r * 0.7); ctx.closePath();
-    } else if (shape === "hex") {
-      for (let i = 0; i < 6; i++) {
-        const a = (TAU * i) / 6;
-        const x = Math.cos(a) * r, y = Math.sin(a) * r;
-        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-      }
-      ctx.closePath();
-    } else if (shape === "star") {
-      for (let i = 0; i < 10; i++) {
-        const a = (TAU * i) / 10 - Math.PI / 2;
-        const rr = i % 2 === 0 ? r : r * 0.45;
-        const x = Math.cos(a) * rr, y = Math.sin(a) * rr;
-        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-      }
-      ctx.closePath();
-    } else {
-      ctx.arc(0, 0, r, 0, TAU);
+    ctx.moveTo(0, -r); ctx.lineTo(0, r); ctx.moveTo(-r, 0); ctx.lineTo(r, 0);
+    ctx.strokeStyle = "rgba(255,255,255,0.28)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    drawGlow(0, 0, r * 0.7, c.base, 0.7);
+    ctx.fillStyle = "rgba(255,255,255,0.9)";
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.2, 0, TAU); ctx.fill();
+  }
+
+  function drawRusher(e, flash) {
+    const c = eColors(e), r = e.r;
+    ctx.rotate(e.angle + Math.PI / 2); // point toward travel
+    drawGlow(0, r * 1.05, r * 0.95, c.base, 0.75); // engine wake
+    ctx.beginPath();
+    ctx.moveTo(0, -r * 1.55);
+    ctx.lineTo(r * 0.95, r * 0.9);
+    ctx.lineTo(0, r * 0.4);
+    ctx.lineTo(-r * 0.95, r * 0.9);
+    ctx.closePath();
+    ctx.fillStyle = flash ? "#ffffff" : bodyGrad(r, c.light, c.base);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.8)";
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+    drawGlow(0, -r * 1.15, r * 0.5, "rgba(255,255,255,0.9)", 0.8); // hot tip
+  }
+
+  function drawTank(e, flash) {
+    const c = eColors(e), r = e.r;
+    ctx.rotate(e.phase * 0.12);
+    hexPath(r);
+    ctx.fillStyle = flash ? "#ffffff" : bodyGrad(r, c.light, c.dark);
+    ctx.fill();
+    ctx.strokeStyle = c.light;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    hexPath(r * 0.6);
+    ctx.strokeStyle = "rgba(255,255,255,0.45)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // rivets on outer vertices
+    ctx.fillStyle = "rgba(255,255,255,0.7)";
+    for (let i = 0; i < 6; i++) {
+      const a = (TAU * i) / 6 + Math.PI / 6;
+      ctx.beginPath();
+      ctx.arc(Math.cos(a) * r * 0.78, Math.sin(a) * r * 0.78, 2.2, 0, TAU);
+      ctx.fill();
     }
+    drawGlow(0, 0, r * 0.55, c.base, 0.7);
+    ctx.fillStyle = "rgba(255,235,235,0.9)";
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.2, 0, TAU); ctx.fill();
+  }
+
+  function drawOrbiterEnemy(e, flash) {
+    const c = eColors(e), r = e.r;
+    ctx.save();
+    ctx.rotate(e.phase * 0.9);
+    starPath(r, r * 0.44, 5);
+    ctx.fillStyle = flash ? "#ffffff" : bodyGrad(r, c.light, c.base);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.7)";
+    ctx.lineWidth = 1.3;
+    ctx.stroke();
+    ctx.restore();
+    const pr = r * (0.28 + 0.1 * Math.sin(game.time * 8 + e.phase));
+    drawGlow(0, 0, r * 0.7, c.base, 0.8);
+    ctx.fillStyle = "rgba(255,255,255,0.92)";
+    ctx.beginPath(); ctx.arc(0, 0, pr, 0, TAU); ctx.fill();
+    // orbiting satellites
+    for (let i = 0; i < 3; i++) {
+      const a = -e.phase * 1.4 + (TAU * i) / 3;
+      const sxp = Math.cos(a) * r * 1.15, syp = Math.sin(a) * r * 1.15;
+      drawGlow(sxp, syp, 4.5, c.light, 0.9);
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath(); ctx.arc(sxp, syp, 1.8, 0, TAU); ctx.fill();
+    }
+  }
+
+  function drawSplitter(e, flash) {
+    const c = eColors(e);
+    const r = e.r * (1 + 0.06 * Math.sin(game.time * 7 + e.phase));
+    ctx.rotate(e.phase * 0.2);
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU);
+    ctx.fillStyle = flash ? "#ffffff" : bodyGrad(r, c.light, c.base);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.6)";
+    ctx.lineWidth = 1.6;
+    ctx.stroke();
+    // dividing seam (looks ready to split)
+    ctx.strokeStyle = "rgba(15,15,25,0.55)";
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(0, -r);
+    ctx.quadraticCurveTo(r * 0.3, 0, 0, r);
+    ctx.stroke();
+    // two nuclei
+    drawGlow(-r * 0.36, 0, r * 0.42, c.base, 0.85);
+    drawGlow(r * 0.36, 0, r * 0.42, c.base, 0.85);
+    ctx.fillStyle = "rgba(255,255,255,0.9)";
+    ctx.beginPath(); ctx.arc(-r * 0.36, 0, r * 0.16, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(r * 0.36, 0, r * 0.16, 0, TAU); ctx.fill();
+  }
+
+  function drawBoss(e, flash) {
+    const c = eColors(e), r = e.r;
+    // outer spiked ring (rotating)
+    ctx.save();
+    ctx.rotate(e.phase * 0.3);
+    const spikes = 12;
+    ctx.beginPath();
+    for (let i = 0; i < spikes * 2; i++) {
+      const a = (TAU * i) / (spikes * 2);
+      const rr = i % 2 === 0 ? r * 1.3 : r * 0.98;
+      const x = Math.cos(a) * rr, y = Math.sin(a) * rr;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fillStyle = flash ? "#ffffff" : c.dark;
+    ctx.fill();
+    ctx.strokeStyle = c.light;
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    ctx.restore();
+    // mid hex (counter-rotating)
+    ctx.save();
+    ctx.rotate(-e.phase * 0.5);
+    hexPath(r * 0.82);
+    ctx.fillStyle = flash ? "#ffffff" : bodyGrad(r, c.light, c.base);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.6)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+    // dashed energy ring
+    ctx.strokeStyle = c.light;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([9, 9]);
+    ctx.lineDashOffset = -game.time * 34;
+    ctx.beginPath(); ctx.arc(0, 0, r * 1.05, 0, TAU); ctx.stroke();
+    ctx.setLineDash([]);
+    // pulsing core
+    const pr = r * (0.34 + 0.08 * Math.sin(game.time * 6));
+    drawGlow(0, 0, r * 0.9, c.base, 0.9);
+    ctx.fillStyle = "rgba(255,255,255,0.95)";
+    ctx.beginPath(); ctx.arc(0, 0, pr, 0, TAU); ctx.fill();
   }
 
   function drawBullets() {
@@ -1260,6 +1625,69 @@
       ctx.stroke();
     }
     ctx.globalCompositeOperation = "source-over";
+  }
+
+  function drawAura() {
+    if (weaponLv("aura") === 0) return;
+    const s = auraStats();
+    const pulse = 0.5 + 0.5 * Math.sin(game.time * 6);
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    // soft filled field
+    const grd = ctx.createRadialGradient(player.x, player.y, s.radius * 0.2, player.x, player.y, s.radius);
+    grd.addColorStop(0, "rgba(255,120,210,0)");
+    grd.addColorStop(0.75, "rgba(255,120,210,0.06)");
+    grd.addColorStop(1, "rgba(255,120,210," + (0.16 + pulse * 0.12) + ")");
+    ctx.fillStyle = grd;
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, s.radius, 0, TAU);
+    ctx.fill();
+    // rotating edge ring with dashes
+    ctx.strokeStyle = "rgba(255,120,210," + (0.4 + pulse * 0.3) + ")";
+    ctx.lineWidth = 2.5;
+    ctx.setLineDash([14, 10]);
+    ctx.lineDashOffset = -game.time * 40;
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, s.radius, 0, TAU);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  function drawLightnings() {
+    if (!lightnings.length) return;
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.lineCap = "round";
+    for (const ln of lightnings) {
+      const a = clamp(ln.life, 0, 1);
+      // jagged path between the two points
+      const dx = ln.x2 - ln.x1, dy = ln.y2 - ln.y1;
+      const len = Math.hypot(dx, dy) || 1;
+      const nx = -dy / len, ny = dx / len;
+      const segs = Math.max(3, Math.floor(len / 26));
+      const pts = [];
+      for (let i = 0; i <= segs; i++) {
+        const t = i / segs;
+        const jitter = i === 0 || i === segs ? 0 : (Math.random() - 0.5) * 16 * a;
+        pts.push([ln.x1 + dx * t + nx * jitter, ln.y1 + dy * t + ny * jitter]);
+      }
+      // outer glow stroke
+      ctx.strokeStyle = ln.color;
+      ctx.lineWidth = 6 * a;
+      ctx.beginPath();
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+      ctx.stroke();
+      // bright core
+      ctx.strokeStyle = "rgba(240,252,255," + a + ")";
+      ctx.lineWidth = 2 * a + 0.6;
+      ctx.beginPath();
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+      ctx.stroke();
+    }
+    ctx.restore();
   }
 
   function drawGems() {
@@ -1354,18 +1782,20 @@
 
   function resetRun() {
     enemies = []; bullets = []; gems = []; particles = [];
-    floaters = []; shockwaves = []; orbiters = [];
+    floaters = []; shockwaves = []; orbiters = []; lightnings = [];
     game.time = 0; game.kills = 0; game.shake = 0; game.hitFlash = 0;
     game.spawnTimer = 0; game.nextWaveAt = 30; game.waveCount = 0;
     wt.pulse = 0; wt.nova = 0; wt.spread = 0; wt.beam = 0;
+    wt.chain = 0; wt.homing = 0; wt.aura = 0;
     orbitAngle = 0;
 
     player.x = WORLD.w / 2; player.y = WORLD.h / 2;
     player.speed = 240; player.maxHp = 100; player.hp = 100;
     player.regen = 0; player.level = 1; player.xp = 0; player.xpNext = 5;
-    player.pickupRange = 90; player.invuln = 0; player.facing = -Math.PI / 2;
+    player.pickupRange = 120; player.invuln = 0; player.facing = -Math.PI / 2;
     player.damageMul = 1; player.fireRateMul = 1; player.projectiles = 1;
     player.critChance = 0.05; player.xpMul = 1;
+    player.armor = 0; player.lifesteal = 0; player.projectileSize = 1; player.revives = 0;
     player.weapons = { pulse: 1 };
     player.passives = {};
     player.trail = [];
