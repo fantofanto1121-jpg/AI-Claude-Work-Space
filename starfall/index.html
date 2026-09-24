@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#05060f">
+<title>STARFALL ARENA</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <canvas id="game"></canvas>
+
+  <!-- ビネット / スキャンライン等の装飾レイヤー -->
+  <div id="vignette"></div>
+  <div id="scanlines"></div>
+  <div id="flash"></div>
+
+  <!-- プレイ中のHUD -->
+  <div id="hud" class="hidden">
+    <div class="hud-top">
+      <div class="hud-left">
+        <div class="stat">
+          <span class="stat-label">TIME</span>
+          <span id="time" class="stat-value">0:00</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">LEVEL</span>
+          <span id="level" class="stat-value">1</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">KILLS</span>
+          <span id="kills" class="stat-value">0</span>
+        </div>
+      </div>
+      <div class="hud-right">
+        <div class="stat">
+          <span class="stat-label">BEST</span>
+          <span id="best" class="stat-value">0:00</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="bars">
+      <div class="bar hp-bar">
+        <div id="hp-fill" class="bar-fill"></div>
+        <span id="hp-text" class="bar-text">100 / 100</span>
+      </div>
+      <div class="bar xp-bar">
+        <div id="xp-fill" class="bar-fill"></div>
+      </div>
+    </div>
+
+    <div id="wave-banner" class="wave-banner hidden"></div>
+  </div>
+
+  <!-- スタート画面 -->
+  <div id="start-screen" class="overlay">
+    <div class="panel">
+      <div class="logo">
+        <h1>STARFALL<span>ARENA</span></h1>
+        <div class="tagline">ネオンの闇を、生き延びろ。</div>
+      </div>
+      <ul class="rules">
+        <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / 矢印キーで移動</li>
+        <li>攻撃は<b>自動</b>。近い敵を撃つ</li>
+        <li>光る欠片を集めて<b>レベルアップ</b></li>
+        <li>3択で武器・能力を強化してビルドを作れ</li>
+        <li><kbd>P</kbd> / <kbd>Esc</kbd> で一時停止</li>
+      </ul>
+      <button id="start-btn" class="btn primary">▶ ゲーム開始</button>
+      <div class="best-line">BEST SURVIVAL &nbsp;<b id="start-best">0:00</b></div>
+    </div>
+  </div>
+
+  <!-- レベルアップ選択 -->
+  <div id="levelup-screen" class="overlay hidden">
+    <div class="levelup-inner">
+      <div class="levelup-title">LEVEL <span id="levelup-num">2</span> — 強化を選べ</div>
+      <div id="upgrade-cards" class="cards"></div>
+      <div class="levelup-hint">クリック、または <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> で選択</div>
+    </div>
+  </div>
+
+  <!-- 一時停止 -->
+  <div id="pause-screen" class="overlay hidden">
+    <div class="panel">
+      <h2>PAUSED</h2>
+      <div id="build-list" class="build-list"></div>
+      <button id="resume-btn" class="btn primary">▶ 再開</button>
+      <button id="quit-btn" class="btn ghost">タイトルへ</button>
+    </div>
+  </div>
+
+  <!-- ゲームオーバー -->
+  <div id="gameover-screen" class="overlay hidden">
+    <div class="panel">
+      <h2 class="danger">YOU FELL</h2>
+      <div class="result-grid">
+        <div class="result-cell"><span>生存時間</span><b id="final-time">0:00</b></div>
+        <div class="result-cell"><span>到達レベル</span><b id="final-level">1</b></div>
+        <div class="result-cell"><span>撃破数</span><b id="final-kills">0</b></div>
+        <div class="result-cell"><span>ベスト</span><b id="final-best">0:00</b></div>
+      </div>
+      <div id="newbest-badge" class="newbest hidden">★ NEW BEST ★</div>
+      <button id="retry-btn" class="btn primary">↻ もう一度</button>
+    </div>
+  </div>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>
