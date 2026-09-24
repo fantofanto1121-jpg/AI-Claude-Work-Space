@@ -377,12 +377,12 @@
       desc: () => "獲得経験値 +20%。" },
     armor: { name: "アダマント装甲", icon: "⬡", tag: "PASSIVE", accent: "#9fb4ff", glow: "rgba(159,180,255,0.5)", max: 6,
       desc: () => "被ダメージを 10% 軽減。" },
-    lifesteal: { name: "ヴァンパイアコア", icon: "♥", tag: "PASSIVE", accent: "#ff5a8a", glow: "rgba(255,90,138,0.5)", max: 5,
-      desc: () => "撃破ごとにHPを 1.5 回復。" },
+    lifesteal: { name: "ヴァンパイアコア", icon: "♥", tag: "PASSIVE", accent: "#ff5a8a", glow: "rgba(255,90,138,0.5)", max: 4,
+      desc: () => "撃破ごとにHPを 0.6 回復。" },
     bigshot: { name: "ヘヴィラウンド", icon: "⬤", tag: "PASSIVE", accent: "#ffb84d", glow: "rgba(255,184,77,0.5)", max: 5,
       desc: () => "弾のサイズ +20%（＆威力 +6%）。" },
-    revive: { name: "フェニックスコア", icon: "✧", tag: "PASSIVE", accent: "#ff9d5a", glow: "rgba(255,157,90,0.55)", max: 3,
-      desc: () => "力尽きても1度だけ復活（HP全回復）。" },
+    revive: { name: "フェニックスコア", icon: "✧", tag: "PASSIVE", accent: "#ff9d5a", glow: "rgba(255,157,90,0.55)", max: 1,
+      desc: () => "力尽きた時1度だけ復活（HP半分＆周囲を一掃）。" },
   };
 
   // ---------------------------------------------------------------------
@@ -1050,18 +1050,20 @@
 
   function revivePlayer() {
     player.revives -= 1;
-    player.hp = player.maxHp;
-    player.invuln = 2.4;
+    player.hp = player.maxHp * 0.5;
+    player.invuln = 2.0;
     game.shake = Math.max(game.shake, 18);
     sfx.level();
-    shockwave(player.x, player.y, 260, "rgba(255,157,90,0.6)");
+    shockwave(player.x, player.y, 200, "rgba(255,157,90,0.6)");
     burst(player.x, player.y, "rgba(255,157,90,1)", 40, 340, [2, 5], 0.9);
     floater(player.x, player.y - 30, "REVIVE!", "#ff9d5a", true);
-    // clear nearby threats
-    const r2 = 240 * 240;
+    // push back / clear immediate threats only
+    const r2 = 170 * 170;
     for (const e of enemies) {
       if (!e.boss && dist2(player.x, player.y, e.x, e.y) < r2) killEnemy(e);
     }
+    // also clear hostile projectiles in range so revive isn't wasted instantly
+    enemyBullets = enemyBullets.filter((b) => dist2(player.x, player.y, b.x, b.y) > r2);
   }
 
   function updateBullets(dt) {
@@ -1282,7 +1284,7 @@
         case "crit": player.critChance = clamp(player.critChance + 0.08, 0, 0.9); break;
         case "greed": player.xpMul += 0.2; break;
         case "armor": player.armor = clamp(player.armor + 0.1, 0, 0.75); break;
-        case "lifesteal": player.lifesteal += 1.5; break;
+        case "lifesteal": player.lifesteal += 0.6; break;
         case "bigshot": player.projectileSize += 0.2; player.damageMul += 0.06; break;
         case "revive": player.revives += 1; break;
       }
