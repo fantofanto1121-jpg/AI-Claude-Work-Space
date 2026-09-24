@@ -159,6 +159,53 @@
     if (game.state === "playing") togglePause();
   });
 
+  // --- Touch: floating virtual joystick (mobile) ---------------------------
+  const touch = { active: false, id: null, ox: 0, oy: 0, kx: 0, ky: 0, nx: 0, ny: 0 };
+  const JOY_MAX = 68; // px radius for full-speed input
+
+  function touchStart(e) {
+    if (game.state !== "playing") return; // overlays handle their own taps
+    const t = e.changedTouches[0];
+    if (!t) return;
+    touch.active = true;
+    touch.id = t.identifier;
+    touch.ox = t.clientX; touch.oy = t.clientY;
+    touch.kx = t.clientX; touch.ky = t.clientY;
+    touch.nx = 0; touch.ny = 0;
+    const a = audio();
+    if (a && a.state === "suspended") a.resume().catch(() => {});
+    if (e.cancelable) e.preventDefault();
+  }
+  function touchMove(e) {
+    if (!touch.active) return;
+    for (const t of e.changedTouches) {
+      if (t.identifier !== touch.id) continue;
+      const dx = t.clientX - touch.ox;
+      const dy = t.clientY - touch.oy;
+      const len = Math.hypot(dx, dy);
+      const mag = Math.min(len, JOY_MAX);
+      const nrm = len > 0 ? mag / len : 0;
+      touch.kx = touch.ox + dx * nrm;   // clamped knob position
+      touch.ky = touch.oy + dy * nrm;
+      const m = mag / JOY_MAX;           // analog magnitude 0..1
+      touch.nx = len > 0 ? (dx / len) * m : 0;
+      touch.ny = len > 0 ? (dy / len) * m : 0;
+    }
+    if (e.cancelable) e.preventDefault();
+  }
+  function touchEnd(e) {
+    for (const t of e.changedTouches) {
+      if (t.identifier === touch.id) {
+        touch.active = false; touch.id = null; touch.nx = 0; touch.ny = 0;
+      }
+    }
+    if (e.cancelable) e.preventDefault();
+  }
+  canvas.addEventListener("touchstart", touchStart, { passive: false });
+  canvas.addEventListener("touchmove", touchMove, { passive: false });
+  canvas.addEventListener("touchend", touchEnd, { passive: false });
+  canvas.addEventListener("touchcancel", touchEnd, { passive: false });
+
   // ---------------------------------------------------------------------
   //  Game state
   // ---------------------------------------------------------------------
@@ -666,6 +713,12 @@
     if (mx || my) {
       const len = Math.hypot(mx, my);
       mx /= len; my /= len;
+    }
+    // touch joystick overrides keyboard when active (analog magnitude)
+    if (touch.active && (touch.nx || touch.ny)) {
+      mx = touch.nx; my = touch.ny;
+    }
+    if (mx || my) {
       player.facing = Math.atan2(my, mx);
       // trail
       player.trail.push({ x: player.x, y: player.y, life: 1 });
@@ -987,6 +1040,32 @@
     drawFloaters();
 
     ctx.restore();
+
+    drawJoystick();
+  }
+
+  function drawJoystick() {
+    if (!touch.active) return;
+    ctx.save();
+    // outer ring
+    ctx.strokeStyle = "rgba(56,246,255,0.45)";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(touch.ox, touch.oy, JOY_MAX, 0, TAU);
+    ctx.stroke();
+    ctx.fillStyle = "rgba(56,246,255,0.06)";
+    ctx.beginPath();
+    ctx.arc(touch.ox, touch.oy, JOY_MAX, 0, TAU);
+    ctx.fill();
+    // knob (glow)
+    ctx.globalCompositeOperation = "lighter";
+    drawGlow(touch.kx, touch.ky, 30, "rgba(56,246,255,0.7)", 0.8);
+    ctx.globalCompositeOperation = "source-over";
+    ctx.fillStyle = "rgba(230,250,255,0.95)";
+    ctx.beginPath();
+    ctx.arc(touch.kx, touch.ky, 17, 0, TAU);
+    ctx.fill();
+    ctx.restore();
   }
 
   function drawBackground(camX, camY) {
@@ -1265,6 +1344,7 @@
   // ---------------------------------------------------------------------
   function setState(s) {
     game.state = s;
+    if (s !== "playing") { touch.active = false; touch.id = null; touch.nx = 0; touch.ny = 0; }
     startScreen.classList.toggle("hidden", s !== "menu");
     levelupScreen.classList.toggle("hidden", s !== "levelup");
     pauseScreen.classList.toggle("hidden", s !== "paused");
@@ -1415,6 +1495,7 @@
   el("retry-btn").addEventListener("click", startRun);
   el("resume-btn").addEventListener("click", () => setState("playing"));
   el("quit-btn").addEventListener("click", () => setState("menu"));
+  el("pause-btn").addEventListener("click", togglePause);
 
   // ---------------------------------------------------------------------
   //  Boot

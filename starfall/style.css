@@ -105,11 +105,34 @@ html, body {
   font-weight: 800;
   text-shadow: 0 0 16px rgba(56, 246, 255, 0.55);
 }
+.hud-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
 .hud-right .stat-value {
   font-size: 20px;
   color: var(--neon-gold);
   text-shadow: 0 0 14px rgba(255, 209, 102, 0.5);
 }
+
+.pause-btn {
+  pointer-events: auto;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  color: #dff2ff;
+  cursor: pointer;
+  background: rgba(56, 246, 255, 0.1);
+  border: 1px solid rgba(56, 246, 255, 0.4);
+  box-shadow: 0 0 16px rgba(56, 246, 255, 0.2);
+  transition: transform 0.08s ease, filter 0.2s ease;
+}
+.pause-btn:hover { filter: brightness(1.15); }
+.pause-btn:active { transform: scale(0.94); }
 
 .bars {
   position: absolute;
@@ -190,6 +213,8 @@ html, body {
   background: rgba(4, 6, 16, 0.66);
   backdrop-filter: blur(9px);
   -webkit-backdrop-filter: blur(9px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .overlay.hidden { display: none; }
 
