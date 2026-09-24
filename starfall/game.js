@@ -221,6 +221,7 @@
     difficulty: 1,
     nextWaveAt: 30,
     waveCount: 0,
+    bossIndex: 0,
   };
 
   const player = {
@@ -256,6 +257,7 @@
   let shockwaves = [];
   let orbiters = [];
   let lightnings = []; // chain-lightning arcs (visual, short-lived)
+  let enemyBullets = []; // hostile projectiles (sentry boss)
 
   // ---------------------------------------------------------------------
   //  Audio (light WebAudio SFX)
@@ -334,7 +336,7 @@
         : "貫通・威力・連射が上がる。(Lv" + (lv + 1) + ")",
     },
     chain: {
-      name: "チェインライトニング", icon: "⚡", tag: "WEAPON",
+      name: "チェインライトニング", icon: "↯", tag: "WEAPON",
       color: "rgba(140,220,255,1)", accent: "#8cdcff", glow: "rgba(140,220,255,0.55)",
       max: 6,
       desc: (lv) => lv === 0 ? "敵から敵へ連鎖する稲妻を放つ。"
@@ -357,13 +359,13 @@
   };
 
   const PASSIVES = {
-    power: { name: "オーバードライブ", icon: "⚡", tag: "PASSIVE", accent: "#ff9d5a", glow: "rgba(255,157,90,0.5)", max: 8,
+    power: { name: "オーバードライブ", icon: "❖", tag: "PASSIVE", accent: "#ff9d5a", glow: "rgba(255,157,90,0.5)", max: 8,
       desc: () => "全武器のダメージ +15%。" },
-    haste: { name: "ヘイストコア", icon: "⏩", tag: "PASSIVE", accent: "#38f6ff", glow: "rgba(56,246,255,0.5)", max: 8,
+    haste: { name: "ヘイストコア", icon: "≫", tag: "PASSIVE", accent: "#38f6ff", glow: "rgba(56,246,255,0.5)", max: 8,
       desc: () => "攻撃速度 +12%。" },
     swift: { name: "スラスター", icon: "➤", tag: "PASSIVE", accent: "#78ffbe", glow: "rgba(120,255,190,0.5)", max: 6,
       desc: () => "移動速度 +10%。" },
-    vitality: { name: "ハルプレート", icon: "❤", tag: "PASSIVE", accent: "#ff5a5a", glow: "rgba(255,90,90,0.5)", max: 8,
+    vitality: { name: "ハルプレート", icon: "✛", tag: "PASSIVE", accent: "#ff5a5a", glow: "rgba(255,90,90,0.5)", max: 8,
       desc: () => "最大HP +25 （＆全回復）。" },
     regen: { name: "ナノリペア", icon: "✚", tag: "PASSIVE", accent: "#78ffbe", glow: "rgba(120,255,190,0.5)", max: 6,
       desc: () => "毎秒HP自動回復 +1.2。" },
@@ -373,13 +375,13 @@
       desc: () => "クリティカル率 +8%（2倍ダメージ）。" },
     greed: { name: "スターグリード", icon: "★", tag: "PASSIVE", accent: "#ffd166", glow: "rgba(255,209,102,0.5)", max: 5,
       desc: () => "獲得経験値 +20%。" },
-    armor: { name: "アダマント装甲", icon: "⛨", tag: "PASSIVE", accent: "#9fb4ff", glow: "rgba(159,180,255,0.5)", max: 6,
+    armor: { name: "アダマント装甲", icon: "⬡", tag: "PASSIVE", accent: "#9fb4ff", glow: "rgba(159,180,255,0.5)", max: 6,
       desc: () => "被ダメージを 10% 軽減。" },
-    lifesteal: { name: "ヴァンパイアコア", icon: "🜲", tag: "PASSIVE", accent: "#ff5a8a", glow: "rgba(255,90,138,0.5)", max: 5,
+    lifesteal: { name: "ヴァンパイアコア", icon: "♥", tag: "PASSIVE", accent: "#ff5a8a", glow: "rgba(255,90,138,0.5)", max: 5,
       desc: () => "撃破ごとにHPを 1.5 回復。" },
     bigshot: { name: "ヘヴィラウンド", icon: "⬤", tag: "PASSIVE", accent: "#ffb84d", glow: "rgba(255,184,77,0.5)", max: 5,
       desc: () => "弾のサイズ +20%（＆威力 +6%）。" },
-    revive: { name: "フェニックスコア", icon: "✦", tag: "PASSIVE", accent: "#ff9d5a", glow: "rgba(255,157,90,0.55)", max: 3,
+    revive: { name: "フェニックスコア", icon: "✧", tag: "PASSIVE", accent: "#ff9d5a", glow: "rgba(255,157,90,0.55)", max: 3,
       desc: () => "力尽きても1度だけ復活（HP全回復）。" },
   };
 
@@ -486,8 +488,14 @@
     tank:    { r: 26, hp: 80, speed: 46, dmg: 16, xp: 4, color: "rgba(255,120,120,1)", glow: "rgba(255,90,90,0.5)", shape: "hex" },
     orbiter: { r: 13, hp: 26, speed: 92, dmg: 9, xp: 2, color: "rgba(200,140,255,1)", glow: "rgba(165,107,255,0.5)", shape: "star" },
     splitter:{ r: 18, hp: 34, speed: 64, dmg: 10, xp: 2, color: "rgba(255,180,90,1)", glow: "rgba(255,157,90,0.5)", shape: "diamond", splits: true },
-    boss:    { r: 46, hp: 900, speed: 40, dmg: 26, xp: 40, color: "rgba(255,80,180,1)", glow: "rgba(255,62,165,0.6)", shape: "hex", boss: true },
+    // Bosses (distinct kinds, each with its own behaviour + look)
+    boss_dread:  { r: 46, hp: 900, speed: 42, dmg: 26, xp: 42, color: "rgba(255,80,180,1)", glow: "rgba(255,62,165,0.6)", boss: true, bossKind: "dread" },
+    boss_hive:   { r: 44, hp: 780, speed: 36, dmg: 20, xp: 42, color: "rgba(120,255,170,1)", glow: "rgba(80,255,150,0.55)", boss: true, bossKind: "hive" },
+    boss_lancer: { r: 38, hp: 760, speed: 58, dmg: 24, xp: 46, color: "rgba(90,220,255,1)", glow: "rgba(56,200,255,0.6)", boss: true, bossKind: "lancer" },
+    boss_sentry: { r: 42, hp: 720, speed: 32, dmg: 16, xp: 46, color: "rgba(255,190,90,1)", glow: "rgba(255,170,70,0.6)", boss: true, bossKind: "sentry" },
   };
+  const BOSS_KINDS = ["boss_dread", "boss_hive", "boss_lancer", "boss_sentry"];
+  const BOSS_NAMES = { dread: "ドレッドノート", hive: "ハイヴコア", lancer: "ランサー", sentry: "セントリー" };
 
   function spawnEnemy(type, x, y, hpScale) {
     const t = ENEMY_TYPES[type];
@@ -496,9 +504,10 @@
       r: t.r, maxHp: t.hp * (hpScale || 1), hp: t.hp * (hpScale || 1),
       speed: t.speed, dmg: t.dmg, xp: t.xp,
       color: t.color, glow: t.glow, shape: t.shape,
-      splits: !!t.splits, boss: !!t.boss,
+      splits: !!t.splits, boss: !!t.boss, bossKind: t.bossKind || null,
       hitFlash: 0, phase: Math.random() * TAU, angle: 0,
       knock: { x: 0, y: 0 },
+      aTimer: 3, teleT: 0, dashT: 0, dvx: 0, dvy: 0,
     };
     enemies.push(e);
     return e;
@@ -537,9 +546,11 @@
     if (game.time >= game.nextWaveAt) {
       game.waveCount++;
       game.nextWaveAt += 30;
-      if (game.waveCount % 3 === 0) {
-        const b = spawnAtEdge("boss", hpScale * (1 + game.waveCount * 0.12));
-        showWave("⚠ BOSS APPROACHING ⚠");
+      if (game.waveCount % 2 === 0) {
+        const kind = BOSS_KINDS[game.bossIndex % BOSS_KINDS.length];
+        game.bossIndex++;
+        spawnAtEdge(kind, hpScale * (1 + game.waveCount * 0.12));
+        showWave("警告 — " + BOSS_NAMES[ENEMY_TYPES[kind].bossKind] + " 出現");
       } else {
         const n = 8 + game.waveCount * 2;
         for (let i = 0; i < n; i++) spawnAtEdge(rollEnemyType(), hpScale);
@@ -882,11 +893,19 @@
       if (e._orbCd > 0) e._orbCd -= dt;
       e.phase += dt * 3;
 
-      let ang = Math.atan2(player.y - e.y, player.x - e.x);
-      // orbiter type circles the player
-      if (e.type === "orbiter") ang += 0.9;
-      let vx = Math.cos(ang) * e.speed;
-      let vy = Math.sin(ang) * e.speed;
+      let vx, vy;
+      if (e.boss) {
+        const bv = updateBoss(e, dt);
+        vx = bv.vx; vy = bv.vy;
+        e.angle = Math.atan2(player.y - e.y, player.x - e.x);
+      } else {
+        let ang = Math.atan2(player.y - e.y, player.x - e.x);
+        // orbiter type circles the player
+        if (e.type === "orbiter") ang += 0.9;
+        vx = Math.cos(ang) * e.speed;
+        vy = Math.sin(ang) * e.speed;
+        e.angle = ang;
+      }
       // knockback
       vx += e.knock.x; vy += e.knock.y;
       e.knock.x *= 0.86; e.knock.y *= 0.86;
@@ -894,7 +913,6 @@
       e.y += vy * dt;
       e.x = clamp(e.x, 20, WORLD.w - 20);
       e.y = clamp(e.y, 20, WORLD.h - 20);
-      e.angle = ang;
 
       // contact damage to player
       const rr = e.r + player.r;
@@ -925,6 +943,91 @@
       }
     }
     enemies = enemies.filter((e) => !e.dead);
+  }
+
+  // Boss AI: returns the velocity to apply this frame; also runs abilities.
+  function updateBoss(e, dt) {
+    e.aTimer -= dt;
+    const dx = player.x - e.x, dy = player.y - e.y;
+    const d = Math.hypot(dx, dy) || 1;
+    const ux = dx / d, uy = dy / d;
+    let vx = ux * e.speed, vy = uy * e.speed;
+
+    if (e.bossKind === "lancer") {
+      // periodic telegraph -> high-speed dash toward the player
+      if (e.dashT > 0) {
+        e.dashT -= dt;
+        vx = e.dvx; vy = e.dvy;
+      } else if (e.teleT > 0) {
+        e.teleT -= dt;
+        vx = ux * e.speed * 0.15; vy = uy * e.speed * 0.15; // wind up almost still
+        if (e.teleT <= 0) {
+          e.dashT = 0.55;
+          e.dvx = ux * 640; e.dvy = uy * 640;
+          game.shake = Math.max(game.shake, 6);
+          sfx.nova();
+        }
+      } else if (e.aTimer <= 0) {
+        e.teleT = 0.6;
+        e.aTimer = 3.2;
+      }
+    } else if (e.bossKind === "hive") {
+      vx *= 0.8; vy *= 0.8; // lumbering
+      if (e.aTimer <= 0) {
+        e.aTimer = 3.4;
+        for (let i = 0; i < 3; i++) {
+          const c = spawnEnemy("rusher", e.x + rand(-30, 30), e.y + rand(-30, 30), 0.9);
+          c.color = e.color; c.glow = e.glow;
+        }
+        shockwave(e.x, e.y, 78, e.glow);
+        burst(e.x, e.y, e.color, 14, 200, [2, 4], 0.5);
+      }
+    } else if (e.bossKind === "sentry") {
+      // keep mid-range and fire bullet rings
+      const want = 320;
+      if (d < want - 40) { vx = -ux * e.speed; vy = -uy * e.speed; }
+      else if (d > want + 40) { vx = ux * e.speed; vy = uy * e.speed; }
+      else { vx = -uy * e.speed * 0.7; vy = ux * e.speed * 0.7; } // strafe
+      if (e.aTimer <= 0) {
+        e.aTimer = 1.9;
+        fireEnemyRing(e);
+      }
+    }
+    // dread: plain chase (default vx/vy)
+    return { vx, vy };
+  }
+
+  function fireEnemyRing(e) {
+    const n = 12;
+    const base = Math.atan2(player.y - e.y, player.x - e.x);
+    for (let i = 0; i < n; i++) {
+      const a = base + (TAU * i) / n;
+      enemyBullets.push({
+        x: e.x, y: e.y,
+        vx: Math.cos(a) * 190, vy: Math.sin(a) * 190,
+        r: 7, damage: e.dmg * 0.6, life: 4.5,
+        color: e.color, glow: e.glow,
+      });
+    }
+    if (enemyBullets.length > 260) enemyBullets.splice(0, enemyBullets.length - 260);
+    burst(e.x, e.y, e.color, 10, 160, [1.5, 3], 0.4);
+    sfx.shoot();
+  }
+
+  function updateEnemyBullets(dt) {
+    for (const b of enemyBullets) {
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+      b.life -= dt;
+      if (b.x < -40 || b.y < -40 || b.x > WORLD.w + 40 || b.y > WORLD.h + 40) b.life = 0;
+      const rr = b.r + player.r;
+      if (player.invuln <= 0 && dist2(b.x, b.y, player.x, player.y) < rr * rr) {
+        hurtPlayer(b.damage);
+        b.life = 0;
+        burst(b.x, b.y, b.color, 6, 140, [1.5, 3], 0.35);
+      }
+    }
+    enemyBullets = enemyBullets.filter((b) => b.life > 0);
   }
 
   function hurtPlayer(amount) {
@@ -1212,6 +1315,7 @@
     drawGems();
     drawAura();
     drawEnemies();
+    drawEnemyBullets();
     drawBullets();
     drawLightnings();
     drawOrbiters();
@@ -1399,13 +1503,16 @@
       const flash = e.hitFlash > 0;
       ctx.save();
       ctx.translate(e.x, e.y);
-      switch (e.type) {
-        case "rusher": drawRusher(e, flash); break;
-        case "tank": drawTank(e, flash); break;
-        case "orbiter": drawOrbiterEnemy(e, flash); break;
-        case "splitter": drawSplitter(e, flash); break;
-        case "boss": drawBoss(e, flash); break;
-        default: drawDrifter(e, flash); break;
+      if (e.boss) {
+        drawBoss(e, flash);
+      } else {
+        switch (e.type) {
+          case "rusher": drawRusher(e, flash); break;
+          case "tank": drawTank(e, flash); break;
+          case "orbiter": drawOrbiterEnemy(e, flash); break;
+          case "splitter": drawSplitter(e, flash); break;
+          default: drawDrifter(e, flash); break;
+        }
       }
       ctx.restore();
 
@@ -1538,8 +1645,24 @@
   }
 
   function drawBoss(e, flash) {
+    switch (e.bossKind) {
+      case "hive": drawBossHive(e, flash); break;
+      case "lancer": drawBossLancer(e, flash); break;
+      case "sentry": drawBossSentry(e, flash); break;
+      default: drawBossDread(e, flash); break;
+    }
+  }
+
+  function bossCore(c, r) {
+    const pr = r * (0.32 + 0.08 * Math.sin(game.time * 6));
+    drawGlow(0, 0, r * 0.9, c.base, 0.9);
+    ctx.fillStyle = "rgba(255,255,255,0.95)";
+    ctx.beginPath(); ctx.arc(0, 0, pr, 0, TAU); ctx.fill();
+  }
+
+  // DREADNOUGHT — layered spiked hull, plain heavy chaser
+  function drawBossDread(e, flash) {
     const c = eColors(e), r = e.r;
-    // outer spiked ring (rotating)
     ctx.save();
     ctx.rotate(e.phase * 0.3);
     const spikes = 12;
@@ -1553,32 +1676,115 @@
     ctx.closePath();
     ctx.fillStyle = flash ? "#ffffff" : c.dark;
     ctx.fill();
-    ctx.strokeStyle = c.light;
-    ctx.lineWidth = 2.5;
-    ctx.stroke();
+    ctx.strokeStyle = c.light; ctx.lineWidth = 2.5; ctx.stroke();
     ctx.restore();
-    // mid hex (counter-rotating)
     ctx.save();
     ctx.rotate(-e.phase * 0.5);
     hexPath(r * 0.82);
     ctx.fillStyle = flash ? "#ffffff" : bodyGrad(r, c.light, c.base);
     ctx.fill();
-    ctx.strokeStyle = "rgba(255,255,255,0.6)";
-    ctx.lineWidth = 2;
-    ctx.stroke();
+    ctx.strokeStyle = "rgba(255,255,255,0.6)"; ctx.lineWidth = 2; ctx.stroke();
     ctx.restore();
-    // dashed energy ring
-    ctx.strokeStyle = c.light;
-    ctx.lineWidth = 2;
-    ctx.setLineDash([9, 9]);
-    ctx.lineDashOffset = -game.time * 34;
+    ctx.strokeStyle = c.light; ctx.lineWidth = 2;
+    ctx.setLineDash([9, 9]); ctx.lineDashOffset = -game.time * 34;
     ctx.beginPath(); ctx.arc(0, 0, r * 1.05, 0, TAU); ctx.stroke();
     ctx.setLineDash([]);
-    // pulsing core
-    const pr = r * (0.34 + 0.08 * Math.sin(game.time * 6));
-    drawGlow(0, 0, r * 0.9, c.base, 0.9);
+    bossCore(c, r);
+  }
+
+  // HIVE CORE — rounded shell with orbiting spawn-nodes
+  function drawBossHive(e, flash) {
+    const c = eColors(e), r = e.r;
+    ctx.save();
+    ctx.rotate(e.phase * 0.25);
+    hexPath(r * 0.9);
+    ctx.fillStyle = flash ? "#ffffff" : bodyGrad(r, c.light, c.base);
+    ctx.fill();
+    ctx.strokeStyle = c.light; ctx.lineWidth = 2.5; ctx.stroke();
+    hexPath(r * 0.55);
+    ctx.strokeStyle = "rgba(255,255,255,0.4)"; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.restore();
+    // orbiting nodes (the minions it births)
+    const near = e.aTimer < 0.7; // glow brighter just before spawning
+    for (let i = 0; i < 6; i++) {
+      const a = e.phase * 0.8 + (TAU * i) / 6;
+      const nx = Math.cos(a) * r * 1.18, ny = Math.sin(a) * r * 1.18;
+      drawGlow(nx, ny, near ? 9 : 6, c.light, 0.9);
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath(); ctx.arc(nx, ny, near ? 3.2 : 2.4, 0, TAU); ctx.fill();
+    }
+    ctx.strokeStyle = c.glow; ctx.lineWidth = 1.5;
+    ctx.setLineDash([6, 8]); ctx.lineDashOffset = game.time * 24;
+    ctx.beginPath(); ctx.arc(0, 0, r * 1.18, 0, TAU); ctx.stroke();
+    ctx.setLineDash([]);
+    bossCore(c, r);
+  }
+
+  // LANCER — bladed dart that points at the player; flares white while winding up
+  function drawBossLancer(e, flash) {
+    const c = eColors(e), r = e.r;
+    const charging = e.teleT > 0;
+    const dashing = e.dashT > 0;
+    ctx.save();
+    ctx.rotate(e.angle + Math.PI / 2);
+    drawGlow(0, r * 1.2, r * (dashing ? 1.4 : 0.95), c.base, 0.8); // engine wake
+    // main blade
+    ctx.beginPath();
+    ctx.moveTo(0, -r * 1.75);
+    ctx.lineTo(r * 0.8, r * 0.85);
+    ctx.lineTo(0, r * 0.3);
+    ctx.lineTo(-r * 0.8, r * 0.85);
+    ctx.closePath();
+    ctx.fillStyle = (flash || charging) ? "#ffffff" : bodyGrad(r, c.light, c.base);
+    ctx.fill();
+    ctx.strokeStyle = c.light; ctx.lineWidth = 2.5; ctx.stroke();
+    // side wings
+    ctx.fillStyle = c.dark;
+    for (const s of [-1, 1]) {
+      ctx.beginPath();
+      ctx.moveTo(s * r * 0.5, r * 0.1);
+      ctx.lineTo(s * r * 1.25, r * 0.7);
+      ctx.lineTo(s * r * 0.45, r * 0.75);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = c.light; ctx.lineWidth = 1.5; ctx.stroke();
+    }
+    drawGlow(0, -r * 1.35, r * (charging ? 0.9 : 0.5), "rgba(255,255,255,0.95)", 0.9); // hot tip
+    ctx.restore();
+    bossCore(c, r);
+  }
+
+  // SENTRY — a great eye that keeps its distance and fires bullet rings
+  function drawBossSentry(e, flash) {
+    const c = eColors(e), r = e.r;
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU);
+    ctx.fillStyle = flash ? "#ffffff" : bodyGrad(r, c.light, c.dark);
+    ctx.fill();
+    ctx.strokeStyle = c.light; ctx.lineWidth = 2.5; ctx.stroke();
+    // rotating dashed shell
+    ctx.strokeStyle = c.glow; ctx.lineWidth = 2;
+    ctx.setLineDash([10, 9]); ctx.lineDashOffset = -game.time * 40;
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.96, 0, TAU); ctx.stroke();
+    ctx.setLineDash([]);
+    // iris + pupil that tracks the player
+    const px = Math.cos(e.angle) * r * 0.32, py = Math.sin(e.angle) * r * 0.32;
+    ctx.strokeStyle = "rgba(255,255,255,0.45)"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.58, 0, TAU); ctx.stroke();
+    const charging = e.aTimer < 0.5;
+    drawGlow(px, py, r * (charging ? 0.75 : 0.5), c.base, 0.95);
     ctx.fillStyle = "rgba(255,255,255,0.95)";
-    ctx.beginPath(); ctx.arc(0, 0, pr, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(px, py, r * 0.22, 0, TAU); ctx.fill();
+  }
+
+  function drawEnemyBullets() {
+    if (!enemyBullets.length) return;
+    ctx.globalCompositeOperation = "lighter";
+    for (const b of enemyBullets) {
+      drawGlow(b.x, b.y, b.r * 2.6, b.glow, 0.9);
+      ctx.fillStyle = "#fff2f2";
+      ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 0.6, 0, TAU); ctx.fill();
+    }
+    ctx.globalCompositeOperation = "source-over";
   }
 
   function drawBullets() {
@@ -1782,9 +1988,9 @@
 
   function resetRun() {
     enemies = []; bullets = []; gems = []; particles = [];
-    floaters = []; shockwaves = []; orbiters = []; lightnings = [];
+    floaters = []; shockwaves = []; orbiters = []; lightnings = []; enemyBullets = [];
     game.time = 0; game.kills = 0; game.shake = 0; game.hitFlash = 0;
-    game.spawnTimer = 0; game.nextWaveAt = 30; game.waveCount = 0;
+    game.spawnTimer = 0; game.nextWaveAt = 30; game.waveCount = 0; game.bossIndex = 0;
     wt.pulse = 0; wt.nova = 0; wt.spread = 0; wt.beam = 0;
     wt.chain = 0; wt.homing = 0; wt.aura = 0;
     orbitAngle = 0;
@@ -1870,6 +2076,7 @@
       updateOrbiters(dt);
       updateBullets(dt);
       updateEnemies(dt);
+      updateEnemyBullets(dt);
       updateGems(dt);
       updateSpawner(dt);
       updateEffects(dt);
