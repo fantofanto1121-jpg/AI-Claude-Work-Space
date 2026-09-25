@@ -299,6 +299,9 @@
     passives: {},  // id -> level
     trail: [],
     vaporTrail: [],
+    // power-ups & scoring
+    buffs: [],     // active timed power-ups: {type, t, deltas?}
+    score: 0, combo: 0, comboTimer: 0,
   };
 
   // Effective damage multiplier (folds in the dynamic berserk bonus).
@@ -312,6 +315,7 @@
   let enemies = [];
   let bullets = [];
   let gems = [];
+  let powerups = []; // timed power-up drops
   let particles = [];
   let floaters = []; // damage numbers / text
   let shockwaves = [];
@@ -353,6 +357,7 @@
     hurt: () => beep(120, 0.18, "sawtooth", 0.08),
     nova: () => beep(90, 0.25, "sine", 0.09),
     dash: () => { beep(420, 0.08, "sawtooth", 0.05); setTimeout(() => beep(820, 0.1, "sine", 0.045), 45); },
+    power: () => { beep(700, 0.09, "triangle", 0.06); setTimeout(() => beep(1180, 0.16, "sine", 0.05), 60); },
     dead: () => { beep(160, 0.3, "sawtooth", 0.09); setTimeout(() => beep(80, 0.5, "sine", 0.08), 120); },
   };
 
@@ -883,9 +888,101 @@
     if (e.hp <= 0) killEnemy(e);
   }
 
+  // Timed power-up drops. Each timed type applies its `deltas` to the player's
+  // multiplier fields for `dur` seconds, then reverses them.
+  const POWERUPS = {
+    overdrive: { label: "オーバードライブ", color: "#ffd166", glow: "rgba(255,209,102,0.7)", dur: 8, deltas: { damageMul: 0.6, fireRateMul: 0.5 } },
+    surge:     { label: "サージ", color: "#ff3ea5", glow: "rgba(255,62,165,0.7)", dur: 8, deltas: { projectiles: 2, fireRateMul: 0.35 } },
+    magnet:    { label: "マグネット", color: "#a56bff", glow: "rgba(165,107,255,0.7)", dur: 8, deltas: { pickupRange: 280 } },
+    aegis:     { label: "イージス", color: "#38f6ff", glow: "rgba(56,246,255,0.75)", dur: 5, invuln: true },
+    repair:    { label: "リペア", color: "#46f0a0", glow: "rgba(70,240,160,0.7)", instant: true },
+  };
+  const POWERUP_ROLL = ["overdrive", "overdrive", "surge", "surge", "magnet", "magnet", "aegis", "repair"];
+
+  function dropPowerup(x, y, type) {
+    const key = type || POWERUP_ROLL[(Math.random() * POWERUP_ROLL.length) | 0];
+    powerups.push({ type: key, x, y, r: 13, phase: Math.random() * TAU, homing: false, life: 22 });
+  }
+
+  function removeBuff(type) {
+    for (let i = player.buffs.length - 1; i >= 0; i--) {
+      if (player.buffs[i].type === type) {
+        const d = player.buffs[i].deltas;
+        if (d) for (const k in d) player[k] -= d[k];
+        player.buffs.splice(i, 1);
+      }
+    }
+  }
+
+  function applyPowerup(type) {
+    const pu = POWERUPS[type];
+    if (!pu) return;
+    sfx.power();
+    shockwave(player.x, player.y, player.r * 3, pu.glow);
+    burst(player.x, player.y, pu.color, 18, 260, [1.5, 3], 0.5);
+    floater(player.x, player.y - player.r - 10, pu.label, pu.color, true);
+    if (pu.instant) { // repair
+      player.hp = Math.min(player.maxHp, player.hp + Math.round(player.maxHp * 0.35));
+      return;
+    }
+    removeBuff(type); // refresh instead of stacking
+    if (pu.deltas) for (const k in pu.deltas) player[k] += pu.deltas[k];
+    player.buffs.push({ type: type, t: pu.dur, deltas: pu.deltas ? Object.assign({}, pu.deltas) : null });
+  }
+
+  function updateBuffs(dt) {
+    for (const b of player.buffs) {
+      b.t -= dt;
+      if (POWERUPS[b.type] && POWERUPS[b.type].invuln && b.t > 0) {
+        player.invuln = Math.max(player.invuln, 0.12); // keep i-frames topped up
+      }
+    }
+    for (let i = player.buffs.length - 1; i >= 0; i--) {
+      if (player.buffs[i].t <= 0) {
+        const d = player.buffs[i].deltas;
+        if (d) for (const k in d) player[k] -= d[k];
+        player.buffs.splice(i, 1);
+      }
+    }
+  }
+
+  function updatePowerups(dt) {
+    const range = player.pickupRange;
+    const range2 = range * range;
+    const grab = (player.r + 12) * (player.r + 12);
+    for (const p of powerups) {
+      p.phase += dt * 3;
+      p.life -= dt;
+      const d2 = dist2(p.x, p.y, player.x, player.y);
+      if (d2 < range2 || p.homing) {
+        p.homing = true;
+        const a = Math.atan2(player.y - p.y, player.x - p.x);
+        const sp = lerp(160, 520, 1 - clamp(Math.sqrt(d2) / range, 0, 1));
+        p.x += Math.cos(a) * sp * dt;
+        p.y += Math.sin(a) * sp * dt;
+      }
+      if (d2 < grab) { applyPowerup(p.type); p.dead = true; }
+    }
+    powerups = powerups.filter((p) => !p.dead && p.life > 0);
+  }
+
+  // Register a kill for the combo/score system.
+  function scoreKill(e) {
+    player.combo++;
+    player.comboTimer = 2.6;
+    const mult = comboMult();
+    const base = e.boss ? 600 : (e.xp || 1) * 12 + 8;
+    player.score += Math.round(base * mult);
+  }
+  function comboMult() { return Math.min(4, 1 + Math.floor(player.combo / 5) * 0.25); }
+
   function killEnemy(e) {
     e.dead = true;
     game.kills++;
+    scoreKill(e);
+    // power-up drops: bosses always, others rarely
+    if (e.boss) { dropPowerup(e.x, e.y); dropPowerup(e.x + rand(-30, 30), e.y + rand(-30, 30)); }
+    else if (Math.random() < 0.02) dropPowerup(e.x, e.y);
     if (player.lifestealChance > 0 && player.hp < player.maxHp && Math.random() < player.lifestealChance) {
       player.hp = Math.min(player.maxHp, player.hp + player.lifestealHeal);
       floater(player.x, player.y - player.r, "+" + player.lifestealHeal, "#ff9dc0", false);
@@ -1254,6 +1351,8 @@
   }
 
   function updatePlayer(dt) {
+    // timed power-up buffs tick down (before any early return)
+    updateBuffs(dt);
     // dash cooldown always ticks down
     if (player.dashCd > 0) player.dashCd = Math.max(0, player.dashCd - dt);
 
@@ -1829,6 +1928,7 @@
     drawBackground(camX, camY);
     drawArenaBorder();
     drawGems();
+    drawPowerups();
     drawAura();
     drawGravityField();
     drawVaporTrail();
@@ -1844,7 +1944,56 @@
 
     ctx.restore();
 
+    drawScoreHud();
     drawJoystick();
+  }
+
+  // Screen-space score + combo readout (top centre, clear of the corner HUD).
+  function drawScoreHud() {
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    // score
+    ctx.font = "700 15px 'Chakra Petch', system-ui, sans-serif";
+    ctx.fillStyle = "rgba(190,210,255,0.55)";
+    ctx.fillText("SCORE", viewW / 2, 14);
+    ctx.font = "800 30px 'Chakra Petch', system-ui, sans-serif";
+    ctx.fillStyle = "#eef5ff";
+    ctx.shadowColor = "rgba(56,246,255,0.5)"; ctx.shadowBlur = 14;
+    ctx.fillText(player.score.toLocaleString("en-US"), viewW / 2, 30);
+    ctx.shadowBlur = 0;
+    // combo
+    if (player.combo >= 3 && player.comboTimer > 0) {
+      const mult = comboMult();
+      const tier = mult >= 3 ? "#ff3ea5" : mult >= 2 ? "#ffd166" : "#38f6ff";
+      const pop = 1 + Math.max(0, player.comboTimer - 2.2) * 1.2; // brief pop on refresh
+      const decay = clamp(player.comboTimer / 2.6, 0, 1);
+      ctx.globalAlpha = 0.55 + decay * 0.45;
+      ctx.font = "800 " + Math.round(26 * pop) + "px 'Chakra Petch', system-ui, sans-serif";
+      ctx.fillStyle = tier;
+      ctx.shadowColor = tier; ctx.shadowBlur = 16;
+      ctx.fillText("COMBO x" + player.combo + "  (" + mult.toFixed(2) + "x)", viewW / 2, 70);
+      ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+    }
+    // active power-up timers, stacked down the left edge
+    let by = viewH * 0.34;
+    for (const b of player.buffs) {
+      const pu = POWERUPS[b.type]; if (!pu) continue;
+      const cx = 34, cy = by, rr = 16;
+      const frac = clamp(b.t / pu.dur, 0, 1);
+      ctx.beginPath(); ctx.fillStyle = "rgba(8,12,24,0.72)"; ctx.arc(cx, cy, rr, 0, TAU); ctx.fill();
+      ctx.strokeStyle = "rgba(120,150,230,0.25)"; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(cx, cy, rr, 0, TAU); ctx.stroke();
+      ctx.strokeStyle = pu.color; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(cx, cy, rr, -Math.PI / 2, -Math.PI / 2 + frac * TAU); ctx.stroke();
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.globalCompositeOperation = "lighter";
+      drawPowerSymbol(b.type, rr * 0.5, pu.color);
+      ctx.restore();
+      by += rr * 2 + 12;
+    }
+    ctx.restore();
   }
 
   function drawJoystick() {
@@ -2746,6 +2895,65 @@
     ctx.globalCompositeOperation = "source-over";
   }
 
+  // A distinct vector mark per power-up (no emoji), drawn centred at (0,0).
+  function drawPowerSymbol(type, s, color) {
+    ctx.strokeStyle = color; ctx.lineWidth = 2.4; ctx.lineCap = "round"; ctx.lineJoin = "round";
+    if (type === "overdrive") {
+      for (const oy of [-s * 0.15, s * 0.4]) {
+        ctx.beginPath(); ctx.moveTo(-s * 0.6, oy + s * 0.25); ctx.lineTo(0, oy - s * 0.3); ctx.lineTo(s * 0.6, oy + s * 0.25); ctx.stroke();
+      }
+    } else if (type === "surge") {
+      for (const bx of [-s * 0.5, 0, s * 0.5]) { ctx.beginPath(); ctx.moveTo(bx, -s * 0.55); ctx.lineTo(bx, s * 0.55); ctx.stroke(); }
+    } else if (type === "magnet") {
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.45, -s * 0.5); ctx.lineTo(-s * 0.45, s * 0.05);
+      ctx.quadraticCurveTo(-s * 0.45, s * 0.58, 0, s * 0.58);
+      ctx.quadraticCurveTo(s * 0.45, s * 0.58, s * 0.45, s * 0.05);
+      ctx.lineTo(s * 0.45, -s * 0.5); ctx.stroke();
+    } else if (type === "aegis") {
+      ctx.beginPath();
+      ctx.moveTo(0, -s * 0.62); ctx.lineTo(s * 0.55, -s * 0.28); ctx.lineTo(s * 0.55, s * 0.16);
+      ctx.quadraticCurveTo(s * 0.4, s * 0.6, 0, s * 0.72);
+      ctx.quadraticCurveTo(-s * 0.4, s * 0.6, -s * 0.55, s * 0.16);
+      ctx.lineTo(-s * 0.55, -s * 0.28); ctx.closePath(); ctx.stroke();
+    } else if (type === "repair") {
+      ctx.beginPath(); ctx.moveTo(0, -s * 0.6); ctx.lineTo(0, s * 0.6); ctx.moveTo(-s * 0.6, 0); ctx.lineTo(s * 0.6, 0); ctx.stroke();
+    }
+  }
+
+  function drawPowerups() {
+    for (const p of powerups) {
+      const pu = POWERUPS[p.type]; if (!pu) continue;
+      const pulse = 0.78 + 0.22 * Math.sin(p.phase * 1.6);
+      const blink = p.life < 4 ? (0.45 + 0.55 * Math.abs(Math.sin(p.life * 6))) : 1;
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      drawGlow(p.x, p.y, p.r * 2.3 * pulse, pu.glow, 0.85 * blink);
+      ctx.restore();
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.globalAlpha = blink;
+      // rotating hex ring
+      ctx.rotate(p.phase * 0.5);
+      ctx.globalCompositeOperation = "lighter";
+      ctx.strokeStyle = pu.color; ctx.lineWidth = 2.4;
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) { const a = i / 6 * TAU; const rr = p.r * 1.15 * pulse; const x = Math.cos(a) * rr, y = Math.sin(a) * rr; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+      ctx.closePath(); ctx.stroke();
+      ctx.rotate(-p.phase * 0.5);
+      // dark inner disc
+      ctx.globalCompositeOperation = "source-over";
+      ctx.fillStyle = "rgba(6,10,20,0.82)";
+      ctx.beginPath(); ctx.arc(0, 0, p.r * 0.8, 0, TAU); ctx.fill();
+      // symbol
+      ctx.globalCompositeOperation = "lighter";
+      drawPowerSymbol(p.type, p.r * 0.55, pu.color);
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = "source-over";
+  }
+
   function drawShockwaves() {
     ctx.globalCompositeOperation = "lighter";
     for (const s of shockwaves) {
@@ -2827,7 +3035,7 @@
   }
 
   function resetRun() {
-    enemies = []; bullets = []; gems = []; particles = [];
+    enemies = []; bullets = []; gems = []; particles = []; powerups = [];
     floaters = []; shockwaves = []; orbiters = []; lightnings = []; enemyBullets = [];
     game.time = 0; game.kills = 0; game.shake = 0; game.hitFlash = 0;
     game.spawnTimer = 0; game.nextWaveAt = 30; game.waveCount = 0; game.bossIndex = 0;
@@ -2841,6 +3049,7 @@
     player.level = 1; player.xp = 0; player.xpNext = 4;
     player.pickupRange = 120; player.invuln = 0; player.facing = -Math.PI / 2;
     player.dashTime = 0; player.dashCd = 0; player.dashDX = 0; player.dashDY = -1; player.dashHit = null;
+    player.buffs = []; player.score = 0; player.combo = 0; player.comboTimer = 0;
     player.damageMul = 1; player.fireRateMul = 1; player.projectiles = 1;
     player.critChance = 0.05; player.critMul = 2; player.xpMul = diff.xpMul;
     player.rangeMul = 1; player.projSpeedMul = 1; player.aoeMul = 1;
@@ -2953,7 +3162,10 @@
       updateEnemies(dt);
       updateEnemyBullets(dt);
       updateGems(dt);
+      updatePowerups(dt);
       updateSpawner(dt);
+      // combo decays if you stop killing
+      if (player.comboTimer > 0) { player.comboTimer -= dt; if (player.comboTimer <= 0) player.combo = 0; }
       updateEffects(dt);
       updateHud();
     } else {
