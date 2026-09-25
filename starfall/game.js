@@ -708,9 +708,10 @@
     boss_hive:   { r: 44, hp: 780, speed: 36, dmg: 20, xp: 42, color: "rgba(120,255,170,1)", glow: "rgba(80,255,150,0.55)", boss: true, bossKind: "hive" },
     boss_lancer: { r: 38, hp: 760, speed: 58, dmg: 24, xp: 46, color: "rgba(90,220,255,1)", glow: "rgba(56,200,255,0.6)", boss: true, bossKind: "lancer" },
     boss_sentry: { r: 42, hp: 720, speed: 32, dmg: 16, xp: 46, color: "rgba(255,190,90,1)", glow: "rgba(255,170,70,0.6)", boss: true, bossKind: "sentry" },
+    boss_vortex: { r: 40, hp: 820, speed: 74, dmg: 20, xp: 48, color: "rgba(150,130,255,1)", glow: "rgba(130,110,255,0.6)", boss: true, bossKind: "vortex" },
   };
-  const BOSS_KINDS = ["boss_dread", "boss_hive", "boss_lancer", "boss_sentry"];
-  const BOSS_NAMES = { dread: "ドレッドノート", hive: "ハイヴコア", lancer: "ランサー", sentry: "セントリー" };
+  const BOSS_KINDS = ["boss_dread", "boss_hive", "boss_lancer", "boss_sentry", "boss_vortex"];
+  const BOSS_NAMES = { dread: "ドレッドノート", hive: "ハイヴコア", lancer: "ランサー", sentry: "セントリー", vortex: "ヴォルテクス" };
 
   function spawnEnemy(type, x, y, hpScale) {
     const t = ENEMY_TYPES[type];
@@ -1588,9 +1589,33 @@
         e.aTimer = 1.9;
         fireEnemyRing(e);
       }
+    } else if (e.bossKind === "vortex") {
+      // orbit at mid-range while emitting a continuous rotating bullet spiral
+      const want = 300;
+      if (d < want - 40) { vx = -ux * e.speed; vy = -uy * e.speed; }
+      else if (d > want + 40) { vx = ux * e.speed; vy = uy * e.speed; }
+      else { vx = -uy * e.speed; vy = ux * e.speed; } // circle-strafe
+      if (e.aTimer <= 0) {
+        e.aTimer = 0.11;
+        e.spiralAng = (e.spiralAng || 0) + 0.42;
+        fireSpiralArm(e, e.spiralAng);
+      }
     }
     // dread: plain chase (default vx/vy)
     return { vx, vy };
+  }
+
+  function fireSpiralArm(e, ang) {
+    for (let k = 0; k < 2; k++) {
+      const a = ang + k * Math.PI;
+      enemyBullets.push({
+        x: e.x, y: e.y,
+        vx: Math.cos(a) * 175, vy: Math.sin(a) * 175,
+        r: 6.5, damage: e.dmg * 0.5, life: 5,
+        color: e.color, glow: e.glow,
+      });
+    }
+    if (enemyBullets.length > 320) enemyBullets.splice(0, enemyBullets.length - 320);
   }
 
   function fireEnemyRing(e) {
@@ -2658,8 +2683,46 @@
       case "hive": drawBossHive(e, flash); break;
       case "lancer": drawBossLancer(e, flash); break;
       case "sentry": drawBossSentry(e, flash); break;
+      case "vortex": drawBossVortex(e, flash); break;
       default: drawBossDread(e, flash); break;
     }
+  }
+
+  // VORTEX — spinning spiral emitter, indigo
+  function drawBossVortex(e, flash) {
+    const c = eColors(e), r = e.r;
+    const spin = game.time * 1.6;
+    // outer rotating spiral arms
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.rotate(spin);
+    ctx.strokeStyle = c.base; ctx.lineWidth = 3; ctx.lineCap = "round";
+    for (let arm = 0; arm < 3; arm++) {
+      ctx.rotate(TAU / 3);
+      ctx.beginPath();
+      for (let i = 0; i < 18; i++) {
+        const t = i / 17;
+        const rad = r * 0.5 + t * r * 0.95;
+        const a = t * 2.4;
+        const x = Math.cos(a) * rad, y = Math.sin(a) * rad;
+        i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
+    // body disc
+    const g = ctx.createRadialGradient(0, 0, 2, 0, 0, r * 0.62);
+    g.addColorStop(0, "#efecff"); g.addColorStop(0.55, c.base); g.addColorStop(1, "rgba(38,28,86,1)");
+    ctx.fillStyle = flash ? "#ffffff" : g;
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.62, 0, TAU); ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.7)"; ctx.lineWidth = 2; ctx.stroke();
+    // counter-rotating inner spokes
+    ctx.save();
+    ctx.rotate(-spin * 1.8);
+    ctx.strokeStyle = "rgba(255,255,255,0.45)"; ctx.lineWidth = 2;
+    for (let i = 0; i < 6; i++) { ctx.rotate(TAU / 6); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -r * 0.55); ctx.stroke(); }
+    ctx.restore();
+    bossCore(c, r);
   }
 
   function bossCore(c, r) {
