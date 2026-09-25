@@ -1858,7 +1858,8 @@
     ctx.save();
     ctx.translate(player.x, player.y);
     ctx.rotate(player.facing + Math.PI / 2);
-    drawShipInto(ctx, player.r, ship, blink ? 0.6 : 1, game.time);
+    // render slightly larger than the hitbox so the detailing reads
+    drawShipInto(ctx, player.r * 1.22, ship, blink ? 0.6 : 1, game.time);
     ctx.restore();
   }
 
@@ -1870,43 +1871,146 @@
     lance: [[0, -1.8], [0.28, -0.2], [0.52, 0.85], [0.22, 1.18], [-0.22, 1.18], [-0.52, 0.85], [-0.28, -0.2]],
     scythe: [[0, -1.3], [1.08, 0.12], [0.45, 0.45], [0.98, 1.22], [0, 0.55], [-0.98, 1.22], [-0.45, 0.45], [-1.08, 0.12]],
   };
-  function shipPath(g, r, shape) {
+  // Per-shape detailing: cockpit canopy [cx,cy,rx,ry], engine mounts, inner
+  // panel scale, and neon accent trim segments (all in multiples of r).
+  const SHIP_DETAIL = {
+    interceptor: { canopy: [0, -0.35, 0.2, 0.46], inset: 0.6, thrusters: [[-0.38, 0.92], [0.38, 0.92]],
+      accents: [[[-0.55, 0.8], [-0.12, -0.45]], [[0.55, 0.8], [0.12, -0.45]]] },
+    fortress: { canopy: [0, -0.22, 0.3, 0.4], inset: 0.58, thrusters: [[-0.52, 1.0], [0.52, 1.0]],
+      accents: [[[-0.98, 0.45], [-0.5, -0.2]], [[0.98, 0.45], [0.5, -0.2]], [[-0.42, 0.98], [0.42, 0.98]]] },
+    bolt: { canopy: [0, -0.5, 0.18, 0.5], inset: 0.5, thrusters: [[-0.45, 0.82], [0.45, 0.82]],
+      accents: [[[-1.15, 0.12], [-0.2, -0.2]], [[1.15, 0.12], [0.2, -0.2]], [[0, -1.2], [0, 0.5]]] },
+    lance: { canopy: [0, -0.65, 0.15, 0.62], inset: 0.46, thrusters: [[0, 1.12]],
+      accents: [[[-0.4, 0.82], [-0.1, -0.7]], [[0.4, 0.82], [0.1, -0.7]]] },
+    scythe: { canopy: [0, -0.32, 0.2, 0.42], inset: 0.5, thrusters: [[-0.85, 1.16], [0.85, 1.16]],
+      accents: [[[-1.0, 0.14], [-0.14, -0.35]], [[1.0, 0.14], [0.14, -0.35]]] },
+  };
+
+  function shipPath(g, r, shape, scale) {
+    const s = scale == null ? 1 : scale;
     const pts = SHIP_SHAPES[shape] || SHIP_SHAPES.interceptor;
     g.beginPath();
     for (let i = 0; i < pts.length; i++) {
-      const x = pts[i][0] * r, y = pts[i][1] * r;
+      const x = pts[i][0] * r * s, y = pts[i][1] * r * s;
       i === 0 ? g.moveTo(x, y) : g.lineTo(x, y);
     }
     g.closePath();
   }
-  // Draws a costume ship centred at (0,0) pointing up, on any 2D context.
-  function drawShipInto(g, r, sh, alpha, flameT) {
-    // engine flame
-    const fr = (10 + (flameT != null ? Math.sin(flameT * 30) * 3 : 0)) * (r / 16);
-    const fg = g.createRadialGradient(0, r * 1.05, 0, 0, r * 1.05, fr * 1.8);
-    fg.addColorStop(0, sh.flame);
-    fg.addColorStop(1, "rgba(0,0,0,0)");
-    const prevOp = g.globalCompositeOperation;
+
+  function drawThruster(g, x, y, w, len, flame) {
+    g.save();
     g.globalCompositeOperation = "lighter";
-    g.fillStyle = fg;
-    g.beginPath(); g.arc(0, r * 1.05, fr * 1.8, 0, TAU); g.fill();
-    g.globalCompositeOperation = prevOp;
-    // body
+    const gg = g.createRadialGradient(x, y, 0, x, y, w * 2.6);
+    gg.addColorStop(0, flame);
+    gg.addColorStop(1, "rgba(0,0,0,0)");
+    g.fillStyle = gg;
+    g.beginPath(); g.arc(x, y, w * 2.6, 0, TAU); g.fill();
+    const grd = g.createLinearGradient(x, y - w, x, y + len);
+    grd.addColorStop(0, "rgba(255,255,255,0.95)");
+    grd.addColorStop(0.35, flame);
+    grd.addColorStop(1, "rgba(0,0,0,0)");
+    g.fillStyle = grd;
+    g.beginPath();
+    g.moveTo(x - w, y - w * 0.4);
+    g.quadraticCurveTo(x, y + len * 1.25, x + w, y - w * 0.4);
+    g.closePath();
+    g.fill();
+    g.restore();
+  }
+
+  // Draws a detailed costume ship centred at (0,0) pointing up, on any context.
+  function drawShipInto(g, r, sh, alpha, flameT) {
+    const d = SHIP_DETAIL[sh.shape] || SHIP_DETAIL.interceptor;
+    const flick = flameT != null ? (0.85 + Math.sin(flameT * 26) * 0.18 + Math.sin(flameT * 61) * 0.06) : 0.9;
+    g.globalAlpha = alpha == null ? 1 : alpha;
+
+    // 1) engine thrusters (behind hull)
+    for (const t of d.thrusters) {
+      drawThruster(g, t[0] * r, t[1] * r, r * 0.17, r * 1.05 * flick, sh.flame);
+    }
+
+    // 2) drop shadow for depth
+    g.save();
+    g.translate(0, r * 0.07);
     shipPath(g, r, sh.shape);
-    const grd = g.createLinearGradient(0, -r * 1.5, 0, r * 1.2);
-    grd.addColorStop(0, sh.g0);
-    grd.addColorStop(0.5, sh.g1);
+    g.fillStyle = "rgba(0,0,0,0.35)";
+    g.fill();
+    g.restore();
+
+    // 3) hull base gradient
+    shipPath(g, r, sh.shape);
+    const grd = g.createLinearGradient(-r, -r * 1.5, r, r * 1.2);
+    grd.addColorStop(0, sh.g1);
+    grd.addColorStop(0.45, sh.g0);
+    grd.addColorStop(0.55, sh.g1);
     grd.addColorStop(1, sh.g2);
     g.fillStyle = grd;
-    g.globalAlpha = alpha == null ? 1 : alpha;
     g.fill();
-    g.lineWidth = 1.5;
-    g.strokeStyle = "rgba(255,255,255,0.85)";
+
+    // 4) metallic sheen (clipped diagonal highlight)
+    g.save();
+    shipPath(g, r, sh.shape);
+    g.clip();
+    const sheen = g.createLinearGradient(-r * 1.2, -r * 1.6, r * 0.6, r * 1.2);
+    sheen.addColorStop(0, "rgba(255,255,255,0.5)");
+    sheen.addColorStop(0.35, "rgba(255,255,255,0.05)");
+    sheen.addColorStop(1, "rgba(0,0,0,0.25)");
+    g.fillStyle = sheen;
+    g.fillRect(-r * 2, -r * 2, r * 4, r * 4);
+    g.restore();
+
+    // 5) recessed inner panel
+    g.save();
+    shipPath(g, r, sh.shape, d.inset);
+    const inner = g.createLinearGradient(0, -r, 0, r);
+    inner.addColorStop(0, "rgba(0,0,0,0.28)");
+    inner.addColorStop(1, "rgba(0,0,0,0.05)");
+    g.fillStyle = inner;
+    g.fill();
+    g.restore();
+
+    // 6) neon accent trim
+    g.save();
+    g.globalCompositeOperation = "lighter";
+    g.strokeStyle = sh.g1;
+    g.lineWidth = Math.max(1, r * 0.08);
+    g.lineCap = "round";
+    for (const seg of d.accents) {
+      g.beginPath();
+      g.moveTo(seg[0][0] * r, seg[0][1] * r);
+      g.lineTo(seg[1][0] * r, seg[1][1] * r);
+      g.stroke();
+    }
+    g.restore();
+
+    // 7) glowing cockpit canopy
+    const cx = d.canopy[0] * r, cy = d.canopy[1] * r, rx = d.canopy[2] * r, ry = d.canopy[3] * r;
+    g.save();
+    g.globalCompositeOperation = "lighter";
+    const cg = g.createRadialGradient(cx, cy, 0, cx, cy, ry * 1.8);
+    cg.addColorStop(0, sh.glow);
+    cg.addColorStop(1, "rgba(0,0,0,0)");
+    g.fillStyle = cg;
+    g.beginPath(); g.arc(cx, cy, ry * 1.8, 0, TAU); g.fill();
+    g.restore();
+    g.fillStyle = "rgba(255,255,255,0.95)";
+    g.beginPath(); g.ellipse(cx, cy, rx, ry, 0, 0, TAU); g.fill();
+    g.fillStyle = sh.g1;
+    g.beginPath(); g.ellipse(cx, cy - ry * 0.15, rx * 0.6, ry * 0.55, 0, 0, TAU); g.fill();
+
+    // 8) hull outline (crisp white) + neon rim
+    shipPath(g, r, sh.shape);
+    g.lineWidth = 1.4;
+    g.strokeStyle = "rgba(255,255,255,0.9)";
     g.stroke();
-    // cockpit spine
-    g.strokeStyle = "rgba(255,255,255,0.35)";
-    g.lineWidth = 1;
-    g.beginPath(); g.moveTo(0, -r * 0.85); g.lineTo(0, r * 0.4); g.stroke();
+    g.save();
+    g.globalCompositeOperation = "lighter";
+    shipPath(g, r, sh.shape);
+    g.lineWidth = Math.max(1, r * 0.06);
+    g.strokeStyle = sh.g1;
+    g.stroke();
+    g.restore();
+
     g.globalAlpha = 1;
   }
 
