@@ -248,7 +248,7 @@
     x: 0, y: 0, r: 16,
     speed: 240,
     hp: 100, maxHp: 100,
-    level: 1, xp: 0, xpNext: 5,
+    level: 1, xp: 0, xpNext: 4,
     pickupRange: 120,
     invuln: 0,
     facing: 0,
@@ -743,21 +743,28 @@
       }
     }
 
-    // timed waves / boss
+    // timed waves / boss — 前のWAVEが片付くまで次は来ない
     if (game.time >= game.nextWaveAt) {
-      game.waveCount++;
-      game.nextWaveAt += 30;
-      if (game.waveCount % 2 === 0) {
-        const kind = BOSS_KINDS[game.bossIndex % BOSS_KINDS.length];
-        game.bossIndex++;
-        spawnAtEdge(kind, hpScale * (1 + game.waveCount * 0.12) * diff.bossHpMul);
-        showWave("警告 — " + BOSS_NAMES[ENEMY_TYPES[kind].bossKind] + " 出現");
+      // ボス戦中、または敵がまだ多い間は次のWAVEを保留する
+      let bossAlive = false, crowd = 0;
+      for (const e of enemies) { if (e.boss) bossAlive = true; else crowd++; }
+      if (bossAlive || crowd > 14) {
+        game.nextWaveAt = game.time + 3;
       } else {
-        const n = 8 + game.waveCount * 2;
-        for (let i = 0; i < n; i++) spawnAtEdge(rollEnemyType(), hpScale);
-        showWave("WAVE " + game.waveCount);
+        game.waveCount++;
+        game.nextWaveAt = game.time + 30;
+        if (game.waveCount % 2 === 0) {
+          const kind = BOSS_KINDS[game.bossIndex % BOSS_KINDS.length];
+          game.bossIndex++;
+          spawnAtEdge(kind, hpScale * (1 + game.waveCount * 0.12) * diff.bossHpMul);
+          showWave("警告 — " + BOSS_NAMES[ENEMY_TYPES[kind].bossKind] + " 出現");
+        } else {
+          const n = 8 + game.waveCount * 2;
+          for (let i = 0; i < n; i++) spawnAtEdge(rollEnemyType(), hpScale);
+          showWave("WAVE " + game.waveCount);
+        }
+        game.shake = Math.max(game.shake, 8);
       }
-      game.shake = Math.max(game.shake, 8);
     }
   }
 
@@ -1568,7 +1575,7 @@
     while (player.xp >= player.xpNext) {
       player.xp -= player.xpNext;
       player.level++;
-      player.xpNext = Math.round(5 + player.level * 3.2 + player.level * player.level * 0.35);
+      player.xpNext = Math.round(3 + player.level * 2.2 + player.level * player.level * 0.42);
       openLevelUp();
     }
   }
@@ -2604,7 +2611,7 @@
 
     player.x = WORLD.w / 2; player.y = WORLD.h / 2;
     player.speed = 240; player.maxHp = diff.startHp; player.hp = diff.startHp;
-    player.level = 1; player.xp = 0; player.xpNext = 5;
+    player.level = 1; player.xp = 0; player.xpNext = 4;
     player.pickupRange = 120; player.invuln = 0; player.facing = -Math.PI / 2;
     player.damageMul = 1; player.fireRateMul = 1; player.projectiles = 1;
     player.critChance = 0.05; player.critMul = 2; player.xpMul = diff.xpMul;
