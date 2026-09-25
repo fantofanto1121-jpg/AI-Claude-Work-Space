@@ -50,6 +50,9 @@
     hard:   { key: "hard",   label: "ハード", hud: "HARD",
       enemyHpMul: 1.4, enemyDmgMul: 1.35, spawnMul: 0.72, bossHpMul: 1.45, xpMul: 0.9, startHp: 80,
       desc: "敵が硬く手数も多い。ビルドの完成度が問われる。" },
+    inferno: { key: "inferno", label: "インフェルノ", hud: "INFERNO",
+      enemyHpMul: 1.9, enemyDmgMul: 2.0, spawnMul: 0.52, bossHpMul: 2.0, xpMul: 0.8, startHp: 60,
+      desc: "最高難度。敵は激増し一撃が重い。極めても、油断は死。" },
   };
   let difficulty = "normal";
   let diff = DIFFICULTIES.normal;
@@ -247,7 +250,7 @@
     time: 0,
     kills: 0,
     best: 0,
-    bests: { easy: 0, normal: 0, hard: 0 },
+    bests: { easy: 0, normal: 0, hard: 0, inferno: 0 },
     shake: 0,
     hitFlash: 0,
     cam: { x: 0, y: 0 },
@@ -537,7 +540,19 @@
       desc: (lv) => "コンボ中、コンボ数に応じてダメージ上昇（最大 +" + (((lv || 0) + 1) * 20) + "%）。" },
     lucky: { name: "ラッキースター", icon: "❉", tag: "PASSIVE", accent: "#ffd166", glow: "rgba(255,209,102,0.5)", max: 4,
       desc: () => "パワーアップの出現率が上昇する。" },
+    // ---- endless upgrades (never max; keep late-game choices flowing) ----
+    e_power: { name: "オーバークロック", icon: "▲", tag: "エンドレス", accent: "#ff9d5a", glow: "rgba(255,157,90,0.5)", max: 999,
+      desc: (lv) => "全武器のダメージ +8%。（累積 " + ((lv || 0) + 1) + "）" },
+    e_haste: { name: "アクセルコア", icon: "✦", tag: "エンドレス", accent: "#38f6ff", glow: "rgba(56,246,255,0.5)", max: 999,
+      desc: (lv) => "攻撃速度 +7%。（累積 " + ((lv || 0) + 1) + "）" },
+    e_vit: { name: "ナノリペア", icon: "✚", tag: "エンドレス", accent: "#78ffbe", glow: "rgba(120,255,190,0.5)", max: 999,
+      desc: (lv) => "最大HP +15（＆15回復）。（累積 " + ((lv || 0) + 1) + "）" },
+    e_swift: { name: "ブースター", icon: "»", tag: "エンドレス", accent: "#7affc8", glow: "rgba(120,255,190,0.5)", max: 999,
+      desc: (lv) => "移動速度 +12。（累積 " + ((lv || 0) + 1) + "）" },
+    e_crit: { name: "コアチャージ", icon: "★", tag: "エンドレス", accent: "#ffd166", glow: "rgba(255,209,102,0.5)", max: 999,
+      desc: (lv) => "クリティカル率 +3%。（累積 " + ((lv || 0) + 1) + "）" },
   };
+  const ENDLESS_SKILLS = ["e_power", "e_haste", "e_vit", "e_swift", "e_crit"];
 
   // ---------------------------------------------------------------------
   //  Costumes  (each defines a ship look + its own skill pool)
@@ -804,7 +819,10 @@
     return (1 + game.time / 55 + powerLevel() * 0.06) * diff.enemyHpMul;
   }
   function enemyDmgScale() {
-    return (1 + game.time / 150 + powerLevel() * 0.03) * diff.enemyDmgMul;
+    // late game ramps hard (quadratic term) so a fully-built player can still die
+    const t = game.time;
+    const late = Math.pow(t / 220, 2) * 0.6;
+    return (1 + t / 130 + late + powerLevel() * 0.03) * diff.enemyDmgMul;
   }
 
   function updateSpawner(dt) {
@@ -2059,6 +2077,13 @@
       else if (info.kind === "weapon" && info.lv === 0) weight = 1.5; // nudge new weapons
       pool.push({ kind: info.kind, id, lv: info.lv, weight });
     }
+    // Endless upgrades always available so choices never dry up. They stay rare
+    // while real skills remain, then take over once the roster is exhausted.
+    const realCount = pool.length;
+    for (const id of ENDLESS_SKILLS) {
+      const lv = player.passives[id] || 0;
+      pool.push({ kind: "passive", id, lv, weight: realCount >= 3 ? 0.3 : 2.2 });
+    }
     return pool;
   }
 
@@ -2170,6 +2195,12 @@
         case "vapor": player.vapor += 1; break;
         case "comboedge": player.comboEdge += 1; break;
         case "lucky": player.luck += 1; break;
+        // endless upgrades
+        case "e_power": player.damageMul += 0.08; break;
+        case "e_haste": player.fireRateMul += 0.07; break;
+        case "e_vit": player.maxHp += 15; player.hp = Math.min(player.maxHp, player.hp + 15); break;
+        case "e_swift": player.speed += 12; break;
+        case "e_crit": player.critChance = clamp(player.critChance + 0.03, 0, 0.95); break;
       }
     }
   }
@@ -3646,6 +3677,7 @@
         game.bests.easy = +o.easy || 0;
         game.bests.normal = +o.normal || 0;
         game.bests.hard = +o.hard || 0;
+        game.bests.inferno = +o.inferno || 0;
       }
     } catch (e) { /* keep zeros */ }
     game.best = game.bests[difficulty] || 0;

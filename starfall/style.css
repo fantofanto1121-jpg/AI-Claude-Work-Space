@@ -497,10 +497,12 @@ kbd {
 }
 .diff-options {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 .diff-btn {
-  flex: 1;
+  flex: 1 1 70px;
+  min-width: 70px;
   padding: 10px 6px;
   border-radius: 12px;
   font-size: 13px;
