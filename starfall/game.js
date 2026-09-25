@@ -507,31 +507,31 @@
     vanguard: {
       name: "ヴァンガード", label: "VANGUARD", swatch: "#38f6ff",
       desc: "王道の万能機。定番の武器と汎用強化を幅広く扱える。",
-      ship: { glow: "rgba(56,246,255,0.6)", g0: "#eafcff", g1: "#38f6ff", g2: "#1b6fff", flame: "rgba(120,220,255,0.9)" },
+      ship: { glow: "rgba(56,246,255,0.6)", g0: "#eafcff", g1: "#38f6ff", g2: "#1b6fff", flame: "rgba(120,220,255,0.9)", shape: "interceptor" },
       skills: ["pulse", "spread", "homing", "beam", "power", "haste", "multishot", "velocity", "longshot", "crit", "sniper", "bigshot", "armor", "swift", "magnet", "greed", "lifesteal", "revive"],
     },
     warden: {
       name: "ウォーデン", label: "WARDEN", swatch: "#46f0a0",
       desc: "要塞型。シールドと反撃、重力場で敵を抱え込んで潰す。",
-      ship: { glow: "rgba(80,255,170,0.6)", g0: "#eafff4", g1: "#46f0a0", g2: "#12b070", flame: "rgba(120,255,190,0.9)" },
+      ship: { glow: "rgba(80,255,170,0.6)", g0: "#eafff4", g1: "#46f0a0", g2: "#12b070", flame: "rgba(120,255,190,0.9)", shape: "fortress" },
       skills: ["gravity", "orbit", "aura", "nova", "homing", "shield", "counter", "thorns", "armor", "blast", "swift", "bigshot", "magnet", "greed", "revive"],
     },
     tempest: {
       name: "テンペスト", label: "TEMPEST", swatch: "#a56bff",
       desc: "無差別掃射型。落雷と帯電で画面全体の敵を捌く。",
-      ship: { glow: "rgba(165,107,255,0.6)", g0: "#f3eaff", g1: "#a56bff", g2: "#6a2bd0", flame: "rgba(200,150,255,0.9)" },
+      ship: { glow: "rgba(165,107,255,0.6)", g0: "#f3eaff", g1: "#a56bff", g2: "#6a2bd0", flame: "rgba(200,150,255,0.9)", shape: "bolt" },
       skills: ["chain", "storm", "staticfield", "beam", "velocity", "longshot", "haste", "blast", "multishot", "swift", "magnet", "greed", "revive"],
     },
     hunter: {
       name: "ハンター", label: "HUNTER", swatch: "#ffd166",
       desc: "一撃必殺型。会心と処刑で硬い敵を一瞬で仕留める。",
-      ship: { glow: "rgba(255,190,90,0.6)", g0: "#fff5e0", g1: "#ffb84d", g2: "#d07a1a", flame: "rgba(255,210,120,0.9)" },
+      ship: { glow: "rgba(255,190,90,0.6)", g0: "#fff5e0", g1: "#ffb84d", g2: "#d07a1a", flame: "rgba(255,210,120,0.9)", shape: "lance" },
       skills: ["deadeye", "beam", "spread", "execute", "critblast", "coldblood", "crit", "sniper", "glass", "longshot", "velocity", "magnet", "greed", "revive"],
     },
     phantom: {
       name: "ファントム", label: "PHANTOM", swatch: "#ff5a7a",
       desc: "自壊高火力型。撃破の連鎖爆発と吸血で押し切る紅の機体。",
-      ship: { glow: "rgba(255,90,120,0.6)", g0: "#ffe6ea", g1: "#ff5a7a", g2: "#c01530", flame: "rgba(255,140,160,0.9)" },
+      ship: { glow: "rgba(255,90,120,0.6)", g0: "#ffe6ea", g1: "#ff5a7a", g2: "#c01530", flame: "rgba(255,140,160,0.9)", shape: "scythe" },
       skills: ["chain", "aura", "voidburst", "bloodhit", "vapor", "berserk", "glass", "lifesteal", "power", "haste", "swift", "magnet", "greed", "revive"],
     },
   };
@@ -1858,29 +1858,56 @@
     ctx.save();
     ctx.translate(player.x, player.y);
     ctx.rotate(player.facing + Math.PI / 2);
-    // ship body — sleek triangle
-    ctx.beginPath();
-    ctx.moveTo(0, -player.r * 1.3);
-    ctx.lineTo(player.r * 0.9, player.r);
-    ctx.lineTo(0, player.r * 0.55);
-    ctx.lineTo(-player.r * 0.9, player.r);
-    ctx.closePath();
-    const grd = ctx.createLinearGradient(0, -player.r, 0, player.r);
-    grd.addColorStop(0, ship.g0);
-    grd.addColorStop(0.5, ship.g1);
-    grd.addColorStop(1, ship.g2);
-    ctx.fillStyle = grd;
-    ctx.globalAlpha = blink ? 0.6 : 1;
-    ctx.fill();
-    ctx.lineWidth = 1.5;
-    ctx.strokeStyle = "rgba(255,255,255,0.8)";
-    ctx.stroke();
-    // engine flame
-    ctx.globalCompositeOperation = "lighter";
-    drawGlow(0, player.r * 1.1, 10 + Math.sin(game.time * 30) * 3, ship.flame, 0.8);
-    ctx.globalCompositeOperation = "source-over";
-    ctx.globalAlpha = 1;
+    drawShipInto(ctx, player.r, ship, blink ? 0.6 : 1, game.time);
     ctx.restore();
+  }
+
+  // Distinct ship silhouettes per costume (points are multiples of r, nose up).
+  const SHIP_SHAPES = {
+    interceptor: [[0, -1.35], [0.9, 1.0], [0, 0.55], [-0.9, 1.0]],
+    fortress: [[0, -1.0], [0.78, -0.35], [1.18, 0.5], [0.5, 1.08], [-0.5, 1.08], [-1.18, 0.5], [-0.78, -0.35]],
+    bolt: [[0, -1.45], [0.45, -0.25], [1.28, 0.12], [0.5, 0.45], [0.82, 1.18], [0, 0.62], [-0.82, 1.18], [-0.5, 0.45], [-1.28, 0.12], [-0.45, -0.25]],
+    lance: [[0, -1.8], [0.28, -0.2], [0.52, 0.85], [0.22, 1.18], [-0.22, 1.18], [-0.52, 0.85], [-0.28, -0.2]],
+    scythe: [[0, -1.3], [1.08, 0.12], [0.45, 0.45], [0.98, 1.22], [0, 0.55], [-0.98, 1.22], [-0.45, 0.45], [-1.08, 0.12]],
+  };
+  function shipPath(g, r, shape) {
+    const pts = SHIP_SHAPES[shape] || SHIP_SHAPES.interceptor;
+    g.beginPath();
+    for (let i = 0; i < pts.length; i++) {
+      const x = pts[i][0] * r, y = pts[i][1] * r;
+      i === 0 ? g.moveTo(x, y) : g.lineTo(x, y);
+    }
+    g.closePath();
+  }
+  // Draws a costume ship centred at (0,0) pointing up, on any 2D context.
+  function drawShipInto(g, r, sh, alpha, flameT) {
+    // engine flame
+    const fr = (10 + (flameT != null ? Math.sin(flameT * 30) * 3 : 0)) * (r / 16);
+    const fg = g.createRadialGradient(0, r * 1.05, 0, 0, r * 1.05, fr * 1.8);
+    fg.addColorStop(0, sh.flame);
+    fg.addColorStop(1, "rgba(0,0,0,0)");
+    const prevOp = g.globalCompositeOperation;
+    g.globalCompositeOperation = "lighter";
+    g.fillStyle = fg;
+    g.beginPath(); g.arc(0, r * 1.05, fr * 1.8, 0, TAU); g.fill();
+    g.globalCompositeOperation = prevOp;
+    // body
+    shipPath(g, r, sh.shape);
+    const grd = g.createLinearGradient(0, -r * 1.5, 0, r * 1.2);
+    grd.addColorStop(0, sh.g0);
+    grd.addColorStop(0.5, sh.g1);
+    grd.addColorStop(1, sh.g2);
+    g.fillStyle = grd;
+    g.globalAlpha = alpha == null ? 1 : alpha;
+    g.fill();
+    g.lineWidth = 1.5;
+    g.strokeStyle = "rgba(255,255,255,0.85)";
+    g.stroke();
+    // cockpit spine
+    g.strokeStyle = "rgba(255,255,255,0.35)";
+    g.lineWidth = 1;
+    g.beginPath(); g.moveTo(0, -r * 0.85); g.lineTo(0, r * 0.4); g.stroke();
+    g.globalAlpha = 1;
   }
 
   // --- enemy rendering helpers ------------------------------------------
@@ -2457,7 +2484,8 @@
     levelupScreen.classList.toggle("hidden", s !== "levelup");
     pauseScreen.classList.toggle("hidden", s !== "paused");
     gameoverScreen.classList.toggle("hidden", s !== "gameover");
-    hud.classList.toggle("hidden", s === "menu");
+    el("costume-screen").classList.toggle("hidden", s !== "costume");
+    hud.classList.toggle("hidden", s === "menu" || s === "costume");
   }
 
   function resetRun() {
@@ -2596,7 +2624,7 @@
     }
 
     // Always render the world (so menus show a live background if desired)
-    if (game.state === "menu") {
+    if (game.state === "menu" || game.state === "costume") {
       renderMenuBackground();
     } else {
       render();
@@ -2667,38 +2695,90 @@
   }
 
   // ---------------------------------------------------------------------
-  //  Costume selection
+  //  Costume selection (dedicated page with previews + skill lists)
   // ---------------------------------------------------------------------
   const COSTUME_KEY = "starfall-arena-costume";
-  function buildCostumeButtons() {
-    const wrap = el("costume-options");
-    wrap.innerHTML = "";
+
+  function renderCostumePreview(canvas, cos) {
+    const S = 2;
+    canvas.width = 96 * S; canvas.height = 96 * S;
+    const g = canvas.getContext("2d");
+    g.setTransform(S, 0, 0, S, 0, 0);
+    g.clearRect(0, 0, 96, 96);
+    g.save();
+    g.translate(48, 50);
+    // soft glow halo
+    g.globalCompositeOperation = "lighter";
+    const gg = g.createRadialGradient(0, 0, 0, 0, 0, 44);
+    gg.addColorStop(0, cos.ship.glow);
+    gg.addColorStop(1, "rgba(0,0,0,0)");
+    g.fillStyle = gg;
+    g.beginPath(); g.arc(0, 0, 44, 0, TAU); g.fill();
+    g.globalCompositeOperation = "source-over";
+    drawShipInto(g, 26, cos.ship, 1, null);
+    g.restore();
+  }
+
+  function skillChip(id) {
+    const info = skillInfo(id);
+    if (!info) return "";
+    const def = info.def;
+    const rare = UNIVERSAL_SKILLS.indexOf(id) >= 0;
+    const cls = "cos-skill " + (rare ? "rare" : (info.kind === "weapon" ? "wpn" : ""));
+    return '<span class="' + cls + '" style="--sc:' + def.accent + '"><i>' + def.icon + '</i>' + def.name + '</span>';
+  }
+
+  function buildCostumeScreen() {
+    const list = el("costume-list");
+    list.innerHTML = "";
     for (const key in COSTUMES) {
       const c = COSTUMES[key];
-      const b = document.createElement("button");
-      b.className = "costume-btn";
-      b.dataset.costume = key;
-      b.style.setProperty("--cos-color", c.swatch);
-      b.innerHTML = '<span class="cos-dot"></span>' + c.name;
-      b.addEventListener("click", () => setCostume(key));
-      wrap.appendChild(b);
+      const card = document.createElement("div");
+      card.className = "cos-card";
+      card.dataset.costume = key;
+      card.style.setProperty("--cos-color", c.swatch);
+      const canvas = document.createElement("canvas");
+      const info = document.createElement("div");
+      info.className = "cos-info";
+      const chips = c.skills.map(skillChip).join("") + UNIVERSAL_SKILLS.map(skillChip).join("");
+      info.innerHTML =
+        '<div class="cos-title"><span class="cos-name">' + c.name + '</span>' +
+        '<span class="cos-role">' + c.label + '</span></div>' +
+        '<div class="cos-desc">' + c.desc + '</div>' +
+        '<div class="cos-skills">' + chips + '</div>';
+      card.appendChild(canvas);
+      card.appendChild(info);
+      card.addEventListener("click", () => setCostume(key));
+      list.appendChild(card);
+      renderCostumePreview(canvas, c);
     }
   }
+
   function setCostume(key) {
     if (!COSTUMES[key]) key = "vanguard";
     costumeKey = key;
     costume = COSTUMES[key];
     ship = costume.ship;
-    document.querySelectorAll(".costume-btn").forEach((b) => b.classList.toggle("active", b.dataset.costume === key));
-    el("costume-desc").textContent = costume.desc;
+    const cur = el("current-costume");
+    if (cur) cur.textContent = costume.name;
+    document.querySelectorAll(".cos-card").forEach((c) => c.classList.toggle("active", c.dataset.costume === key));
     try { localStorage.setItem(COSTUME_KEY, key); } catch (e) {}
   }
+
   function loadCostume() {
-    buildCostumeButtons();
+    buildCostumeScreen();
     let saved = "vanguard";
     try { saved = localStorage.getItem(COSTUME_KEY) || "vanguard"; } catch (e) {}
     setCostume(saved);
   }
+
+  el("open-costume").addEventListener("click", () => {
+    setState("costume");
+    // ensure the active card is scrolled into view
+    const active = document.querySelector(".cos-card.active");
+    if (active) active.scrollIntoView({ block: "nearest" });
+  });
+  el("costume-confirm").addEventListener("click", () => setState("menu"));
 
   // ---------------------------------------------------------------------
   //  Boot

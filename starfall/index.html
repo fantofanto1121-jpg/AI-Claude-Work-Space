@@ -73,11 +73,13 @@
         <li>3択で武器・能力を強化してビルドを作れ</li>
         <li><kbd>P</kbd> / <kbd>Esc</kbd> で一時停止</li>
       </ul>
-      <div class="costume">
-        <div class="diff-label">コスチューム</div>
-        <div class="costume-options" id="costume-options"></div>
-        <div id="costume-desc" class="diff-desc"></div>
-      </div>
+      <button id="open-costume" class="costume-open">
+        <span class="co-left">
+          <span class="diff-label">機体（コスチューム）</span>
+          <b id="current-costume">ヴァンガード</b>
+        </span>
+        <span class="co-right">選択 ▸</span>
+      </button>
       <div class="difficulty">
         <div class="diff-label">難易度</div>
         <div class="diff-options" id="diff-options">
@@ -89,6 +91,18 @@
       </div>
       <button id="start-btn" class="btn primary">ゲーム開始</button>
       <div class="best-line">BEST SURVIVAL &nbsp;<b id="start-best">0:00</b></div>
+    </div>
+  </div>
+
+  <!-- コスチューム選択（専用ページ） -->
+  <div id="costume-screen" class="overlay hidden">
+    <div class="costume-page">
+      <div class="cp-head">
+        <h2>コスチューム選択</h2>
+        <div class="cp-sub">機体ごとに見た目と、出現するスキルが異なる。</div>
+      </div>
+      <div id="costume-list" class="cp-list"></div>
+      <button id="costume-confirm" class="btn primary">この機体で決定</button>
     </div>
   </div>
 
