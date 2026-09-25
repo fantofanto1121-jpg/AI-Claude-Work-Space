@@ -427,6 +427,20 @@
       desc: (lv) => lv === 0 ? "自機を包む破壊の光輪。触れた敵を焼く。"
         : "範囲と威力が拡大する。(Lv" + (lv + 1) + ")",
     },
+    missile: {
+      name: "ミサイルポッド", icon: "➶", tag: "WEAPON",
+      color: "rgba(255,150,90,1)", accent: "#ff965a", glow: "rgba(255,150,90,0.55)",
+      max: 6,
+      desc: (lv) => lv === 0 ? "着弾で炸裂する誘導ミサイルを撃ち出す。"
+        : "弾数・威力・爆風が拡大する。(Lv" + (lv + 1) + ")",
+    },
+    boomerang: {
+      name: "グレイブブーメラン", icon: "↺", tag: "WEAPON",
+      color: "rgba(120,255,235,1)", accent: "#78ffeb", glow: "rgba(120,255,235,0.55)",
+      max: 6,
+      desc: (lv) => lv === 0 ? "往復して貫通する回転刃。行きも帰りも敵を斬る。"
+        : "刃数・威力・射程が伸びる。(Lv" + (lv + 1) + ")",
+    },
     // ---- signature weapons ------------------------------------------------
     gravity: {
       name: "グラビティウェル", icon: "⊛", tag: "ウォーデン専用",
@@ -540,31 +554,31 @@
       name: "ヴァンガード", label: "VANGUARD", swatch: "#38f6ff",
       desc: "王道の万能機。定番の武器と汎用強化を幅広く扱える。",
       ship: { glow: "rgba(56,246,255,0.6)", g0: "#eafcff", g1: "#38f6ff", g2: "#1b6fff", flame: "rgba(120,220,255,0.9)", shape: "interceptor" },
-      skills: ["pulse", "spread", "homing", "beam", "power", "haste", "multishot", "velocity", "longshot", "crit", "sniper", "bigshot", "armor", "swift", "magnet", "greed", "lifesteal", "revive", "comboedge", "lucky"],
+      skills: ["pulse", "spread", "homing", "beam", "missile", "boomerang", "power", "haste", "multishot", "velocity", "longshot", "crit", "sniper", "bigshot", "armor", "swift", "magnet", "greed", "lifesteal", "revive", "comboedge", "lucky"],
     },
     warden: {
       name: "ウォーデン", label: "WARDEN", swatch: "#46f0a0",
       desc: "要塞型。シールドと反撃、重力場で敵を抱え込んで潰す。",
       ship: { glow: "rgba(80,255,170,0.6)", g0: "#eafff4", g1: "#46f0a0", g2: "#12b070", flame: "rgba(120,255,190,0.9)", shape: "fortress" },
-      skills: ["gravity", "orbit", "aura", "nova", "homing", "shield", "counter", "thorns", "armor", "blast", "swift", "bigshot", "magnet", "greed", "revive", "lucky"],
+      skills: ["gravity", "orbit", "aura", "nova", "homing", "missile", "shield", "counter", "thorns", "armor", "blast", "swift", "bigshot", "magnet", "greed", "revive", "lucky"],
     },
     tempest: {
       name: "テンペスト", label: "TEMPEST", swatch: "#a56bff",
       desc: "無差別掃射型。落雷と帯電で画面全体の敵を捌く。",
       ship: { glow: "rgba(165,107,255,0.6)", g0: "#f3eaff", g1: "#a56bff", g2: "#6a2bd0", flame: "rgba(200,150,255,0.9)", shape: "bolt" },
-      skills: ["chain", "storm", "staticfield", "beam", "velocity", "longshot", "haste", "blast", "multishot", "swift", "magnet", "greed", "revive", "comboedge", "lucky"],
+      skills: ["chain", "storm", "staticfield", "beam", "boomerang", "velocity", "longshot", "haste", "blast", "multishot", "swift", "magnet", "greed", "revive", "comboedge", "lucky"],
     },
     hunter: {
       name: "ハンター", label: "HUNTER", swatch: "#ffd166",
       desc: "一撃必殺型。会心と処刑で硬い敵を一瞬で仕留める。",
       ship: { glow: "rgba(255,190,90,0.6)", g0: "#fff5e0", g1: "#ffb84d", g2: "#d07a1a", flame: "rgba(255,210,120,0.9)", shape: "lance" },
-      skills: ["deadeye", "beam", "spread", "execute", "critblast", "coldblood", "crit", "sniper", "glass", "longshot", "velocity", "magnet", "greed", "revive", "comboedge"],
+      skills: ["deadeye", "beam", "spread", "missile", "execute", "critblast", "coldblood", "crit", "sniper", "glass", "longshot", "velocity", "magnet", "greed", "revive", "comboedge"],
     },
     phantom: {
       name: "ファントム", label: "PHANTOM", swatch: "#ff5a7a",
       desc: "自壊高火力型。撃破の連鎖爆発と吸血で押し切る紅の機体。",
       ship: { glow: "rgba(255,90,120,0.6)", g0: "#ffe6ea", g1: "#ff5a7a", g2: "#c01530", flame: "rgba(255,140,160,0.9)", shape: "scythe" },
-      skills: ["chain", "aura", "voidburst", "bloodhit", "vapor", "berserk", "glass", "lifesteal", "power", "haste", "swift", "magnet", "greed", "revive", "comboedge"],
+      skills: ["chain", "aura", "voidburst", "bloodhit", "vapor", "boomerang", "berserk", "glass", "lifesteal", "power", "haste", "swift", "magnet", "greed", "revive", "comboedge"],
     },
   };
   let costumeKey = "vanguard";
@@ -586,6 +600,31 @@
       count: player.projectiles + Math.floor(lv / 2),
       spread: 0.12,
       range: (560 + lv * 20) * player.rangeMul,
+    };
+  }
+  function missileStats() {
+    const lv = weaponLv("missile");
+    return {
+      cooldown: 1.45 / player.fireRateMul,
+      damage: (16 + lv * 7) * dmgMul(),
+      speed: 250,
+      radius: 6,
+      count: 1 + Math.floor(lv / 2),
+      turn: 3.0 + lv * 0.2,
+      blast: 60 + lv * 9,
+      range: (560 + lv * 20) * player.rangeMul,
+    };
+  }
+  function boomerangStats() {
+    const lv = weaponLv("boomerang");
+    return {
+      cooldown: 1.7 / player.fireRateMul,
+      damage: (12 + lv * 5) * dmgMul(),
+      speed: 430 + lv * 10,
+      radius: 8 + lv * 0.5,
+      count: 1 + Math.floor(lv / 3),
+      out: 0.5 + lv * 0.02,
+      range: (500 + lv * 20) * player.rangeMul,
     };
   }
   function orbitCount() { const lv = weaponLv("orbit"); return lv === 0 ? 0 : 2 + Math.floor(lv * 0.9); }
@@ -701,7 +740,7 @@
   }
 
   // weapon timers
-  const wt = { pulse: 0, nova: 0, spread: 0, beam: 0, chain: 0, homing: 0, aura: 0, gravity: 0, storm: 0, deadeye: 0, staticfield: 0 };
+  const wt = { pulse: 0, nova: 0, spread: 0, beam: 0, chain: 0, homing: 0, aura: 0, gravity: 0, storm: 0, deadeye: 0, staticfield: 0, missile: 0, boomerang: 0 };
 
   // ---------------------------------------------------------------------
   //  Enemy types
@@ -1132,6 +1171,40 @@
           }
           sfx.shoot();
         }
+      }
+    }
+    // MISSILE POD (homing, explodes on impact)
+    if (weaponLv("missile") > 0) {
+      wt.missile -= dt;
+      if (wt.missile <= 0) {
+        const s = missileStats();
+        const target = nearestEnemy(player.x, player.y, s.range * s.range);
+        if (target) {
+          wt.missile = s.cooldown;
+          for (let i = 0; i < s.count; i++) {
+            const a = player.facing + (i - (s.count - 1) / 2) * 0.42 + rand(-0.12, 0.12);
+            const b = fireBullet(a, s.speed, s.damage, s.radius, WEAPONS.missile.color, WEAPONS.missile.glow, 1, false);
+            b.homing = true; b.turn = s.turn; b.life = 3.2; b.long = true;
+            b.explodeR = s.blast; b.explodeDmg = s.damage * 0.7;
+          }
+          sfx.shoot();
+        }
+      }
+    }
+    // GLAIVE BOOMERANG (out-and-back piercing blade)
+    if (weaponLv("boomerang") > 0) {
+      wt.boomerang -= dt;
+      if (wt.boomerang <= 0) {
+        const s = boomerangStats();
+        const target = nearestEnemy(player.x, player.y, s.range * s.range);
+        const baseAng = target ? Math.atan2(target.y - player.y, target.x - player.x) : player.facing;
+        wt.boomerang = s.cooldown;
+        for (let i = 0; i < s.count; i++) {
+          const a = baseAng + (i - (s.count - 1) / 2) * 0.4;
+          const b = fireBullet(a, s.speed, s.damage, s.radius, WEAPONS.boomerang.color, WEAPONS.boomerang.glow, 999, false);
+          b.boomerang = 0; b.boomOut = s.out; b.life = 2.2; b.long = true; b.spin = 0;
+        }
+        sfx.shoot();
       }
     }
     // PULSAR AURA (continuous field)
@@ -1713,6 +1786,20 @@
 
   function updateBullets(dt) {
     for (const b of bullets) {
+      // boomerang: fly out, decelerate, then curve back to the player
+      if (b.boomerang !== undefined) {
+        b.boomerang += dt;
+        b.spin = (b.spin || 0) + dt * 20;
+        if (b.boomerang < b.boomOut) {
+          b.vx *= (1 - 1.9 * dt); b.vy *= (1 - 1.9 * dt);
+        } else {
+          if (!b._returning) { b._returning = true; b.hits = new Set(); } // re-hit on the way back
+          const a = Math.atan2(player.y - b.y, player.x - b.x);
+          const sp = 540;
+          b.vx = Math.cos(a) * sp; b.vy = Math.sin(a) * sp;
+          if (dist2(b.x, b.y, player.x, player.y) < (player.r + b.r) * (player.r + b.r)) b.life = 0;
+        }
+      }
       // homing: steer velocity toward nearest enemy
       if (b.homing) {
         const target = nearestEnemy(b.x, b.y);
@@ -1745,6 +1832,15 @@
           b.pierce--;
           if (b.pierce <= 0) { b.life = 0; break; }
         }
+      }
+    }
+    // missiles detonate when they die (impact or timeout)
+    for (const b of bullets) {
+      if (b.life <= 0 && b.explodeR && !b._boomed) {
+        b._boomed = true;
+        aoeDamage(b.x, b.y, b.explodeR, b.explodeDmg, b.glow);
+        burst(b.x, b.y, b.color, 14, 240, [1.5, 3.5], 0.5);
+        game.shake = Math.max(game.shake, 3);
       }
     }
     bullets = bullets.filter((b) => b.life > 0);
@@ -2886,10 +2982,38 @@
         ctx.stroke();
       }
       drawGlow(b.x, b.y, b.r * 3, b.glow, 0.9);
-      ctx.fillStyle = b.crit ? "#fff7d6" : "#ffffff";
-      ctx.beginPath();
-      ctx.arc(b.x, b.y, b.r * 0.7, 0, TAU);
-      ctx.fill();
+      if (b.boomerang !== undefined) {
+        // spinning three-blade glaive
+        ctx.save();
+        ctx.translate(b.x, b.y);
+        ctx.rotate(b.spin || 0);
+        ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2.4; ctx.lineCap = "round";
+        for (let k = 0; k < 3; k++) {
+          ctx.rotate(TAU / 3);
+          ctx.beginPath(); ctx.moveTo(0, 0);
+          ctx.quadraticCurveTo(b.r * 0.7, -b.r * 0.4, b.r * 1.5, 0);
+          ctx.stroke();
+        }
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath(); ctx.arc(0, 0, b.r * 0.4, 0, TAU); ctx.fill();
+        ctx.restore();
+      } else if (b.explodeR) {
+        // missile dart pointing along travel
+        ctx.save();
+        ctx.translate(b.x, b.y);
+        ctx.rotate(Math.atan2(b.vy, b.vx) + Math.PI / 2);
+        ctx.fillStyle = b.crit ? "#fff7d6" : "#fff2e6";
+        ctx.beginPath();
+        ctx.moveTo(0, -b.r * 1.5); ctx.lineTo(b.r * 0.7, b.r * 0.9);
+        ctx.lineTo(0, b.r * 0.4); ctx.lineTo(-b.r * 0.7, b.r * 0.9);
+        ctx.closePath(); ctx.fill();
+        ctx.restore();
+      } else {
+        ctx.fillStyle = b.crit ? "#fff7d6" : "#ffffff";
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.r * 0.7, 0, TAU);
+        ctx.fill();
+      }
     }
     ctx.globalCompositeOperation = "source-over";
   }
@@ -3182,6 +3306,7 @@
     wt.pulse = 0; wt.nova = 0; wt.spread = 0; wt.beam = 0;
     wt.chain = 0; wt.homing = 0; wt.aura = 0;
     wt.gravity = 0; wt.storm = 0; wt.deadeye = 0; wt.staticfield = 0;
+    wt.missile = 0; wt.boomerang = 0;
     orbitAngle = 0;
 
     player.x = WORLD.w / 2; player.y = WORLD.h / 2;
