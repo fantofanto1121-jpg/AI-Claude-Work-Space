@@ -758,9 +758,14 @@
     boss_lancer: { r: 38, hp: 760, speed: 58, dmg: 24, xp: 46, color: "rgba(90,220,255,1)", glow: "rgba(56,200,255,0.6)", boss: true, bossKind: "lancer" },
     boss_sentry: { r: 42, hp: 720, speed: 32, dmg: 16, xp: 46, color: "rgba(255,190,90,1)", glow: "rgba(255,170,70,0.6)", boss: true, bossKind: "sentry" },
     boss_vortex: { r: 40, hp: 820, speed: 74, dmg: 20, xp: 48, color: "rgba(150,130,255,1)", glow: "rgba(130,110,255,0.6)", boss: true, bossKind: "vortex" },
+    boss_spectre:  { r: 38, hp: 760, speed: 82, dmg: 18, xp: 48, color: "rgba(150,255,230,1)", glow: "rgba(120,255,220,0.55)", boss: true, bossKind: "spectre" },
+    boss_monolith: { r: 50, hp: 1050, speed: 30, dmg: 24, xp: 54, color: "rgba(110,150,255,1)", glow: "rgba(90,130,255,0.55)", boss: true, bossKind: "monolith" },
+    boss_reaver:   { r: 36, hp: 820, speed: 70, dmg: 24, xp: 48, color: "rgba(255,70,90,1)", glow: "rgba(255,60,80,0.6)", boss: true, bossKind: "reaver" },
+    boss_warlock:  { r: 42, hp: 840, speed: 60, dmg: 18, xp: 50, color: "rgba(190,120,255,1)", glow: "rgba(175,110,255,0.6)", boss: true, bossKind: "warlock" },
+    boss_prism:    { r: 40, hp: 800, speed: 66, dmg: 20, xp: 48, color: "rgba(255,170,225,1)", glow: "rgba(255,150,215,0.6)", boss: true, bossKind: "prism" },
   };
-  const BOSS_KINDS = ["boss_dread", "boss_hive", "boss_lancer", "boss_sentry", "boss_vortex"];
-  const BOSS_NAMES = { dread: "ドレッドノート", hive: "ハイヴコア", lancer: "ランサー", sentry: "セントリー", vortex: "ヴォルテクス" };
+  const BOSS_KINDS = ["boss_dread", "boss_hive", "boss_lancer", "boss_sentry", "boss_vortex", "boss_spectre", "boss_monolith", "boss_reaver", "boss_warlock", "boss_prism"];
+  const BOSS_NAMES = { dread: "ドレッドノート", hive: "ハイヴコア", lancer: "ランサー", sentry: "セントリー", vortex: "ヴォルテクス", spectre: "スペクター", monolith: "モノリス", reaver: "リーヴァー", warlock: "ウォーロック", prism: "プリズム" };
 
   function spawnEnemy(type, x, y, hpScale) {
     const t = ENEMY_TYPES[type];
@@ -1683,9 +1688,103 @@
         e.spiralAng = (e.spiralAng || 0) + 0.42;
         fireSpiralArm(e, e.spiralAng);
       }
+    } else if (e.bossKind === "spectre") {
+      // strafe, then phase out and blink beside the player with a homing volley
+      if (e.teleT > 0) {
+        e.teleT -= dt; vx = 0; vy = 0;
+        if (e.teleT <= 0) {
+          const ang = Math.random() * TAU, rr = 210 + Math.random() * 90;
+          e.x = clamp(player.x + Math.cos(ang) * rr, 40, WORLD.w - 40);
+          e.y = clamp(player.y + Math.sin(ang) * rr, 40, WORLD.h - 40);
+          burst(e.x, e.y, e.color, 22, 280, [2, 4], 0.5);
+          shockwave(e.x, e.y, 90, e.glow);
+          const base = Math.atan2(player.y - e.y, player.x - e.x);
+          for (let i = 0; i < 5; i++) {
+            const a = base + (i - 2) * 0.28;
+            enemyBullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * 150, vy: Math.sin(a) * 150, r: 8, damage: e.dmg * 0.5, life: 5, color: e.color, glow: e.glow, homing: true, turn: 1.6 });
+          }
+          sfx.nova();
+          e.aTimer = 2.6;
+        }
+      } else if (e.aTimer <= 0) {
+        e.teleT = 0.5;
+      } else {
+        vx = -uy * e.speed * 0.6; vy = ux * e.speed * 0.6;
+      }
+    } else if (e.bossKind === "monolith") {
+      vx = ux * e.speed * 0.5; vy = uy * e.speed * 0.5; // slow advance
+      if (e.aTimer <= 0) { e.aTimer = 3.0; fireRingWall(e); }
+    } else if (e.bossKind === "reaver") {
+      if (e.dashT > 0) {
+        e.dashT -= dt; vx = e.dvx; vy = e.dvy;
+        e._imgCd = (e._imgCd || 0) - dt;
+        if (e._imgCd <= 0) { e._imgCd = 0.03; burst(e.x, e.y, e.glow, 1, 8, [3, 5], 0.28); }
+        if (e.dashT <= 0) {
+          e.bCount = (e.bCount || 0) - 1;
+          if (e.bCount > 0) e.teleT = 0.12; else e.aTimer = 2.2;
+        }
+      } else if (e.teleT > 0) {
+        e.teleT -= dt; vx = ux * e.speed * 0.2; vy = uy * e.speed * 0.2;
+        if (e.teleT <= 0) { e.dashT = 0.3; e.dvx = ux * 720; e.dvy = uy * 720; }
+      } else if (e.aTimer <= 0) {
+        e.bCount = 3; e.teleT = 0.4;
+        game.shake = Math.max(game.shake, 5); sfx.nova();
+      }
+    } else if (e.bossKind === "warlock") {
+      const want = 320;
+      if (d < want - 40) { vx = -ux * e.speed; vy = -uy * e.speed; }
+      else if (d > want + 40) { vx = ux * e.speed; vy = uy * e.speed; }
+      else { vx = -uy * e.speed * 0.7; vy = ux * e.speed * 0.7; }
+      if (e.aTimer <= 0) {
+        e.bCount = (e.bCount || 0) + 1;
+        if (e.bCount % 3 === 0) {
+          for (let i = 0; i < 3; i++) { const c = spawnEnemy("charger", e.x + rand(-30, 30), e.y + rand(-30, 30), 0.8); c.color = e.color; c.glow = e.glow; }
+          shockwave(e.x, e.y, 74, e.glow); e.aTimer = 3.2;
+        } else {
+          const base = Math.atan2(player.y - e.y, player.x - e.x);
+          for (let i = 0; i < 3; i++) {
+            const a = base + (i - 1) * 0.22;
+            enemyBullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * 130, vy: Math.sin(a) * 130, r: 9, damage: e.dmg * 0.5, life: 5, color: e.color, glow: e.glow, homing: true, turn: 1.1 });
+          }
+          e.aTimer = 1.6; sfx.shoot();
+        }
+      }
+    } else if (e.bossKind === "prism") {
+      const want = 300;
+      let bvx, bvy;
+      if (d < want - 40) { bvx = -ux * e.speed; bvy = -uy * e.speed; }
+      else if (d > want + 40) { bvx = ux * e.speed; bvy = uy * e.speed; }
+      else { bvx = -uy * e.speed * 0.8; bvy = ux * e.speed * 0.8; }
+      if (e.dashT > 0) { e.dashT -= dt; vx = bvx * 0.2; vy = bvy * 0.2; }
+      else if (e.teleT > 0) {
+        e.teleT -= dt; vx = bvx * 0.3; vy = bvy * 0.3;
+        if (e.teleT <= 0) { firePrismVolley(e); e.dashT = 0.4; e.aTimer = 3.0; }
+      } else if (e.aTimer <= 0) { e.teleT = 0.7; vx = bvx; vy = bvy; }
+      else { vx = bvx; vy = bvy; }
     }
     // dread: plain chase (default vx/vy)
     return { vx, vy };
+  }
+
+  function fireRingWall(e) {
+    const n = 26, gapStart = Math.floor(Math.random() * n), gapLen = 4;
+    for (let i = 0; i < n; i++) {
+      if (i >= gapStart && i < gapStart + gapLen) continue;
+      const a = (TAU * i) / n;
+      enemyBullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * 140, vy: Math.sin(a) * 140, r: 8, damage: e.dmg * 0.5, life: 5, color: e.color, glow: e.glow });
+    }
+    if (enemyBullets.length > 320) enemyBullets.splice(0, enemyBullets.length - 320);
+    shockwave(e.x, e.y, 62, e.glow); sfx.shoot();
+  }
+
+  function firePrismVolley(e) {
+    const base = Math.atan2(player.y - e.y, player.x - e.x), n = 13, arc = 1.1;
+    for (let i = 0; i < n; i++) {
+      const a = base + (i - (n - 1) / 2) * (arc / n);
+      enemyBullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * 235, vy: Math.sin(a) * 235, r: 6, damage: e.dmg * 0.5, life: 4, color: e.color, glow: e.glow });
+    }
+    if (enemyBullets.length > 320) enemyBullets.splice(0, enemyBullets.length - 320);
+    game.shake = Math.max(game.shake, 6); sfx.nova();
   }
 
   function fireSpiralArm(e, ang) {
@@ -1720,6 +1819,17 @@
 
   function updateEnemyBullets(dt) {
     for (const b of enemyBullets) {
+      // some boss orbs home in on the player
+      if (b.homing) {
+        const sp = Math.hypot(b.vx, b.vy) || 1;
+        const desired = Math.atan2(player.y - b.y, player.x - b.x);
+        let cur = Math.atan2(b.vy, b.vx);
+        let diff = desired - cur;
+        while (diff > Math.PI) diff -= TAU;
+        while (diff < -Math.PI) diff += TAU;
+        cur += clamp(diff, -b.turn * dt, b.turn * dt);
+        b.vx = Math.cos(cur) * sp; b.vy = Math.sin(cur) * sp;
+      }
       b.x += b.vx * dt;
       b.y += b.vy * dt;
       b.life -= dt;
@@ -2792,8 +2902,148 @@
       case "lancer": drawBossLancer(e, flash); break;
       case "sentry": drawBossSentry(e, flash); break;
       case "vortex": drawBossVortex(e, flash); break;
+      case "spectre": drawBossSpectre(e, flash); break;
+      case "monolith": drawBossMonolith(e, flash); break;
+      case "reaver": drawBossReaver(e, flash); break;
+      case "warlock": drawBossWarlock(e, flash); break;
+      case "prism": drawBossPrism(e, flash); break;
       default: drawBossDread(e, flash); break;
     }
+  }
+
+  // SPECTRE — phasing wraith; fades while charging a blink
+  function drawBossSpectre(e, flash) {
+    const c = eColors(e), r = e.r;
+    const phasing = e.teleT > 0;
+    ctx.save();
+    ctx.globalAlpha = phasing ? 0.35 + 0.3 * Math.sin(game.time * 20) : 1;
+    // wavy cloak
+    ctx.rotate(Math.sin(game.time * 1.5) * 0.15);
+    ctx.beginPath();
+    for (let i = 0; i <= 20; i++) {
+      const a = (TAU * i) / 20;
+      const wob = 1 + 0.14 * Math.sin(a * 4 + game.time * 4);
+      const rr = (i > 12 ? r * 1.25 : r) * wob;
+      const x = Math.cos(a) * rr, y = Math.sin(a) * rr * (i > 12 ? 1.25 : 1);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fillStyle = flash ? "#ffffff" : bodyGrad(r, c.light, c.base);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.55)"; ctx.lineWidth = 2; ctx.stroke();
+    // hollow eyes
+    ctx.globalCompositeOperation = "source-over";
+    ctx.fillStyle = "rgba(4,10,10,0.9)";
+    for (const sx of [-0.32, 0.32]) { ctx.beginPath(); ctx.ellipse(sx * r, -r * 0.15, r * 0.14, r * 0.22, 0, 0, TAU); ctx.fill(); }
+    ctx.globalCompositeOperation = "lighter";
+    for (const sx of [-0.32, 0.32]) drawGlow(sx * r, -r * 0.15, r * 0.16, c.base, 0.9);
+    ctx.restore();
+    bossCore(c, r);
+  }
+
+  // MONOLITH — slow armored slab that emits ring walls
+  function drawBossMonolith(e, flash) {
+    const c = eColors(e), r = e.r;
+    ctx.save();
+    ctx.rotate(e.phase * 0.06);
+    // charge-up glow before a ring wall
+    const chg = clamp(1 - e.aTimer / 3.0, 0, 1);
+    for (let ring = 0; ring < 2; ring++) {
+      const rr = r * (0.7 + ring * 0.32);
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) { const a = (TAU * i) / 6 + ring * 0.5; const x = Math.cos(a) * rr, y = Math.sin(a) * rr; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+      ctx.closePath();
+      ctx.fillStyle = flash ? "#ffffff" : (ring === 0 ? bodyGrad(r, c.light, c.dark) : "rgba(20,30,60,0.5)");
+      if (ring === 0) ctx.fill();
+      ctx.strokeStyle = c.light; ctx.lineWidth = ring === 0 ? 3 : 2; ctx.stroke();
+    }
+    ctx.restore();
+    // pulsing charge ring
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.strokeStyle = c.base; ctx.lineWidth = 2 + chg * 3;
+    ctx.globalAlpha = 0.3 + chg * 0.6;
+    ctx.beginPath(); ctx.arc(0, 0, r * (1.2 + chg * 0.3), 0, TAU); ctx.stroke();
+    ctx.restore();
+    bossCore(c, r);
+  }
+
+  // REAVER — twin-bladed berserker, leaves afterimages while dashing
+  function drawBossReaver(e, flash) {
+    const c = eColors(e), r = e.r;
+    ctx.rotate(e.angle + Math.PI / 2);
+    const winding = e.teleT > 0;
+    if (winding) { const w = 0.5 + 0.5 * Math.abs(Math.sin(game.time * 20)); drawGlow(0, 0, r * 1.6, c.base, 0.5 * w); }
+    // central body
+    ctx.beginPath();
+    ctx.moveTo(0, -r * 1.3); ctx.lineTo(r * 0.5, 0); ctx.lineTo(0, r * 1.1); ctx.lineTo(-r * 0.5, 0); ctx.closePath();
+    ctx.fillStyle = flash ? "#ffffff" : bodyGrad(r, c.light, c.base);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.7)"; ctx.lineWidth = 2; ctx.stroke();
+    // twin curved blades
+    ctx.strokeStyle = c.light; ctx.lineWidth = 3; ctx.lineCap = "round";
+    for (const s of [-1, 1]) {
+      ctx.beginPath();
+      ctx.moveTo(s * r * 0.4, -r * 0.2);
+      ctx.quadraticCurveTo(s * r * 1.5, -r * 0.4, s * r * 1.3, r * 0.9);
+      ctx.stroke();
+    }
+    bossCore(c, r);
+  }
+
+  // WARLOCK — hovering caster ringed by orbiting runes
+  function drawBossWarlock(e, flash) {
+    const c = eColors(e), r = e.r;
+    // orbiting runes
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    for (let i = 0; i < 5; i++) {
+      const a = game.time * 1.2 + (TAU * i) / 5;
+      const x = Math.cos(a) * r * 1.35, y = Math.sin(a) * r * 1.35;
+      drawGlow(x, y, r * 0.24, c.base, 0.9);
+      ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(x, y, r * 0.09, 0, TAU); ctx.fill();
+    }
+    ctx.restore();
+    // body: pointed mantle
+    ctx.save();
+    ctx.rotate(Math.sin(game.time) * 0.1);
+    starPath(r, r * 0.55, 6);
+    ctx.fillStyle = flash ? "#ffffff" : bodyGrad(r, c.light, c.base);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.6)"; ctx.lineWidth = 2; ctx.stroke();
+    ctx.restore();
+    bossCore(c, r);
+  }
+
+  // PRISM — faceted crystal that charges wide volleys
+  function drawBossPrism(e, flash) {
+    const c = eColors(e), r = e.r;
+    const charging = e.teleT > 0;
+    if (charging) {
+      // telegraph aim toward the player
+      const a = Math.atan2(player.y - e.y, player.x - e.x);
+      ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.rotate(a);
+      const w = 0.4 + 0.6 * Math.abs(Math.sin(game.time * 16));
+      ctx.strokeStyle = "rgba(255,170,225," + (0.5 * w).toFixed(2) + ")"; ctx.lineWidth = 4; ctx.setLineDash([12, 9]);
+      ctx.beginPath(); ctx.moveTo(r * 1.2, 0); ctx.lineTo(r * 1.2 + 280, 0); ctx.stroke();
+      ctx.setLineDash([]); ctx.restore();
+    }
+    ctx.save();
+    ctx.rotate(e.phase * 0.2);
+    // crystal facets
+    const g = ctx.createLinearGradient(-r, -r, r, r);
+    g.addColorStop(0, "#ffffff"); g.addColorStop(0.5, c.base); g.addColorStop(1, c.dark);
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++) { const a = (TAU * i) / 8; const rr = i % 2 === 0 ? r * 1.2 : r * 0.8; const x = Math.cos(a) * rr, y = Math.sin(a) * rr; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+    ctx.closePath();
+    ctx.fillStyle = flash ? "#ffffff" : g;
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.75)"; ctx.lineWidth = 2; ctx.stroke();
+    // inner facet lines
+    ctx.strokeStyle = "rgba(255,255,255,0.4)"; ctx.lineWidth = 1;
+    for (let i = 0; i < 4; i++) { const a = (TAU * i) / 4; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a) * r * 1.1, Math.sin(a) * r * 1.1); ctx.stroke(); }
+    ctx.restore();
+    bossCore(c, r);
   }
 
   // VORTEX — spinning spiral emitter, indigo
