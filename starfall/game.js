@@ -24,6 +24,8 @@
   const xpFill = el("xp-fill");
   const waveBanner = el("wave-banner");
   const flashEl = el("flash");
+  const dashBtn = el("dash-btn");
+  const dashCdEl = dashBtn ? dashBtn.querySelector(".dash-cd") : null;
 
   const startScreen = el("start-screen");
   const levelupScreen = el("levelup-screen");
@@ -167,6 +169,7 @@
     if (game.state === "levelup" && (k === "1" || k === "2" || k === "3")) {
       chooseUpgradeByIndex(parseInt(k, 10) - 1);
     }
+    if (k === " " && game.state === "playing") doDash();
     if ((k === "enter" || k === " ")) {
       if (game.state === "menu") startRun();
       else if (game.state === "gameover") startRun();
@@ -225,6 +228,17 @@
   canvas.addEventListener("touchend", touchEnd, { passive: false });
   canvas.addEventListener("touchcancel", touchEnd, { passive: false });
 
+  // Dash button — its own touch so it never feeds the movement joystick.
+  if (dashBtn) {
+    dashBtn.addEventListener("touchstart", (e) => {
+      const a = audio();
+      if (a && a.state === "suspended") a.resume().catch(() => {});
+      doDash();
+      if (e.cancelable) e.preventDefault();
+    }, { passive: false });
+    dashBtn.addEventListener("click", () => doDash());
+  }
+
   // ---------------------------------------------------------------------
   //  Game state
   // ---------------------------------------------------------------------
@@ -252,6 +266,8 @@
     pickupRange: 120,
     invuln: 0,
     facing: 0,
+    // dash (space / on-screen button): brief burst that runs enemies over
+    dashTime: 0, dashCd: 0, dashDX: 0, dashDY: -1, dashHit: null,
     // combat multipliers (modified by upgrades)
     damageMul: 1,
     fireRateMul: 1,
@@ -336,6 +352,7 @@
     level: () => { beep(660, 0.1, "triangle", 0.07); setTimeout(() => beep(990, 0.14, "triangle", 0.06), 70); },
     hurt: () => beep(120, 0.18, "sawtooth", 0.08),
     nova: () => beep(90, 0.25, "sine", 0.09),
+    dash: () => { beep(420, 0.08, "sawtooth", 0.05); setTimeout(() => beep(820, 0.1, "sine", 0.045), 45); },
     dead: () => { beep(160, 0.3, "sawtooth", 0.09); setTimeout(() => beep(80, 0.5, "sine", 0.08), 120); },
   };
 
@@ -1186,7 +1203,78 @@
   // ---------------------------------------------------------------------
   //  Update loop pieces
   // ---------------------------------------------------------------------
+  // Dash tuning.
+  const DASH_DUR = 0.16;    // seconds of burst movement
+  const DASH_CD = 1.4;      // seconds before it can be used again
+  const DASH_SPEED = 1180;  // px/s during the burst
+  const DASH_PLOW = 16;     // extra reach for running enemies over
+
+  // Trigger a dash in the current move/facing direction.
+  function doDash() {
+    if (game.state !== "playing") return;
+    if (player.dashTime > 0 || player.dashCd > 0) return;
+    let dx = 0, dy = 0;
+    if (keys["w"] || keys["arrowup"]) dy -= 1;
+    if (keys["s"] || keys["arrowdown"]) dy += 1;
+    if (keys["a"] || keys["arrowleft"]) dx -= 1;
+    if (keys["d"] || keys["arrowright"]) dx += 1;
+    if (touch.active && (touch.nx || touch.ny)) { dx = touch.nx; dy = touch.ny; }
+    if (!dx && !dy) { dx = Math.cos(player.facing); dy = Math.sin(player.facing); }
+    const len = Math.hypot(dx, dy) || 1;
+    player.dashDX = dx / len; player.dashDY = dy / len;
+    player.facing = Math.atan2(player.dashDY, player.dashDX);
+    player.dashTime = DASH_DUR;
+    player.dashCd = DASH_CD;
+    player.dashHit = new Set();
+    player.invuln = Math.max(player.invuln, DASH_DUR + 0.1);
+    shockwave(player.x, player.y, player.r * 2.8, ship.glow);
+    burst(player.x, player.y, ship.g1, 16, 280, [1.5, 3], 0.4);
+    game.shake = Math.max(game.shake, 5);
+    sfx.dash();
+  }
+
+  // While dashing, run over any enemy in the path.
+  function dashRunOver() {
+    const plow = player.r + DASH_PLOW;
+    const bossDmg = Math.round(60 * dmgMul());
+    for (const e of enemies) {
+      if (e.dead || player.dashHit.has(e)) continue;
+      const rr = plow + e.r;
+      if (dist2(player.x, player.y, e.x, e.y) < rr * rr) {
+        player.dashHit.add(e);
+        if (e.boss) {
+          const a = Math.atan2(e.y - player.y, e.x - player.x);
+          damageEnemy(e, bossDmg, Math.cos(a) * 200, Math.sin(a) * 200, true);
+        } else {
+          killEnemy(e); // 轢殺
+          burst(e.x, e.y, "#ffffff", 8, 200, [1, 2.5], 0.3);
+        }
+      }
+    }
+  }
+
   function updatePlayer(dt) {
+    // dash cooldown always ticks down
+    if (player.dashCd > 0) player.dashCd = Math.max(0, player.dashCd - dt);
+
+    // active dash: override normal movement with a high-speed burst
+    if (player.dashTime > 0) {
+      player.dashTime -= dt;
+      const step = DASH_SPEED * dt;
+      player.x = clamp(player.x + player.dashDX * step, player.r, WORLD.w - player.r);
+      player.y = clamp(player.y + player.dashDY * step, player.r, WORLD.h - player.r);
+      player.facing = Math.atan2(player.dashDY, player.dashDX);
+      player.trail.push({ x: player.x, y: player.y, life: 1.5 });
+      if (player.trail.length > 26) player.trail.shift();
+      for (const t of player.trail) t.life -= dt * 2.6;
+      player.trail = player.trail.filter((t) => t.life > 0);
+      dashRunOver();
+      player.stillTime = 0;
+      updateVaporTrail(dt);
+      if (player.invuln > 0) player.invuln -= dt;
+      return;
+    }
+
     let mx = 0, my = 0;
     if (keys["w"] || keys["arrowup"]) my -= 1;
     if (keys["s"] || keys["arrowdown"]) my += 1;
@@ -2715,6 +2803,13 @@
     hpText.textContent = Math.ceil(player.hp) + " / " + player.maxHp;
     const xpP = clamp(player.xp / player.xpNext, 0, 1);
     xpFill.style.width = (xpP * 100) + "%";
+    // dash cooldown indicator
+    if (dashBtn) {
+      const cd = player.dashCd > 0 ? player.dashCd / DASH_CD : 0;
+      if (dashCdEl) dashCdEl.style.transform = "scaleY(" + cd + ")";
+      dashBtn.classList.toggle("cooling", cd > 0);
+      dashBtn.classList.toggle("ready", cd === 0);
+    }
   }
 
   // ---------------------------------------------------------------------
@@ -2745,6 +2840,7 @@
     player.speed = 240; player.maxHp = diff.startHp; player.hp = diff.startHp;
     player.level = 1; player.xp = 0; player.xpNext = 4;
     player.pickupRange = 120; player.invuln = 0; player.facing = -Math.PI / 2;
+    player.dashTime = 0; player.dashCd = 0; player.dashDX = 0; player.dashDY = -1; player.dashHit = null;
     player.damageMul = 1; player.fireRateMul = 1; player.projectiles = 1;
     player.critChance = 0.05; player.critMul = 2; player.xpMul = diff.xpMul;
     player.rangeMul = 1; player.projSpeedMul = 1; player.aoeMul = 1;

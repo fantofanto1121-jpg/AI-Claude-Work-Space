@@ -134,6 +134,66 @@ html, body {
 .pause-btn:hover { filter: brightness(1.15); }
 .pause-btn:active { transform: scale(0.94); }
 
+/* Dash button (bottom-left) */
+.dash-btn {
+  position: fixed;
+  left: max(18px, env(safe-area-inset-left));
+  bottom: max(66px, calc(env(safe-area-inset-bottom) + 54px));
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  pointer-events: auto;
+  cursor: pointer;
+  padding: 0;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  border: 1.5px solid rgba(56, 246, 255, 0.55);
+  background: radial-gradient(circle at 50% 36%, rgba(56, 246, 255, 0.3), rgba(9, 15, 28, 0.72) 70%);
+  box-shadow: 0 0 22px rgba(56, 246, 255, 0.32), inset 0 0 16px rgba(56, 246, 255, 0.16);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
+  transition: transform 0.08s ease, filter 0.2s ease;
+  z-index: 6;
+}
+.dash-btn:active { transform: scale(0.92); }
+.dash-btn.cooling { filter: brightness(0.62) saturate(0.7); }
+.dash-btn.ready { animation: dashPulse 1.7s ease-in-out infinite; }
+@keyframes dashPulse {
+  0%, 100% { box-shadow: 0 0 22px rgba(56, 246, 255, 0.32), inset 0 0 16px rgba(56, 246, 255, 0.16); }
+  50% { box-shadow: 0 0 34px rgba(56, 246, 255, 0.6), inset 0 0 22px rgba(56, 246, 255, 0.32); }
+}
+.dash-cd {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 100%;
+  background: linear-gradient(180deg, rgba(6, 12, 24, 0.15), rgba(6, 12, 24, 0.7));
+  transform-origin: bottom center;
+  transform: scaleY(0);
+  pointer-events: none;
+}
+.dash-core {
+  position: relative;
+  display: grid;
+  place-items: center;
+  gap: 3px;
+  pointer-events: none;
+}
+.dash-arrow {
+  width: 0; height: 0;
+  border-left: 9px solid transparent;
+  border-right: 9px solid transparent;
+  border-bottom: 15px solid #eafcff;
+  filter: drop-shadow(0 0 6px rgba(56, 246, 255, 0.9));
+}
+.dash-text {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.13em;
+  color: #dff2ff;
+  text-shadow: 0 0 8px rgba(56, 246, 255, 0.7);
+}
+
 .bars {
   position: absolute;
   left: 22px;
