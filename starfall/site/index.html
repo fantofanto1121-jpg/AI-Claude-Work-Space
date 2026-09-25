@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#05060f">
+<meta name="description" content="STARFALL ARENA — ネオンの闇を生き延びる、ブラウザで遊べるサバイバー・アリーナ。5機体、多彩なボス、ダッシュ。">
+<title>STARFALL ARENA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  /* ---- Single committed neon-dark theme ---- */
+  :root {
+    color-scheme: dark;
+    --bg:      #05060f;
+    --bg-1:    #080b1a;
+    --panel:   rgba(16, 22, 44, 0.66);
+    --panel-2: rgba(10, 14, 30, 0.82);
+    --line:    rgba(120, 150, 230, 0.16);
+    --line-2:  rgba(120, 150, 230, 0.30);
+    --ink:     #e7eeff;
+    --ink-dim: #aebbe0;
+    --muted:   rgba(176, 196, 255, 0.55);
+    --cyan:    #38f6ff;
+    --magenta: #ff3ea5;
+    --purple:  #a56bff;
+    --gold:    #ffd166;
+    --green:   #46f0a0;
+    --red:     #ff5a7a;
+    --font-display: "Chakra Petch", "Zen Kaku Gothic New", system-ui, sans-serif;
+    --font-body: "Zen Kaku Gothic New", "Chakra Petch", system-ui, sans-serif;
+    --gut: clamp(16px, 5vw, 64px);
+    --maxw: 1180px;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+  }
+  img { max-width: 100%; display: block; }
+  a { color: inherit; text-decoration: none; }
+  [hidden] { display: none !important; }
+
+  .wrap { width: 100%; max-width: var(--maxw); margin-inline: auto; padding-inline: var(--gut); }
+
+  /* fixed grid + vignette behind everything */
+  .bg-grid {
+    position: fixed; inset: 0; z-index: -2; pointer-events: none;
+    background:
+      radial-gradient(1200px 700px at 50% -10%, rgba(58,246,255,0.10), transparent 60%),
+      radial-gradient(900px 600px at 100% 10%, rgba(165,107,255,0.10), transparent 60%),
+      radial-gradient(900px 700px at 0% 30%, rgba(255,62,165,0.07), transparent 60%),
+      linear-gradient(180deg, #05060f, #04040b 60%, #05060f);
+  }
+  .bg-grid::before {
+    content: ""; position: absolute; inset: -2px;
+    background-image:
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: 54px 54px;
+    mask-image: radial-gradient(120% 90% at 50% 0%, #000 40%, transparent 85%);
+    opacity: 0.7;
+  }
+  .bg-vignette {
+    position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    box-shadow: inset 0 0 240px 60px rgba(0,0,0,0.75);
+    background: radial-gradient(130% 100% at 50% 0%, transparent 55%, rgba(0,0,0,0.55));
+  }
+
+  /* ---------- top nav ---------- */
+  .nav {
+    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 40;
+    backdrop-filter: blur(10px);
+    background: linear-gradient(180deg, rgba(5,6,15,0.86), rgba(5,6,15,0.5));
+    border-bottom: 1px solid var(--line);
+  }
+  .nav-in { display: flex; align-items: center; gap: 18px; height: 62px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-weight: 700; letter-spacing: 0.14em; font-size: 15px; }
+  .brand .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 12px var(--cyan), 0 0 24px var(--cyan); }
+  .brand b { color: var(--ink); }
+  .brand span { color: var(--cyan); }
+  .nav-links { display: flex; gap: 22px; margin-left: auto; }
+  .nav-links a { font-family: var(--font-display); font-size: 13px; letter-spacing: 0.08em; color: var(--ink-dim); transition: color .2s; }
+  .nav-links a:hover { color: var(--cyan); }
+  .nav-cta {
+    font-family: var(--font-display); font-weight: 700; font-size: 13px; letter-spacing: 0.06em;
+    color: #04121a; padding: 9px 16px; border-radius: 10px;
+    background: linear-gradient(120deg, var(--cyan), var(--purple));
+    box-shadow: 0 0 18px rgba(58,246,255,0.35);
+    transition: transform .08s, filter .2s;
+  }
+  .nav-cta:hover { filter: brightness(1.1); }
+  .nav-cta:active { transform: scale(0.96); }
+  @media (max-width: 720px) { .nav-links { display: none; } }
+
+  /* ---------- hero ---------- */
+  .hero { position: relative; min-height: 88vh; display: flex; align-items: center; overflow: hidden; padding-block: 64px 40px; }
+  #stars { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; }
+  .hero-in { position: relative; z-index: 2; }
+  .eyebrow {
+    font-family: var(--font-display); font-size: 13px; letter-spacing: 0.42em; text-transform: uppercase;
+    color: var(--cyan); margin: 0 0 20px;
+    display: inline-flex; align-items: center; gap: 12px;
+  }
+  .eyebrow::before { content: ""; width: 34px; height: 1px; background: linear-gradient(90deg, transparent, var(--cyan)); }
+  .logo {
+    font-family: var(--font-display); font-weight: 700;
+    font-size: clamp(52px, 12vw, 132px); line-height: 0.92; letter-spacing: 0.02em;
+    margin: 0; text-wrap: balance;
+    text-transform: uppercase;
+  }
+  .logo .l1 { display: block; color: #f2f8ff; text-shadow: 0 0 26px rgba(58,246,255,0.55), 0 0 60px rgba(58,246,255,0.25); }
+  .logo .l2 {
+    display: block;
+    background: linear-gradient(100deg, var(--cyan), var(--purple) 55%, var(--magenta));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 0 24px rgba(165,107,255,0.4));
+  }
+  .tagline { font-family: var(--font-display); font-size: clamp(16px, 3.4vw, 24px); letter-spacing: 0.16em; color: var(--ink); margin: 22px 0 0; }
+  .lede { max-width: 56ch; color: var(--ink-dim); margin: 16px 0 0; font-size: 16px; }
+  .hero-cta { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 30px; }
+  .btn {
+    font-family: var(--font-display); font-weight: 700; letter-spacing: 0.06em; font-size: 15px;
+    padding: 15px 28px; border-radius: 12px; cursor: pointer; border: 1px solid transparent;
+    display: inline-flex; align-items: center; gap: 10px; transition: transform .08s, filter .2s, background .2s;
+  }
+  .btn-primary {
+    color: #04121a;
+    background: linear-gradient(120deg, var(--cyan), var(--purple) 60%, var(--magenta));
+    box-shadow: 0 0 26px rgba(58,246,255,0.4), 0 6px 26px rgba(0,0,0,0.5);
+  }
+  .btn-primary:hover { filter: brightness(1.08); }
+  .btn-primary:active { transform: scale(0.97); }
+  .btn-ghost { color: var(--ink); background: rgba(120,150,230,0.06); border-color: var(--line-2); }
+  .btn-ghost:hover { border-color: var(--cyan); color: var(--cyan); }
+  .btn svg { width: 18px; height: 18px; }
+
+  .stat-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 40px; }
+  .stat {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 12px 18px; min-width: 120px; backdrop-filter: blur(4px);
+  }
+  .stat b { font-family: var(--font-display); font-size: 26px; font-variant-numeric: tabular-nums; line-height: 1; display: block; color: #f2f8ff; }
+  .stat span { font-size: 12px; letter-spacing: 0.14em; color: var(--muted); text-transform: uppercase; }
+  .stat.c1 b { color: var(--cyan); } .stat.c2 b { color: var(--magenta); } .stat.c3 b { color: var(--gold); } .stat.c4 b { color: var(--green); }
+
+  /* ---------- section frame ---------- */
+  section { position: relative; }
+  .sec { padding-block: clamp(64px, 10vw, 120px); }
+  .sec-head { margin: 0 0 44px; }
+  .sec-eyebrow { font-family: var(--font-display); font-size: 12px; letter-spacing: 0.36em; text-transform: uppercase; color: var(--purple); margin: 0 0 12px; }
+  .sec-title { font-family: var(--font-body); font-weight: 900; font-size: clamp(28px, 5vw, 46px); margin: 0; line-height: 1.15; text-wrap: balance; }
+  .sec-sub { color: var(--ink-dim); margin: 14px 0 0; max-width: 60ch; }
+  .divider { height: 1px; background: linear-gradient(90deg, transparent, var(--line-2), transparent); }
+
+  /* ---------- features ---------- */
+  .feat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  @media (max-width: 900px) { .feat-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 560px) { .feat-grid { grid-template-columns: 1fr; } }
+  .feat {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 26px 24px;
+    transition: transform .2s, border-color .2s, box-shadow .2s;
+  }
+  .feat:hover { transform: translateY(-4px); border-color: var(--line-2); box-shadow: 0 14px 40px rgba(0,0,0,0.45); }
+  .feat-ic {
+    width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; margin-bottom: 16px;
+    background: rgba(58,246,255,0.08); border: 1px solid rgba(58,246,255,0.28);
+    color: var(--cyan);
+  }
+  .feat-ic svg { width: 24px; height: 24px; }
+  .feat:nth-child(2) .feat-ic { color: var(--magenta); background: rgba(255,62,165,0.08); border-color: rgba(255,62,165,0.28); }
+  .feat:nth-child(3) .feat-ic { color: var(--purple); background: rgba(165,107,255,0.08); border-color: rgba(165,107,255,0.28); }
+  .feat:nth-child(4) .feat-ic { color: var(--gold);  background: rgba(255,209,102,0.08); border-color: rgba(255,209,102,0.28); }
+  .feat:nth-child(5) .feat-ic { color: var(--green); background: rgba(70,240,160,0.08); border-color: rgba(70,240,160,0.28); }
+  .feat:nth-child(6) .feat-ic { color: var(--red);   background: rgba(255,90,122,0.08); border-color: rgba(255,90,122,0.28); }
+  .feat h3 { font-family: var(--font-body); font-weight: 700; font-size: 19px; margin: 0 0 8px; }
+  .feat p { color: var(--ink-dim); margin: 0; font-size: 15px; }
+
+  /* ---------- screenshots ---------- */
+  .shots { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; }
+  .shot { position: relative; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); cursor: pointer; background: var(--bg-1); }
+  .shot img { width: 100%; height: 100%; object-fit: cover; aspect-ratio: 16/10; transition: transform .35s, filter .35s; }
+  .shot:hover img { transform: scale(1.05); filter: saturate(1.15); }
+  .shot figcaption {
+    position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 12px;
+    font-family: var(--font-display); font-size: 12px; letter-spacing: 0.08em; color: var(--ink);
+    background: linear-gradient(0deg, rgba(4,5,12,0.9), transparent);
+  }
+  .shot.wide { grid-column: span 4; } .shot.tall { grid-column: span 2; } .shot.half { grid-column: span 3; } .shot.third { grid-column: span 2; }
+  @media (max-width: 780px) {
+    .shots { grid-template-columns: repeat(2, 1fr); }
+    .shot.wide, .shot.tall, .shot.half, .shot.third { grid-column: span 1; }
+    .shot.wide { grid-column: span 2; }
+  }
+
+  /* ---------- ships ---------- */
+  .ships { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+  @media (max-width: 980px) { .ships { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 520px) { .ships { grid-template-columns: 1fr; } }
+  .ship {
+    --ac: var(--cyan);
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 16px; overflow: hidden;
+    transition: transform .2s, border-color .2s, box-shadow .2s;
+  }
+  .ship:hover { transform: translateY(-4px); border-color: color-mix(in srgb, var(--ac) 55%, transparent); box-shadow: 0 16px 44px rgba(0,0,0,0.5); }
+  .ship .pic { position: relative; aspect-ratio: 1/1; background: radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--ac) 16%, transparent), transparent 68%); }
+  .ship .pic img { width: 100%; height: 100%; object-fit: cover; }
+  .ship .body { padding: 16px 18px 20px; }
+  .ship .code { font-family: var(--font-display); font-size: 11px; letter-spacing: 0.24em; color: var(--ac); }
+  .ship h3 { font-family: var(--font-body); font-weight: 900; font-size: 20px; margin: 4px 0 8px; }
+  .ship p { color: var(--ink-dim); font-size: 14px; margin: 0; }
+  .ship .tag { display: inline-block; margin-top: 12px; font-family: var(--font-display); font-size: 11px; letter-spacing: 0.1em; color: var(--ac); border: 1px solid color-mix(in srgb, var(--ac) 40%, transparent); border-radius: 999px; padding: 3px 10px; }
+
+  /* ---------- dev story ---------- */
+  .story-grid { display: grid; grid-template-columns: 1.15fr 1fr; gap: 40px; align-items: start; }
+  @media (max-width: 860px) { .story-grid { grid-template-columns: 1fr; } }
+  .story p { color: var(--ink-dim); margin: 0 0 18px; max-width: 62ch; }
+  .story p .hl { color: var(--cyan); font-weight: 700; }
+  .story-card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 26px;
+  }
+  .story-card h4 { font-family: var(--font-display); letter-spacing: 0.1em; font-size: 13px; color: var(--purple); margin: 0 0 18px; text-transform: uppercase; }
+  .metric { display: flex; justify-content: space-between; align-items: baseline; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .metric:last-child { border-bottom: 0; }
+  .metric span { color: var(--ink-dim); font-size: 14px; }
+  .metric b { font-family: var(--font-display); font-size: 22px; font-variant-numeric: tabular-nums; color: #f2f8ff; }
+
+  /* ---------- changelog ---------- */
+  .log { position: relative; margin-left: 8px; padding-left: 28px; border-left: 1px solid var(--line-2); }
+  .log-item { position: relative; padding: 0 0 26px; }
+  .log-item::before {
+    content: ""; position: absolute; left: -34px; top: 4px; width: 12px; height: 12px; border-radius: 50%;
+    background: var(--bg); border: 2px solid var(--cyan); box-shadow: 0 0 12px rgba(58,246,255,0.6);
+  }
+  .log-item.boss::before { border-color: var(--magenta); box-shadow: 0 0 12px rgba(255,62,165,0.6); }
+  .log-top { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .log-ver { font-family: var(--font-display); font-size: 12px; letter-spacing: 0.12em; color: var(--cyan); }
+  .log-date { font-family: var(--font-display); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .log-item h4 { font-family: var(--font-body); font-weight: 700; font-size: 17px; margin: 4px 0 4px; }
+  .log-item p { color: var(--ink-dim); font-size: 14px; margin: 0; max-width: 60ch; }
+
+  /* ---------- controls ---------- */
+  .ctrl-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 720px) { .ctrl-grid { grid-template-columns: 1fr; } }
+  .ctrl {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 24px 26px;
+  }
+  .ctrl h3 { font-family: var(--font-display); letter-spacing: 0.12em; font-size: 14px; margin: 0 0 18px; color: var(--cyan); }
+  .ctrl.m h3 { color: var(--magenta); }
+  .krow { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .krow:last-child { border-bottom: 0; }
+  .krow .lbl { color: var(--ink-dim); font-size: 15px; }
+  .keys { display: inline-flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  kbd {
+    font-family: var(--font-display); font-size: 12px; color: var(--ink);
+    background: rgba(120,150,230,0.10); border: 1px solid var(--line-2); border-bottom-width: 2px;
+    border-radius: 7px; padding: 4px 9px; min-width: 26px; text-align: center;
+  }
+
+  /* ---------- social / cta band ---------- */
+  .band {
+    border: 1px solid var(--line-2); border-radius: 22px; padding: clamp(30px, 6vw, 56px);
+    background:
+      radial-gradient(700px 300px at 20% 0%, rgba(58,246,255,0.12), transparent 60%),
+      radial-gradient(700px 300px at 90% 100%, rgba(255,62,165,0.12), transparent 60%),
+      var(--panel-2);
+    text-align: center;
+  }
+  .band h2 { font-family: var(--font-body); font-weight: 900; font-size: clamp(26px, 5vw, 40px); margin: 0 0 10px; text-wrap: balance; }
+  .band p { color: var(--ink-dim); margin: 0 auto 26px; max-width: 52ch; }
+  .socials { display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; margin-top: 30px; }
+  .soc {
+    width: 52px; height: 52px; border-radius: 14px; display: grid; place-items: center;
+    background: rgba(120,150,230,0.06); border: 1px solid var(--line-2); color: var(--ink-dim);
+    transition: transform .12s, color .2s, border-color .2s, background .2s;
+  }
+  .soc:hover { color: var(--cyan); border-color: var(--cyan); transform: translateY(-3px); background: rgba(58,246,255,0.08); }
+  .soc svg { width: 24px; height: 24px; }
+  .soc-note { font-size: 12px; color: var(--muted); margin-top: 16px; }
+
+  /* ---------- footer ---------- */
+  footer { border-top: 1px solid var(--line); padding-block: 40px; margin-top: 40px; }
+  .foot { display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; }
+  .foot .fbrand { font-family: var(--font-display); font-weight: 700; letter-spacing: 0.14em; }
+  .foot small { color: var(--muted); font-size: 13px; }
+  .foot .fplay { font-family: var(--font-display); font-size: 13px; color: var(--cyan); letter-spacing: 0.06em; }
+
+  /* ---------- lightbox ---------- */
+  .lb { position: fixed; inset: 0; z-index: 90; background: rgba(3,4,10,0.92); backdrop-filter: blur(6px); display: grid; place-items: center; padding: 24px; }
+  .lb img { max-width: min(1100px, 94vw); max-height: 86vh; width: auto; border-radius: 12px; border: 1px solid var(--line-2); box-shadow: 0 30px 80px rgba(0,0,0,0.6); }
+  .lb-close { position: absolute; top: 18px; right: 20px; width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--line-2); background: rgba(10,14,30,0.7); color: var(--ink); font-size: 20px; cursor: pointer; }
+  .lb-cap { position: absolute; bottom: 22px; left: 0; right: 0; text-align: center; font-family: var(--font-display); letter-spacing: 0.08em; color: var(--ink-dim); font-size: 13px; }
+
+  :focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="bg-grid"></div>
+<div class="bg-vignette"></div>
+
+<!-- ================= NAV ================= -->
+<nav class="nav">
+  <div class="wrap nav-in">
+    <a class="brand" href="#top"><span class="dot"></span><b>STARFALL</b>&nbsp;<span>ARENA</span></a>
+    <div class="nav-links">
+      <a href="#features">特徴</a>
+      <a href="#shots">スクリーンショット</a>
+      <a href="#ships">機体</a>
+      <a href="#story">開発</a>
+      <a href="#changelog">更新履歴</a>
+    </div>
+    <a class="nav-cta" href="https://claude.ai/artifact/2JDSskDE2J2ihNutbQRnBQ" target="_blank" rel="noopener">今すぐプレイ</a>
+  </div>
+</nav>
+
+<!-- ================= HERO ================= -->
+<header class="hero" id="top">
+  <canvas id="stars"></canvas>
+  <div class="wrap hero-in">
+    <p class="eyebrow">Neon Survival Arena</p>
+    <h1 class="logo"><span class="l1">STARFALL</span><span class="l2">ARENA</span></h1>
+    <p class="tagline">ネオンの闇を、生き延びろ。</p>
+    <p class="lede">押し寄せる敵をかいくぐり、光る欠片を集めて強化を重ねる。移動に集中できる自動攻撃のサバイバー・アリーナ。インストール不要、ブラウザですぐに始まる。</p>
+    <div class="hero-cta">
+      <a class="btn btn-primary" href="https://claude.ai/artifact/2JDSskDE2J2ihNutbQRnBQ" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+        今すぐプレイ
+      </a>
+      <a class="btn btn-ghost" href="#features">特徴を見る</a>
+    </div>
+    <div class="stat-row">
+      <div class="stat c1"><b>5</b><span>機体</span></div>
+      <div class="stat c2"><b>4</b><span>系統のボス</span></div>
+      <div class="stat c3"><b>3</b><span>難易度</span></div>
+      <div class="stat c4"><b>∞</b><span>WAVE</span></div>
+    </div>
+  </div>
+</header>
+
+<!-- ================= FEATURES ================= -->
+<section class="sec" id="features">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="sec-eyebrow">Features</p>
+      <h2 class="sec-title">ネオンの戦場を生き抜くための、七つ道具。</h2>
+      <p class="sec-sub">シンプルな操作の奥に、ビルドの自由と手応えのある戦闘。何度でも遊べるように設計されている。</p>
+    </div>
+    <div class="feat-grid">
+      <div class="feat">
+        <div class="feat-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></div>
+        <h3>自動攻撃ローグライト</h3>
+        <p>武器は最寄りの敵を自動で狙う。プレイヤーは回避と立ち位置に集中できる。</p>
+      </div>
+      <div class="feat">
+        <div class="feat-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 4v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V7z"/><path d="M12 8v6"/></svg></div>
+        <h3>5種の機体</h3>
+        <p>見た目もスキルプールも異なる5機体。専用の必殺機構がプレイスタイルを変える。</p>
+      </div>
+      <div class="feat">
+        <div class="feat-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.5 5 5.5.8-4 3.9.9 5.5L12 20.5 7.1 17.2 8 11.7 4 7.8 9.5 7z"/></svg></div>
+        <h3>多彩なボス</h3>
+        <p>4系統のボスが固有の攻撃で立ちはだかる。倒すまで次のWAVEは訪れない。</p>
+      </div>
+      <div class="feat">
+        <div class="feat-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h6l-1 8 9-12h-6z"/></svg></div>
+        <h3>ダッシュ</h3>
+        <p>一気に加速して敵をひき殺す、一瞬の無敵。ピンチを切り抜ける緊急回避。</p>
+      </div>
+      <div class="feat">
+        <div class="feat-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18V9M9 18V5M14 18v-6M19 18V8"/></svg></div>
+        <h3>難易度3種</h3>
+        <p>イージー・ノーマル・ハード。強化の度合いに合わせて敵も強くなっていく。</p>
+      </div>
+      <div class="feat">
+        <div class="feat-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="13" height="10" rx="1.5"/><path d="M3 19h13"/><rect x="17.5" y="9" width="4.5" height="10" rx="1.2"/></svg></div>
+        <h3>PC・モバイル対応</h3>
+        <p>キーボードでもタッチでも。仮想スティックと画面ボタンで手のひらでも遊べる。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= SCREENSHOTS ================= -->
+<section class="sec" id="shots">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="sec-eyebrow">Screenshots</p>
+      <h2 class="sec-title">実際のプレイ画面。</h2>
+      <p class="sec-sub">加算合成の発光、パララックスの星空、粒子とショックウェーブ。すべてブラウザ上のCanvasで描いている。</p>
+    </div>
+    <div class="shots" id="gallery">
+      <figure class="shot wide" data-cap="ボス戦 — DREAD"><img src="img/shot-boss.png" alt="ボス戦の画面" loading="lazy"><figcaption>ボス戦 — DREAD</figcaption></figure>
+      <figure class="shot tall" data-cap="タイトル画面"><img src="img/shot-menu.png" alt="タイトル画面" loading="lazy"><figcaption>タイトル画面</figcaption></figure>
+      <figure class="shot third" data-cap="ダッシュの残像"><img src="img/shot-dash.png" alt="ダッシュの残像" loading="lazy"><figcaption>ダッシュ</figcaption></figure>
+      <figure class="shot third" data-cap="強化の選択"><img src="img/shot-levelup.png" alt="強化の選択画面" loading="lazy"><figcaption>強化の選択</figcaption></figure>
+      <figure class="shot third" data-cap="戦闘中のHUD"><img src="img/shot-play.png" alt="戦闘中の画面" loading="lazy"><figcaption>戦闘中</figcaption></figure>
+      <figure class="shot half" data-cap="コスチューム選択"><img src="img/shot-costume.png" alt="コスチューム選択画面" loading="lazy"><figcaption>コスチューム選択</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<!-- ================= SHIPS ================= -->
+<section class="sec" id="ships">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="sec-eyebrow">Fleet</p>
+      <h2 class="sec-title">五機の機体、五つの戦い方。</h2>
+      <p class="sec-sub">機体ごとにシルエットも配色も、出現するスキルも異なる。相棒を選んで闇へ出撃せよ。</p>
+    </div>
+    <div class="ships">
+      <article class="ship" style="--ac: var(--cyan)">
+        <div class="pic"><img src="img/ship-vanguard.png" alt="ヴァンガード" loading="lazy"></div>
+        <div class="body">
+          <div class="code">VANGUARD</div>
+          <h3>ヴァンガード</h3>
+          <p>王道の万能機。定番の武器と汎用強化を幅広く扱える、最初の一機。</p>
+          <span class="tag">BALANCED</span>
+        </div>
+      </article>
+      <article class="ship" style="--ac: var(--green)">
+        <div class="pic"><img src="img/ship-warden.png" alt="ウォーデン" loading="lazy"></div>
+        <div class="body">
+          <div class="code">WARDEN</div>
+          <h3>ウォーデン</h3>
+          <p>要塞型。シールドと反撃、重力場で敵を抱え込んで潰す。</p>
+          <span class="tag">DEFENSE</span>
+        </div>
+      </article>
+      <article class="ship" style="--ac: var(--purple)">
+        <div class="pic"><img src="img/ship-tempest.png" alt="テンペスト" loading="lazy"></div>
+        <div class="body">
+          <div class="code">TEMPEST</div>
+          <h3>テンペスト</h3>
+          <p>無差別掃射型。落雷と帯電で画面全体の敵をまとめて捌く。</p>
+          <span class="tag">AREA</span>
+        </div>
+      </article>
+      <article class="ship" style="--ac: var(--gold)">
+        <div class="pic"><img src="img/ship-hunter.png" alt="ハンター" loading="lazy"></div>
+        <div class="body">
+          <div class="code">HUNTER</div>
+          <h3>ハンター</h3>
+          <p>一撃必殺の狙撃型。会心と処刑で大型を静かに仕留める。</p>
+          <span class="tag">CRIT</span>
+        </div>
+      </article>
+      <article class="ship" style="--ac: var(--red)">
+        <div class="pic"><img src="img/ship-phantom.png" alt="ファントム" loading="lazy"></div>
+        <div class="body">
+          <div class="code">PHANTOM</div>
+          <h3>ファントム</h3>
+          <p>接近戦の亡霊。移動残像と吸血で敵陣へ切り込む。</p>
+          <span class="tag">ASSAULT</span>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ================= DEV STORY ================= -->
+<section class="sec" id="story">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="sec-eyebrow">Development</p>
+      <h2 class="sec-title">開発秘話 — 一機と暗闇から。</h2>
+    </div>
+    <div class="story-grid">
+      <div class="story">
+        <p>始まりは、一機の機体と暗闇だけだった。PCで長く遊べるアリーナを目指し、移動に集中できる<span class="hl">自動攻撃のローグライト</span>として STARFALL ARENA は生まれた。</p>
+        <p>すぐに手のひらでも遊べるよう、タッチの仮想スティックを載せた。強化の種類を増やし、敵の見た目を作り込み、単調だったボスを<span class="hl">4系統</span>へ広げた。派手すぎた復活や吸血は牙を抜き、イージーからハードまで難易度を選べるようにした。</p>
+        <p>次に挑んだのは「個性」。5機体のコスチュームを用意し、それぞれに専用のスキルプールと固有の必殺機構を与えた。見た目も機体ごとに別のシルエットへ描き分け、選択専用ページで一覧できるようにした。機体の描画は多層化し、最終的には<span class="hl">パーツ構成の立体的なデザイン</span>へ全面刷新した。</p>
+        <p>遊びの流れも磨いた。ボス戦の最中にWAVEが重ならないよう整理し、序盤のレベルアップを軽くした。出現しなくなっていたボスを直し、最後に<span class="hl">ダッシュ</span>を加えた。加速して敵をひき殺す、一瞬の無敵。ネオンの闇は、まだ深くなっていく。</p>
+      </div>
+      <aside class="story-card">
+        <h4>By the numbers</h4>
+        <div class="metric"><span>機体（コスチューム）</span><b>5</b></div>
+        <div class="metric"><span>武器・強化スキル</span><b>40+</b></div>
+        <div class="metric"><span>ボスの系統</span><b>4</b></div>
+        <div class="metric"><span>難易度</span><b>3</b></div>
+        <div class="metric"><span>依存ライブラリ</span><b>0</b></div>
+        <div class="metric"><span>アップデート回数</span><b>15</b></div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- ================= CHANGELOG ================= -->
+<section class="sec" id="changelog">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="sec-eyebrow">Changelog</p>
+      <h2 class="sec-title">更新履歴</h2>
+      <p class="sec-sub">最初の一歩から最新のダッシュまで。積み重ねてきた15回のアップデート。</p>
+    </div>
+    <div class="log">
+      <div class="log-item"><div class="log-top"><span class="log-ver">BUILD 15</span><span class="log-date">2026-09-25</span></div><h4>ダッシュ追加</h4><p>スペース／左下ボタンで高速移動。軌道上の敵をひき殺し、その間は無敵。</p></div>
+      <div class="log-item boss"><div class="log-top"><span class="log-ver">BUILD 14</span><span class="log-date">2026-09-25</span></div><h4>ボス出現の修正</h4><p>WAVE整理の副作用でボスが出なくなっていた不具合を解消。</p></div>
+      <div class="log-item"><div class="log-top"><span class="log-ver">BUILD 13</span><span class="log-date">2026-09-25</span></div><h4>機体フル刷新</h4><p>胴体・主翼・フィンを分けたパーツ構成の立体的デザインへ全面刷新。</p></div>
+      <div class="log-item"><div class="log-top"><span class="log-ver">BUILD 12</span><span class="log-date">2026-09-25</span></div><h4>WAVE整理＆序盤緩和</h4><p>ボス戦中はWAVEを保留。序盤のレベルアップを軽くした。</p></div>
+      <div class="log-item"><div class="log-top"><span class="log-ver">BUILD 11</span><span class="log-date">2026-09-25</span></div><h4>機体ディテール強化</h4><p>機体の描画を多層化し、質感とコックピットの光を作り込み。</p></div>
+      <div class="log-item"><div class="log-top"><span class="log-ver">BUILD 10</span><span class="log-date">2026-09-25</span></div><h4>機体別シルエット＆選択ページ</h4><p>機体ごとに別のシルエットを用意し、専用ページで見た目とスキルを一覧に。</p></div>
+      <div class="log-item"><div class="log-top"><span class="log-ver">BUILD 09</span><span class="log-date">2026-09-25</span></div><h4>個性の付与</h4><p>各機体に固有スキルを与え、性格の違いをはっきりさせた。</p></div>
+      <div class="log-item"><div class="log-top"><span class="log-ver">BUILD 08</span><span class="log-date">2026-09-25</span></div><h4>コスチューム実装</h4><p>5機体と機体別スキルプールを導入。時間回復を撤廃。</p></div>
+      <div class="log-item"><div class="log-top"><span class="log-ver">BUILD 07</span><span class="log-date">2026-09-24</span></div><h4>ホームボタン</h4><p>死亡画面からタイトルへ戻る導線を追加。</p></div>
+      <div class="log-item"><div class="log-top"><span class="log-ver">BUILD 06</span><span class="log-date">2026-09-24</span></div><h4>難易度システム</h4><p>3段階の難易度、強化度に応じた敵スケーリング、確率制のライフスティール。</p></div>
+      <div class="log-item"><div class="log-top"><span class="log-ver">BUILD 05</span><span class="log-date">2026-09-24</span></div><h4>バランス調整</h4><p>強すぎたフェニックスコアとヴァンパイアを抑制。</p></div>
+      <div class="log-item boss"><div class="log-top"><span class="log-ver">BUILD 04</span><span class="log-date">2026-09-24</span></div><h4>記号アイコン＆4系統のボス</h4><p>絵文字を廃してモノクロ記号へ。ボスを4種に拡張。</p></div>
+      <div class="log-item"><div class="log-top"><span class="log-ver">BUILD 03</span><span class="log-date">2026-09-24</span></div><h4>強化と敵の刷新</h4><p>強化の種類を拡充し、敵ビジュアルを作り込んだ。</p></div>
+      <div class="log-item"><div class="log-top"><span class="log-ver">BUILD 02</span><span class="log-date">2026-09-24</span></div><h4>モバイル対応</h4><p>タッチの仮想スティックに対応。</p></div>
+      <div class="log-item"><div class="log-top"><span class="log-ver">BUILD 01</span><span class="log-date">2026-09-24</span></div><h4>STARFALL ARENA 始動</h4><p>PC向けのネオン・サバイバー・アリーナとして誕生。</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= CONTROLS ================= -->
+<section class="sec" id="controls">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="sec-eyebrow">Controls</p>
+      <h2 class="sec-title">操作方法</h2>
+    </div>
+    <div class="ctrl-grid">
+      <div class="ctrl">
+        <h3>PC</h3>
+        <div class="krow"><span class="lbl">移動</span><span class="keys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd></span></div>
+        <div class="krow"><span class="lbl">攻撃</span><span class="keys"><kbd>自動</kbd></span></div>
+        <div class="krow"><span class="lbl">ダッシュ</span><span class="keys"><kbd>Space</kbd></span></div>
+        <div class="krow"><span class="lbl">強化の選択</span><span class="keys"><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd></span></div>
+        <div class="krow"><span class="lbl">一時停止</span><span class="keys"><kbd>P</kbd><kbd>Esc</kbd></span></div>
+      </div>
+      <div class="ctrl m">
+        <h3>モバイル</h3>
+        <div class="krow"><span class="lbl">移動</span><span class="keys"><kbd>画面ドラッグ（仮想スティック）</kbd></span></div>
+        <div class="krow"><span class="lbl">攻撃</span><span class="keys"><kbd>自動</kbd></span></div>
+        <div class="krow"><span class="lbl">ダッシュ</span><span class="keys"><kbd>左下ボタン</kbd></span></div>
+        <div class="krow"><span class="lbl">強化の選択</span><span class="keys"><kbd>カードをタップ</kbd></span></div>
+        <div class="krow"><span class="lbl">一時停止</span><span class="keys"><kbd>右上ボタン</kbd></span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= CTA / SOCIAL BAND ================= -->
+<section class="sec" id="play">
+  <div class="wrap">
+    <div class="band">
+      <h2>準備はいいか。闇が待っている。</h2>
+      <p>ダウンロード不要。ブラウザを開けば、すぐにアリーナへ。</p>
+      <a class="btn btn-primary" href="https://claude.ai/artifact/2JDSskDE2J2ihNutbQRnBQ" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+        STARFALL ARENA をプレイ
+      </a>
+      <!-- SNSリンク: href="#" はプレースホルダです。公式アカウントのURLに差し替えてください。 -->
+      <div class="socials">
+        <a class="soc" href="#" aria-label="X (Twitter)" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.9 2H22l-7.4 8.5L23.3 22h-6.8l-5.3-6.9L5.1 22H2l7.9-9L1 2h6.9l4.8 6.3L18.9 2Zm-2.4 18h1.9L7.6 4H5.6l10.9 16Z"/></svg></a>
+        <a class="soc" href="#" aria-label="YouTube" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M23 12s0-3.2-.4-4.7a2.5 2.5 0 0 0-1.7-1.7C19.3 5.2 12 5.2 12 5.2s-7.3 0-8.9.4A2.5 2.5 0 0 0 1.4 7.3C1 8.8 1 12 1 12s0 3.2.4 4.7a2.5 2.5 0 0 0 1.7 1.7c1.6.4 8.9.4 8.9.4s7.3 0 8.9-.4a2.5 2.5 0 0 0 1.7-1.7C23 15.2 23 12 23 12ZM9.8 15.3V8.7l6.2 3.3-6.2 3.3Z"/></svg></a>
+        <a class="soc" href="#" aria-label="Discord" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20 4.5A18 18 0 0 0 15.5 3l-.3.5a13 13 0 0 1 4 2 14 14 0 0 0-12.4 0 13 13 0 0 1 4-2L10.5 3A18 18 0 0 0 6 4.5C2.8 9.2 1.9 13.8 2.3 18.3A18 18 0 0 0 7.8 21l1-1.6a11 11 0 0 1-1.8-.9l.4-.3a12.6 12.6 0 0 0 11.2 0l.4.3c-.6.4-1.2.7-1.8.9l1 1.6a18 18 0 0 0 5.5-2.7c.5-5.2-.8-9.8-3.7-13.8ZM9.3 15.5c-.9 0-1.6-.8-1.6-1.8s.7-1.8 1.6-1.8 1.6.8 1.6 1.8-.7 1.8-1.6 1.8Zm5.4 0c-.9 0-1.6-.8-1.6-1.8s.7-1.8 1.6-1.8 1.6.8 1.6 1.8-.7 1.8-1.6 1.8Z"/></svg></a>
+      </div>
+      <p class="soc-note">公式SNSは準備中。フォローでアップデート情報をお届け予定。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= FOOTER ================= -->
+<footer>
+  <div class="wrap foot">
+    <span class="fbrand">STARFALL <span style="color:var(--cyan)">ARENA</span></span>
+    <a class="fplay" href="https://claude.ai/artifact/2JDSskDE2J2ihNutbQRnBQ" target="_blank" rel="noopener">ブラウザでプレイする →</a>
+    <small>© 2026 STARFALL ARENA — ネオンの闇を、生き延びろ。</small>
+  </div>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---- hero starfield ---- */
+  var canvas = document.getElementById("stars");
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (canvas && canvas.getContext) {
+    var ctx = canvas.getContext("2d");
+    var stars = [], W = 0, H = 0, dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var COLORS = ["rgba(58,246,255,", "rgba(165,107,255,", "rgba(255,62,165,", "rgba(255,255,255,"];
+    function resize() {
+      var r = canvas.getBoundingClientRect();
+      W = r.width; H = r.height;
+      canvas.width = Math.max(1, W * dpr); canvas.height = Math.max(1, H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      var n = Math.min(150, Math.floor(W * H / 9000));
+      stars = [];
+      for (var i = 0; i < n; i++) {
+        stars.push({
+          x: Math.random() * W, y: Math.random() * H,
+          z: Math.random() * 0.7 + 0.3,
+          r: Math.random() * 1.6 + 0.3,
+          c: COLORS[(Math.random() * COLORS.length) | 0],
+          tw: Math.random() * Math.PI * 2
+        });
+      }
+    }
+    function frame(t) {
+      ctx.clearRect(0, 0, W, H);
+      for (var i = 0; i < stars.length; i++) {
+        var s = stars[i];
+        s.x -= s.z * 0.28; if (s.x < -4) { s.x = W + 4; s.y = Math.random() * H; }
+        var a = 0.35 + Math.sin(t * 0.002 + s.tw) * 0.3;
+        ctx.beginPath();
+        ctx.fillStyle = s.c + (a * s.z).toFixed(3) + ")";
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      raf = requestAnimationFrame(frame);
+    }
+    var raf = null;
+    resize();
+    window.addEventListener("resize", resize);
+    if (reduce) {
+      // draw one static frame
+      for (var i = 0; i < stars.length; i++) { var s = stars[i]; ctx.beginPath(); ctx.fillStyle = s.c + (0.5 * s.z).toFixed(3) + ")"; ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fill(); }
+    } else {
+      raf = requestAnimationFrame(frame);
+    }
+  }
+
+  /* ---- lightbox ---- */
+  var gallery = document.getElementById("gallery");
+  var lb = null;
+  function openLb(src, cap) {
+    lb = document.createElement("div");
+    lb.className = "lb";
+    lb.innerHTML =
+      '<button class="lb-close" aria-label="閉じる">✕</button>' +
+      '<img src="' + src + '" alt="' + (cap || "") + '">' +
+      '<div class="lb-cap">' + (cap || "") + "</div>";
+    document.body.appendChild(lb);
+    document.body.style.overflow = "hidden";
+    lb.addEventListener("click", function (e) {
+      if (e.target === lb || e.target.classList.contains("lb-close")) closeLb();
+    });
+  }
+  function closeLb() { if (lb) { lb.remove(); lb = null; document.body.style.overflow = ""; } }
+  if (gallery) {
+    gallery.addEventListener("click", function (e) {
+      var fig = e.target.closest(".shot");
+      if (!fig) return;
+      var img = fig.querySelector("img");
+      openLb(img.getAttribute("src"), fig.getAttribute("data-cap") || "");
+    });
+  }
+  window.addEventListener("keydown", function (e) { if (e.key === "Escape") closeLb(); });
+})();
+</script>
+</body>
+</html>
