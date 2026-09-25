@@ -302,12 +302,17 @@
     // power-ups & scoring
     buffs: [],     // active timed power-ups: {type, t, deltas?}
     score: 0, combo: 0, comboTimer: 0,
+    comboEdge: 0,  // damage scales with combo
+    luck: 0,       // power-up drop rate
   };
 
   // Effective damage multiplier (folds in the dynamic berserk bonus).
   function dmgMul() {
     let m = player.damageMul;
     if (player.berserk) m *= 1 + 0.45 * (1 - clamp(player.hp / player.maxHp, 0, 1));
+    if (player.comboEdge && player.combo > 0) {
+      m *= 1 + Math.min(player.comboEdge * 0.2, player.combo * 0.008 * player.comboEdge);
+    }
     return m;
   }
 
@@ -513,6 +518,11 @@
       desc: () => "攻撃命中時に確率でHPを吸収する。" },
     vapor: { name: "ヴェイパートレイル", icon: "≈", tag: "ファントム専用", accent: "#ff9dc0", glow: "rgba(255,157,192,0.5)", max: 4,
       desc: () => "移動中に敵を焼く残像を残す。" },
+    // ---- combo / power-up synergies ----
+    comboedge: { name: "コンボエッジ", icon: "⟰", tag: "PASSIVE", accent: "#ff78d2", glow: "rgba(255,120,210,0.5)", max: 5,
+      desc: (lv) => "コンボ中、コンボ数に応じてダメージ上昇（最大 +" + (((lv || 0) + 1) * 20) + "%）。" },
+    lucky: { name: "ラッキースター", icon: "❉", tag: "PASSIVE", accent: "#ffd166", glow: "rgba(255,209,102,0.5)", max: 4,
+      desc: () => "パワーアップの出現率が上昇する。" },
   };
 
   // ---------------------------------------------------------------------
@@ -530,31 +540,31 @@
       name: "ヴァンガード", label: "VANGUARD", swatch: "#38f6ff",
       desc: "王道の万能機。定番の武器と汎用強化を幅広く扱える。",
       ship: { glow: "rgba(56,246,255,0.6)", g0: "#eafcff", g1: "#38f6ff", g2: "#1b6fff", flame: "rgba(120,220,255,0.9)", shape: "interceptor" },
-      skills: ["pulse", "spread", "homing", "beam", "power", "haste", "multishot", "velocity", "longshot", "crit", "sniper", "bigshot", "armor", "swift", "magnet", "greed", "lifesteal", "revive"],
+      skills: ["pulse", "spread", "homing", "beam", "power", "haste", "multishot", "velocity", "longshot", "crit", "sniper", "bigshot", "armor", "swift", "magnet", "greed", "lifesteal", "revive", "comboedge", "lucky"],
     },
     warden: {
       name: "ウォーデン", label: "WARDEN", swatch: "#46f0a0",
       desc: "要塞型。シールドと反撃、重力場で敵を抱え込んで潰す。",
       ship: { glow: "rgba(80,255,170,0.6)", g0: "#eafff4", g1: "#46f0a0", g2: "#12b070", flame: "rgba(120,255,190,0.9)", shape: "fortress" },
-      skills: ["gravity", "orbit", "aura", "nova", "homing", "shield", "counter", "thorns", "armor", "blast", "swift", "bigshot", "magnet", "greed", "revive"],
+      skills: ["gravity", "orbit", "aura", "nova", "homing", "shield", "counter", "thorns", "armor", "blast", "swift", "bigshot", "magnet", "greed", "revive", "lucky"],
     },
     tempest: {
       name: "テンペスト", label: "TEMPEST", swatch: "#a56bff",
       desc: "無差別掃射型。落雷と帯電で画面全体の敵を捌く。",
       ship: { glow: "rgba(165,107,255,0.6)", g0: "#f3eaff", g1: "#a56bff", g2: "#6a2bd0", flame: "rgba(200,150,255,0.9)", shape: "bolt" },
-      skills: ["chain", "storm", "staticfield", "beam", "velocity", "longshot", "haste", "blast", "multishot", "swift", "magnet", "greed", "revive"],
+      skills: ["chain", "storm", "staticfield", "beam", "velocity", "longshot", "haste", "blast", "multishot", "swift", "magnet", "greed", "revive", "comboedge", "lucky"],
     },
     hunter: {
       name: "ハンター", label: "HUNTER", swatch: "#ffd166",
       desc: "一撃必殺型。会心と処刑で硬い敵を一瞬で仕留める。",
       ship: { glow: "rgba(255,190,90,0.6)", g0: "#fff5e0", g1: "#ffb84d", g2: "#d07a1a", flame: "rgba(255,210,120,0.9)", shape: "lance" },
-      skills: ["deadeye", "beam", "spread", "execute", "critblast", "coldblood", "crit", "sniper", "glass", "longshot", "velocity", "magnet", "greed", "revive"],
+      skills: ["deadeye", "beam", "spread", "execute", "critblast", "coldblood", "crit", "sniper", "glass", "longshot", "velocity", "magnet", "greed", "revive", "comboedge"],
     },
     phantom: {
       name: "ファントム", label: "PHANTOM", swatch: "#ff5a7a",
       desc: "自壊高火力型。撃破の連鎖爆発と吸血で押し切る紅の機体。",
       ship: { glow: "rgba(255,90,120,0.6)", g0: "#ffe6ea", g1: "#ff5a7a", g2: "#c01530", flame: "rgba(255,140,160,0.9)", shape: "scythe" },
-      skills: ["chain", "aura", "voidburst", "bloodhit", "vapor", "berserk", "glass", "lifesteal", "power", "haste", "swift", "magnet", "greed", "revive"],
+      skills: ["chain", "aura", "voidburst", "bloodhit", "vapor", "berserk", "glass", "lifesteal", "power", "haste", "swift", "magnet", "greed", "revive", "comboedge"],
     },
   };
   let costumeKey = "vanguard";
@@ -987,7 +997,7 @@
     scoreKill(e);
     // power-up drops: bosses always, others rarely
     if (e.boss) { dropPowerup(e.x, e.y); dropPowerup(e.x + rand(-30, 30), e.y + rand(-30, 30)); }
-    else if (Math.random() < 0.02) dropPowerup(e.x, e.y);
+    else if (Math.random() < 0.02 * (1 + player.luck * 0.7)) dropPowerup(e.x, e.y);
     if (player.lifestealChance > 0 && player.hp < player.maxHp && Math.random() < player.lifestealChance) {
       player.hp = Math.min(player.maxHp, player.hp + player.lifestealHeal);
       floater(player.x, player.y - player.r, "+" + player.lifestealHeal, "#ff9dc0", false);
@@ -1952,6 +1962,8 @@
         case "voidburst": player.voidburst += 1; break;
         case "bloodhit": player.bloodhitChance = clamp(player.bloodhitChance + 0.12, 0, 0.6); break;
         case "vapor": player.vapor += 1; break;
+        case "comboedge": player.comboEdge += 1; break;
+        case "lucky": player.luck += 1; break;
       }
     }
   }
@@ -3178,6 +3190,7 @@
     player.pickupRange = 120; player.invuln = 0; player.facing = -Math.PI / 2;
     player.dashTime = 0; player.dashCd = 0; player.dashDX = 0; player.dashDY = -1; player.dashHit = null;
     player.buffs = []; player.score = 0; player.combo = 0; player.comboTimer = 0;
+    player.comboEdge = 0; player.luck = 0;
     player.damageMul = 1; player.fireRateMul = 1; player.projectiles = 1;
     player.critChance = 0.05; player.critMul = 2; player.xpMul = diff.xpMul;
     player.rangeMul = 1; player.projSpeedMul = 1; player.aoeMul = 1;
