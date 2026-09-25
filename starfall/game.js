@@ -702,6 +702,7 @@
     tank:    { r: 26, hp: 80, speed: 46, dmg: 16, xp: 4, color: "rgba(255,120,120,1)", glow: "rgba(255,90,90,0.5)", shape: "hex" },
     orbiter: { r: 13, hp: 26, speed: 92, dmg: 9, xp: 2, color: "rgba(200,140,255,1)", glow: "rgba(165,107,255,0.5)", shape: "star" },
     splitter:{ r: 18, hp: 34, speed: 64, dmg: 10, xp: 2, color: "rgba(255,180,90,1)", glow: "rgba(255,157,90,0.5)", shape: "diamond", splits: true },
+    charger: { r: 16, hp: 32, speed: 60, dmg: 14, xp: 2, color: "rgba(255,110,120,1)", glow: "rgba(255,90,110,0.5)", shape: "charger" },
     // Bosses (distinct kinds, each with its own behaviour + look)
     boss_dread:  { r: 46, hp: 900, speed: 42, dmg: 26, xp: 42, color: "rgba(255,80,180,1)", glow: "rgba(255,62,165,0.6)", boss: true, bossKind: "dread" },
     boss_hive:   { r: 44, hp: 780, speed: 36, dmg: 20, xp: 42, color: "rgba(120,255,170,1)", glow: "rgba(80,255,150,0.55)", boss: true, bossKind: "hive" },
@@ -722,6 +723,7 @@
       hitFlash: 0, phase: Math.random() * TAU, angle: 0,
       knock: { x: 0, y: 0 },
       aTimer: 3, teleT: 0, dashT: 0, dvx: 0, dvy: 0,
+      chargeState: "seek", chargeT: 0, chargeCd: rand(0.6, 1.6),
     };
     enemies.push(e);
     return e;
@@ -794,15 +796,17 @@
     const r = Math.random();
     if (t < 20) return r < 0.75 ? "drifter" : "rusher";
     if (t < 60) {
-      if (r < 0.45) return "drifter";
-      if (r < 0.75) return "rusher";
-      if (r < 0.9) return "orbiter";
+      if (r < 0.42) return "drifter";
+      if (r < 0.70) return "rusher";
+      if (r < 0.85) return "orbiter";
+      if (r < 0.95) return "charger";
       return "tank";
     }
-    if (r < 0.3) return "drifter";
-    if (r < 0.55) return "rusher";
-    if (r < 0.72) return "orbiter";
-    if (r < 0.86) return "splitter";
+    if (r < 0.28) return "drifter";
+    if (r < 0.50) return "rusher";
+    if (r < 0.66) return "orbiter";
+    if (r < 0.80) return "charger";
+    if (r < 0.90) return "splitter";
     return "tank";
   }
 
@@ -1458,6 +1462,29 @@
         const bv = updateBoss(e, dt);
         vx = bv.vx; vy = bv.vy;
         e.angle = Math.atan2(player.y - e.y, player.x - e.x);
+      } else if (e.type === "charger") {
+        const dxp = player.x - e.x, dyp = player.y - e.y;
+        const dpl = Math.hypot(dxp, dyp) || 1;
+        e.chargeCd -= dt;
+        if (e.chargeState === "dash") {
+          e.chargeT -= dt;
+          vx = e.dvx; vy = e.dvy;
+          e.angle = Math.atan2(e.dvy, e.dvx);
+          if (e.chargeT <= 0) { e.chargeState = "seek"; e.chargeCd = 1.5; }
+        } else if (e.chargeState === "wind") {
+          e.chargeT -= dt;
+          vx = -dxp / dpl * spd * 0.2; vy = -dyp / dpl * spd * 0.2; // brace back
+          e.angle = Math.atan2(dyp, dxp);
+          if (e.chargeT <= 0) {
+            const ds = spd * 6;
+            e.dvx = dxp / dpl * ds; e.dvy = dyp / dpl * ds;
+            e.chargeState = "dash"; e.chargeT = 0.42;
+          }
+        } else { // seek
+          vx = dxp / dpl * spd; vy = dyp / dpl * spd;
+          e.angle = Math.atan2(dyp, dxp);
+          if (dpl < 250 && e.chargeCd <= 0) { e.chargeState = "wind"; e.chargeT = 0.6; }
+        }
       } else {
         let ang = Math.atan2(player.y - e.y, player.x - e.x);
         // orbiter type circles the player
@@ -2455,6 +2482,7 @@
           case "tank": drawTank(e, flash); break;
           case "orbiter": drawOrbiterEnemy(e, flash); break;
           case "splitter": drawSplitter(e, flash); break;
+          case "charger": drawCharger(e, flash); break;
           default: drawDrifter(e, flash); break;
         }
       }
@@ -2510,6 +2538,43 @@
     ctx.lineWidth = 1.4;
     ctx.stroke();
     drawGlow(0, -r * 1.15, r * 0.5, "rgba(255,255,255,0.9)", 0.8); // hot tip
+  }
+
+  function drawCharger(e, flash) {
+    const c = eColors(e), r = e.r;
+    // windup telegraph: a dashed warning beam toward the player
+    if (e.chargeState === "wind") {
+      const a = Math.atan2(player.y - e.y, player.x - e.x);
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      ctx.rotate(a);
+      const warn = 0.4 + 0.6 * Math.abs(Math.sin(game.time * 18));
+      ctx.strokeStyle = "rgba(255,110,120," + (0.55 * warn).toFixed(2) + ")";
+      ctx.lineWidth = 3; ctx.setLineDash([11, 8]);
+      ctx.beginPath(); ctx.moveTo(r * 1.2, 0); ctx.lineTo(r * 1.2 + 230, 0); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+    ctx.rotate(e.angle + Math.PI / 2);
+    if (e.chargeState === "dash") drawGlow(0, r * 1.4, r * 1.15, c.base, 0.9); // streak wake
+    ctx.beginPath();
+    ctx.moveTo(0, -r * 1.55);
+    ctx.lineTo(r * 0.5, -r * 0.2);
+    ctx.lineTo(r * 1.15, r * 0.22);
+    ctx.lineTo(r * 0.46, r * 0.36);
+    ctx.lineTo(r * 0.72, r * 1.0);
+    ctx.lineTo(0, r * 0.55);
+    ctx.lineTo(-r * 0.72, r * 1.0);
+    ctx.lineTo(-r * 0.46, r * 0.36);
+    ctx.lineTo(-r * 1.15, r * 0.22);
+    ctx.lineTo(-r * 0.5, -r * 0.2);
+    ctx.closePath();
+    ctx.fillStyle = flash ? "#ffffff" : bodyGrad(r, c.light, c.base);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.8)"; ctx.lineWidth = 1.4; ctx.stroke();
+    // charged core pulses brighter during windup
+    const coreA = e.chargeState === "wind" ? 0.6 + 0.4 * Math.abs(Math.sin(game.time * 18)) : 0.8;
+    drawGlow(0, -r * 0.9, r * 0.5, "rgba(255,255,255," + coreA.toFixed(2) + ")", 0.9);
   }
 
   function drawTank(e, flash) {
