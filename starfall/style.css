@@ -329,7 +329,46 @@ kbd {
   text-shadow: 0 0 14px rgba(165, 107, 255, 0.5);
 }
 
-/* ---- 難易度セレクター ---- */
+/* ---- コスチューム / 難易度セレクター ---- */
+.costume {
+  margin: 4px auto 18px;
+  max-width: 330px;
+}
+.costume-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  justify-content: center;
+}
+.costume-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  font-family: inherit;
+  color: rgba(210, 222, 255, 0.75);
+  cursor: pointer;
+  background: rgba(12, 16, 34, 0.7);
+  border: 1px solid rgba(120, 160, 255, 0.2);
+  transition: transform 0.08s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+.costume-btn .cos-dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--cos-color, #38f6ff);
+  box-shadow: 0 0 8px var(--cos-color, #38f6ff);
+}
+.costume-btn:hover { color: #fff; border-color: rgba(120, 160, 255, 0.5); }
+.costume-btn:active { transform: scale(0.97); }
+.costume-btn.active {
+  color: #fff;
+  border-color: var(--cos-color, #38f6ff);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--cos-color, #38f6ff) 45%, transparent);
+  background: color-mix(in srgb, var(--cos-color, #38f6ff) 16%, rgba(12, 16, 34, 0.7));
+}
+
 .difficulty {
   margin: 4px auto 20px;
   max-width: 320px;

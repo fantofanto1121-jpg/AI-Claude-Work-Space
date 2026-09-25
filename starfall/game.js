@@ -248,7 +248,6 @@
     x: 0, y: 0, r: 16,
     speed: 240,
     hp: 100, maxHp: 100,
-    regen: 0,
     level: 1, xp: 0, xpNext: 5,
     pickupRange: 120,
     invuln: 0,
@@ -258,16 +257,29 @@
     fireRateMul: 1,
     projectiles: 1,
     critChance: 0.05,
+    critMul: 2,           // crit damage multiplier
     xpMul: 1,
+    rangeMul: 1,          // weapon range multiplier
+    projSpeedMul: 1,      // projectile speed multiplier
+    aoeMul: 1,            // nova / aura radius multiplier
     armor: 0,             // fraction of damage reduced
     lifestealChance: 0,   // chance to heal on kill
     lifestealHeal: 6,     // hp healed when it procs
     projectileSize: 1,    // bullet radius multiplier
-    revives: 0,        // extra lives
+    revives: 0,           // extra lives
+    berserk: false,       // low-hp damage bonus
+    thorns: 0,            // contact reflect damage
     weapons: {},   // id -> level
     passives: {},  // id -> level
     trail: [],
   };
+
+  // Effective damage multiplier (folds in the dynamic berserk bonus).
+  function dmgMul() {
+    let m = player.damageMul;
+    if (player.berserk) m *= 1 + 0.45 * (1 - clamp(player.hp / player.maxHp, 0, 1));
+    return m;
+  }
 
   // Entity pools
   let enemies = [];
@@ -386,10 +398,10 @@
       desc: () => "攻撃速度 +12%。" },
     swift: { name: "スラスター", icon: "➤", tag: "PASSIVE", accent: "#78ffbe", glow: "rgba(120,255,190,0.5)", max: 6,
       desc: () => "移動速度 +10%。" },
-    vitality: { name: "ハルプレート", icon: "✛", tag: "PASSIVE", accent: "#ff5a5a", glow: "rgba(255,90,90,0.5)", max: 8,
-      desc: () => "最大HP +25 （＆全回復）。" },
-    regen: { name: "ナノリペア", icon: "✚", tag: "PASSIVE", accent: "#78ffbe", glow: "rgba(120,255,190,0.5)", max: 6,
-      desc: () => "毎秒HP自動回復 +1.2。" },
+    vitality: { name: "ハルプレート", icon: "✛", tag: "共通・レア", accent: "#ff5a5a", glow: "rgba(255,90,90,0.5)", max: 8,
+      desc: () => "最大HP +25 （＆全回復）。極稀に出現。" },
+    fullheal: { name: "リペアバースト", icon: "✚", tag: "共通・レア", accent: "#78ffbe", glow: "rgba(120,255,190,0.5)", max: 99,
+      desc: () => "HPを全回復する。極稀に出現。" },
     magnet: { name: "マグネットフィールド", icon: "◎", tag: "PASSIVE", accent: "#a56bff", glow: "rgba(165,107,255,0.5)", max: 5,
       desc: () => "欠片の回収範囲 +40%。" },
     crit: { name: "フォーカスレンズ", icon: "◆", tag: "PASSIVE", accent: "#ffd166", glow: "rgba(255,209,102,0.5)", max: 6,
@@ -404,7 +416,66 @@
       desc: () => "弾のサイズ +20%（＆威力 +6%）。" },
     revive: { name: "フェニックスコア", icon: "✧", tag: "PASSIVE", accent: "#ff9d5a", glow: "rgba(255,157,90,0.55)", max: 1,
       desc: () => "力尽きた時1度だけ復活（HP半分＆周囲を一掃）。" },
+    multishot: { name: "マルチショット", icon: "⋔", tag: "PASSIVE", accent: "#38f6ff", glow: "rgba(56,246,255,0.5)", max: 2,
+      desc: () => "射出する弾を1発追加。" },
+    longshot: { name: "ロングバレル", icon: "⟜", tag: "PASSIVE", accent: "#8cdcff", glow: "rgba(140,220,255,0.5)", max: 5,
+      desc: () => "武器の射程 +18%。" },
+    velocity: { name: "アクセルチャージ", icon: "»", tag: "PASSIVE", accent: "#78ffbe", glow: "rgba(120,255,190,0.5)", max: 5,
+      desc: () => "弾速 +18%。" },
+    blast: { name: "エクスパンダー", icon: "◌", tag: "PASSIVE", accent: "#ff78d2", glow: "rgba(255,120,210,0.5)", max: 5,
+      desc: () => "ノヴァ／オーラの範囲 +16%。" },
+    sniper: { name: "クリティカルエッジ", icon: "✦", tag: "PASSIVE", accent: "#ffd166", glow: "rgba(255,209,102,0.5)", max: 4,
+      desc: () => "クリティカル倍率 +0.4。" },
+    glass: { name: "グラスキャノン", icon: "◇", tag: "PASSIVE", accent: "#ff5a8a", glow: "rgba(255,90,138,0.5)", max: 1,
+      desc: () => "ダメージ +40%／最大HP -20。" },
+    berserk: { name: "バーサーカー", icon: "⯍", tag: "PASSIVE", accent: "#ff5a5a", glow: "rgba(255,90,90,0.5)", max: 1,
+      desc: () => "HPが低いほどダメージ上昇（最大 +45%）。" },
+    thorns: { name: "ソーンオーラ", icon: "✷", tag: "PASSIVE", accent: "#9fb4ff", glow: "rgba(159,180,255,0.5)", max: 5,
+      desc: () => "接触した敵に反射ダメージ。" },
   };
+
+  // ---------------------------------------------------------------------
+  //  Costumes  (each defines a ship look + its own skill pool)
+  // ---------------------------------------------------------------------
+  // Two "universal rare" skills appear in every costume at a tiny weight.
+  const UNIVERSAL_SKILLS = ["fullheal", "vitality"];
+  const RARE_WEIGHT = 0.06;
+
+  const COSTUMES = {
+    vanguard: {
+      name: "ヴァンガード", label: "VANGUARD", swatch: "#38f6ff",
+      desc: "連射と手数の突撃機。銃系の火力を伸ばす。",
+      ship: { glow: "rgba(56,246,255,0.6)", g0: "#eafcff", g1: "#38f6ff", g2: "#1b6fff", flame: "rgba(120,220,255,0.9)" },
+      skills: ["pulse", "spread", "homing", "power", "haste", "multishot", "velocity", "longshot", "crit", "sniper", "bigshot", "swift", "magnet", "greed", "revive"],
+    },
+    warden: {
+      name: "ウォーデン", label: "WARDEN", swatch: "#46f0a0",
+      desc: "近接と範囲で敵をなぎ払う守護機。硬い。",
+      ship: { glow: "rgba(80,255,170,0.6)", g0: "#eafff4", g1: "#46f0a0", g2: "#12b070", flame: "rgba(120,255,190,0.9)" },
+      skills: ["orbit", "aura", "nova", "homing", "armor", "thorns", "power", "blast", "swift", "magnet", "lifesteal", "bigshot", "berserk", "greed", "haste", "revive"],
+    },
+    tempest: {
+      name: "テンペスト", label: "TEMPEST", swatch: "#a56bff",
+      desc: "貫通・連鎖・追尾のエネルギー機。手数と弾速。",
+      ship: { glow: "rgba(165,107,255,0.6)", g0: "#f3eaff", g1: "#a56bff", g2: "#6a2bd0", flame: "rgba(200,150,255,0.9)" },
+      skills: ["beam", "chain", "homing", "velocity", "longshot", "haste", "power", "crit", "sniper", "multishot", "blast", "magnet", "greed", "swift", "revive"],
+    },
+    hunter: {
+      name: "ハンター", label: "HUNTER", swatch: "#ffd166",
+      desc: "会心特化の狙撃機。一撃の重さで勝負する。",
+      ship: { glow: "rgba(255,190,90,0.6)", g0: "#fff5e0", g1: "#ffb84d", g2: "#d07a1a", flame: "rgba(255,210,120,0.9)" },
+      skills: ["pulse", "beam", "spread", "crit", "sniper", "glass", "power", "velocity", "longshot", "haste", "bigshot", "swift", "magnet", "greed", "revive"],
+    },
+    phantom: {
+      name: "ファントム", label: "PHANTOM", swatch: "#ff5a7a",
+      desc: "脆いが高火力の紅の機体。吸血と反射で攻める。",
+      ship: { glow: "rgba(255,90,120,0.6)", g0: "#ffe6ea", g1: "#ff5a7a", g2: "#c01530", flame: "rgba(255,140,160,0.9)" },
+      skills: ["chain", "aura", "orbit", "nova", "glass", "berserk", "power", "haste", "lifesteal", "thorns", "swift", "blast", "crit", "magnet", "revive"],
+    },
+  };
+  let costumeKey = "vanguard";
+  let costume = COSTUMES.vanguard;
+  let ship = COSTUMES.vanguard.ship; // active ship colour theme
 
   // ---------------------------------------------------------------------
   //  Weapon stat resolvers (level-scaled)
@@ -415,12 +486,12 @@
     const lv = weaponLv("pulse");
     return {
       cooldown: 0.42 / player.fireRateMul,
-      damage: (10 + lv * 5) * player.damageMul,
+      damage: (10 + lv * 5) * dmgMul(),
       speed: 620,
       radius: 6 + lv * 0.6,
       count: player.projectiles + Math.floor(lv / 2),
       spread: 0.12,
-      range: 560 + lv * 20,
+      range: (560 + lv * 20) * player.rangeMul,
     };
   }
   function orbitCount() { const lv = weaponLv("orbit"); return lv === 0 ? 0 : 2 + Math.floor(lv * 0.9); }
@@ -428,7 +499,7 @@
     const lv = weaponLv("orbit");
     return {
       count: orbitCount(),
-      damage: (8 + lv * 4) * player.damageMul,
+      damage: (8 + lv * 4) * dmgMul(),
       radius: 78 + lv * 8,
       spin: 2.2 + lv * 0.25,
       size: 12 + lv * 1.2,
@@ -438,41 +509,41 @@
     const lv = weaponLv("nova");
     return {
       cooldown: 2.6 / player.fireRateMul,
-      damage: (16 + lv * 9) * player.damageMul,
-      radius: 150 + lv * 34,
+      damage: (16 + lv * 9) * dmgMul(),
+      radius: (150 + lv * 34) * player.aoeMul,
     };
   }
   function spreadStats() {
     const lv = weaponLv("spread");
     return {
       cooldown: 0.9 / player.fireRateMul,
-      damage: (7 + lv * 4) * player.damageMul,
+      damage: (7 + lv * 4) * dmgMul(),
       speed: 520,
       count: 4 + lv,
       arc: 0.6 + lv * 0.08,
       radius: 5,
       life: 0.5,
-      range: 360,
+      range: 360 * player.rangeMul,
     };
   }
   function beamStats() {
     const lv = weaponLv("beam");
     return {
       cooldown: 1.3 / player.fireRateMul,
-      damage: (22 + lv * 12) * player.damageMul,
+      damage: (22 + lv * 12) * dmgMul(),
       pierce: 3 + lv,
       speed: 1100,
       radius: 7 + lv,
-      range: 720,
+      range: 720 * player.rangeMul,
     };
   }
   function chainStats() {
     const lv = weaponLv("chain");
     return {
       cooldown: 1.1 / player.fireRateMul,
-      damage: (14 + lv * 8) * player.damageMul,
+      damage: (14 + lv * 8) * dmgMul(),
       jumps: 3 + lv,           // number of enemies hit
-      range: 620,              // first-target range
+      range: 620 * player.rangeMul, // first-target range
       jumpRange: 220,          // arc distance between enemies
     };
   }
@@ -480,20 +551,20 @@
     const lv = weaponLv("homing");
     return {
       cooldown: 0.75 / player.fireRateMul,
-      damage: (9 + lv * 5) * player.damageMul,
+      damage: (9 + lv * 5) * dmgMul(),
       speed: 300,
       turn: 3.2 + lv * 0.4,    // steering rate (rad/s)
       count: 1 + Math.floor((lv + 1) / 2),
       radius: 6,
-      range: 640,
+      range: 640 * player.rangeMul,
     };
   }
   function auraStats() {
     const lv = weaponLv("aura");
     return {
       tick: 0.35,              // damage interval
-      damage: (6 + lv * 4) * player.damageMul,
-      radius: 78 + lv * 16,
+      damage: (6 + lv * 4) * dmgMul(),
+      radius: (78 + lv * 16) * player.aoeMul,
     };
   }
 
@@ -834,11 +905,12 @@
 
   function fireBullet(angle, speed, damage, radius, color, glow, pierce, isBeam) {
     const crit = Math.random() < player.critChance;
+    speed *= player.projSpeedMul;
     const b = {
       x: player.x, y: player.y,
       vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
       speed: speed,
-      damage: crit ? damage * 2 : damage, crit,
+      damage: crit ? damage * player.critMul : damage, crit,
       r: radius * player.projectileSize, color, glow, pierce, hits: new Set(),
       life: isBeam ? 0.9 : 1.6, angle, long: false,
       homing: false, turn: 0,
@@ -910,10 +982,6 @@
     for (const t of player.trail) t.life -= dt * 2.6;
     player.trail = player.trail.filter((t) => t.life > 0);
 
-    // regen
-    if (player.regen > 0 && player.hp < player.maxHp) {
-      player.hp = Math.min(player.maxHp, player.hp + player.regen * dt);
-    }
     if (player.invuln > 0) player.invuln -= dt;
   }
 
@@ -945,13 +1013,22 @@
       e.x = clamp(e.x, 20, WORLD.w - 20);
       e.y = clamp(e.y, 20, WORLD.h - 20);
 
-      // contact damage to player
+      // contact with player
+      if (e._thornCd > 0) e._thornCd -= dt;
       const rr = e.r + player.r;
-      if (player.invuln <= 0 && dist2(e.x, e.y, player.x, player.y) < rr * rr) {
-        hurtPlayer(e.dmg);
-        const a = Math.atan2(player.y - e.y, player.x - e.x);
-        e.knock.x -= Math.cos(a) * 60;
-        e.knock.y -= Math.sin(a) * 60;
+      if (dist2(e.x, e.y, player.x, player.y) < rr * rr) {
+        // thorns reflect (independent of i-frames, on a short cooldown)
+        if (player.thorns > 0 && e._thornCd <= 0) {
+          const a2 = Math.atan2(e.y - player.y, e.x - player.x);
+          damageEnemy(e, player.thorns, Math.cos(a2) * 50, Math.sin(a2) * 50, false);
+          e._thornCd = 0.3;
+        }
+        if (player.invuln <= 0) {
+          hurtPlayer(e.dmg);
+          const a = Math.atan2(player.y - e.y, player.x - e.x);
+          e.knock.x -= Math.cos(a) * 60;
+          e.knock.y -= Math.sin(a) * 60;
+        }
       }
     }
     // simple separation so enemies don't fully overlap (cheap, sampled)
@@ -1219,36 +1296,49 @@
   // ---------------------------------------------------------------------
   let pendingChoices = [];
 
+  function skillInfo(id) {
+    if (WEAPONS[id]) return { kind: "weapon", def: WEAPONS[id], lv: weaponLv(id), max: WEAPONS[id].max };
+    if (PASSIVES[id]) return { kind: "passive", def: PASSIVES[id], lv: player.passives[id] || 0, max: PASSIVES[id].max };
+    return null;
+  }
+
+  // The choosable pool = the current costume's skills + the two universal
+  // heals (which carry a tiny weight so they appear only rarely).
   function buildChoicePool() {
     const pool = [];
-    // weapons: offer if not maxed
-    for (const id in WEAPONS) {
-      const lv = weaponLv(id);
-      if (lv < WEAPONS[id].max) {
-        pool.push({ kind: "weapon", id, lv });
-      }
-    }
-    // passives
-    for (const id in PASSIVES) {
-      const lv = player.passives[id] || 0;
-      if (lv < PASSIVES[id].max) {
-        pool.push({ kind: "passive", id, lv });
-      }
+    const ids = costume.skills.concat(UNIVERSAL_SKILLS);
+    for (const id of ids) {
+      const info = skillInfo(id);
+      if (!info || info.lv >= info.max) continue;
+      const universal = UNIVERSAL_SKILLS.indexOf(id) >= 0;
+      let weight = 1;
+      if (universal) weight = RARE_WEIGHT;
+      else if (info.kind === "weapon" && info.lv === 0) weight = 1.5; // nudge new weapons
+      pool.push({ kind: info.kind, id, lv: info.lv, weight });
     }
     return pool;
+  }
+
+  // Weighted sampling without replacement.
+  function weightedSample(pool, n) {
+    const items = pool.slice();
+    const out = [];
+    for (let k = 0; k < n && items.length; k++) {
+      let total = 0;
+      for (const it of items) total += it.weight;
+      let r = Math.random() * total, idx = 0;
+      for (let i = 0; i < items.length; i++) { r -= items[i].weight; if (r <= 0) { idx = i; break; } }
+      out.push(items[idx]);
+      items.splice(idx, 1);
+    }
+    return out;
   }
 
   function openLevelUp() {
     // don't stack multiple modals; queue is handled by re-open after choice
     if (game.state === "levelup") return;
-    let pool = buildChoicePool();
-    // Bias: if player has few weapons, prioritise offering a new/leveled weapon.
-    shuffle(pool);
-    const owned = Object.keys(player.weapons).length;
-    if (owned < 3) {
-      pool.sort((a, b) => (a.kind === "weapon" ? -1 : 1) - (b.kind === "weapon" ? -1 : 1));
-    }
-    pendingChoices = pool.slice(0, 3);
+    const pool = buildChoicePool();
+    pendingChoices = weightedSample(pool, 3);
     if (pendingChoices.length === 0) {
       // everything maxed — grant a heal instead
       player.hp = player.maxHp;
@@ -1310,7 +1400,7 @@
         case "haste": player.fireRateMul += 0.12; break;
         case "swift": player.speed += 24; break;
         case "vitality": player.maxHp += 25; player.hp = player.maxHp; break;
-        case "regen": player.regen += 1.2; break;
+        case "fullheal": player.hp = player.maxHp; break;
         case "magnet": player.pickupRange *= 1.4; break;
         case "crit": player.critChance = clamp(player.critChance + 0.08, 0, 0.9); break;
         case "greed": player.xpMul += 0.2; break;
@@ -1318,6 +1408,14 @@
         case "lifesteal": player.lifestealChance = clamp(player.lifestealChance + 0.1, 0, 0.6); break;
         case "bigshot": player.projectileSize += 0.2; player.damageMul += 0.06; break;
         case "revive": player.revives += 1; break;
+        case "multishot": player.projectiles += 1; break;
+        case "longshot": player.rangeMul += 0.18; break;
+        case "velocity": player.projSpeedMul += 0.18; break;
+        case "blast": player.aoeMul += 0.16; break;
+        case "sniper": player.critMul += 0.4; break;
+        case "glass": player.damageMul += 0.4; player.maxHp = Math.max(20, player.maxHp - 20); player.hp = Math.min(player.hp, player.maxHp); break;
+        case "berserk": player.berserk = true; break;
+        case "thorns": player.thorns += 12; break;
       }
     }
   }
@@ -1434,10 +1532,10 @@
   }
 
   function drawPlayer() {
-    // trail
+    // trail (costume-tinted)
     ctx.globalCompositeOperation = "lighter";
     for (const t of player.trail) {
-      drawGlow(t.x, t.y, player.r * 1.6 * t.life, "rgba(56,246,255,0.4)", t.life * 0.5);
+      drawGlow(t.x, t.y, player.r * 1.6 * t.life, ship.glow, t.life * 0.5);
     }
     ctx.globalCompositeOperation = "source-over";
 
@@ -1449,7 +1547,7 @@
     ctx.stroke();
 
     const blink = player.invuln > 0 && Math.floor(player.invuln * 20) % 2 === 0;
-    drawGlow(player.x, player.y, player.r * 2.6, "rgba(56,246,255,0.6)", blink ? 0.4 : 0.9);
+    drawGlow(player.x, player.y, player.r * 2.6, ship.glow, blink ? 0.4 : 0.9);
 
     ctx.save();
     ctx.translate(player.x, player.y);
@@ -1462,9 +1560,9 @@
     ctx.lineTo(-player.r * 0.9, player.r);
     ctx.closePath();
     const grd = ctx.createLinearGradient(0, -player.r, 0, player.r);
-    grd.addColorStop(0, "#eafcff");
-    grd.addColorStop(0.5, "#38f6ff");
-    grd.addColorStop(1, "#1b6fff");
+    grd.addColorStop(0, ship.g0);
+    grd.addColorStop(0.5, ship.g1);
+    grd.addColorStop(1, ship.g2);
     ctx.fillStyle = grd;
     ctx.globalAlpha = blink ? 0.6 : 1;
     ctx.fill();
@@ -1473,7 +1571,7 @@
     ctx.stroke();
     // engine flame
     ctx.globalCompositeOperation = "lighter";
-    drawGlow(0, player.r * 1.1, 10 + Math.sin(game.time * 30) * 3, "rgba(120,220,255,0.9)", 0.8);
+    drawGlow(0, player.r * 1.1, 10 + Math.sin(game.time * 30) * 3, ship.flame, 0.8);
     ctx.globalCompositeOperation = "source-over";
     ctx.globalAlpha = 1;
     ctx.restore();
@@ -2030,13 +2128,20 @@
 
     player.x = WORLD.w / 2; player.y = WORLD.h / 2;
     player.speed = 240; player.maxHp = diff.startHp; player.hp = diff.startHp;
-    player.regen = 0; player.level = 1; player.xp = 0; player.xpNext = 5;
+    player.level = 1; player.xp = 0; player.xpNext = 5;
     player.pickupRange = 120; player.invuln = 0; player.facing = -Math.PI / 2;
     player.damageMul = 1; player.fireRateMul = 1; player.projectiles = 1;
-    player.critChance = 0.05; player.xpMul = diff.xpMul;
+    player.critChance = 0.05; player.critMul = 2; player.xpMul = diff.xpMul;
+    player.rangeMul = 1; player.projSpeedMul = 1; player.aoeMul = 1;
     player.armor = 0; player.lifestealChance = 0; player.lifestealHeal = 6;
     player.projectileSize = 1; player.revives = 0;
-    player.weapons = { pulse: 1 };
+    player.berserk = false; player.thorns = 0;
+    // start with this costume's first ranged weapon (so early game is viable),
+    // falling back to its first weapon of any kind.
+    const RANGED = ["pulse", "spread", "beam", "chain", "homing"];
+    const startWeapon = costume.skills.find((id) => RANGED.indexOf(id) >= 0)
+      || costume.skills.find((id) => WEAPONS[id]) || "pulse";
+    player.weapons = {}; player.weapons[startWeapon] = 1;
     player.passives = {};
     player.trail = [];
     buildStars();
@@ -2045,6 +2150,8 @@
   function startRun() {
     audio();
     diff = DIFFICULTIES[difficulty];
+    costume = COSTUMES[costumeKey] || COSTUMES.vanguard;
+    ship = costume.ship;
     game.best = game.bests[difficulty] || 0;
     modeEl.textContent = diff.hud;
     resetRun();
@@ -2210,11 +2317,46 @@
   }
 
   // ---------------------------------------------------------------------
+  //  Costume selection
+  // ---------------------------------------------------------------------
+  const COSTUME_KEY = "starfall-arena-costume";
+  function buildCostumeButtons() {
+    const wrap = el("costume-options");
+    wrap.innerHTML = "";
+    for (const key in COSTUMES) {
+      const c = COSTUMES[key];
+      const b = document.createElement("button");
+      b.className = "costume-btn";
+      b.dataset.costume = key;
+      b.style.setProperty("--cos-color", c.swatch);
+      b.innerHTML = '<span class="cos-dot"></span>' + c.name;
+      b.addEventListener("click", () => setCostume(key));
+      wrap.appendChild(b);
+    }
+  }
+  function setCostume(key) {
+    if (!COSTUMES[key]) key = "vanguard";
+    costumeKey = key;
+    costume = COSTUMES[key];
+    ship = costume.ship;
+    document.querySelectorAll(".costume-btn").forEach((b) => b.classList.toggle("active", b.dataset.costume === key));
+    el("costume-desc").textContent = costume.desc;
+    try { localStorage.setItem(COSTUME_KEY, key); } catch (e) {}
+  }
+  function loadCostume() {
+    buildCostumeButtons();
+    let saved = "vanguard";
+    try { saved = localStorage.getItem(COSTUME_KEY) || "vanguard"; } catch (e) {}
+    setCostume(saved);
+  }
+
+  // ---------------------------------------------------------------------
   //  Boot
   // ---------------------------------------------------------------------
   resize();
   loadBest();
   loadDifficulty();
+  loadCostume();
   setState("menu");
   requestAnimationFrame(frame);
 })();
