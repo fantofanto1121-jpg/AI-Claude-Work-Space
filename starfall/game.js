@@ -743,12 +743,11 @@
       }
     }
 
-    // timed waves / boss — 前のWAVEが片付くまで次は来ない
+    // timed waves / boss — ボス戦中は次のWAVEを保留する（WAVEの重複防止）
     if (game.time >= game.nextWaveAt) {
-      // ボス戦中、または敵がまだ多い間は次のWAVEを保留する
-      let bossAlive = false, crowd = 0;
-      for (const e of enemies) { if (e.boss) bossAlive = true; else crowd++; }
-      if (bossAlive || crowd > 14) {
+      let bossAlive = false;
+      for (const e of enemies) { if (e.boss) { bossAlive = true; break; } }
+      if (bossAlive) {
         game.nextWaveAt = game.time + 3;
       } else {
         game.waveCount++;
