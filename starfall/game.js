@@ -269,9 +269,20 @@
     revives: 0,           // extra lives
     berserk: false,       // low-hp damage bonus
     thorns: 0,            // contact reflect damage
+    // signature mechanics
+    shieldMax: 0, shield: 0, shieldTimer: 0, // regenerating absorb shield
+    counter: 0,           // nova on taking damage (level)
+    executePct: 0,        // execute enemies below this HP fraction
+    critblast: 0,         // AoE on crit (level)
+    coldblood: 0,         // crit up while still (level)
+    stillTime: 0,         // seconds stationary
+    voidburst: 0,         // enemies explode on death (level)
+    bloodhitChance: 0,    // heal chance on hit
+    vapor: 0,             // damaging move-trail (level)
     weapons: {},   // id -> level
     passives: {},  // id -> level
     trail: [],
+    vaporTrail: [],
   };
 
   // Effective damage multiplier (folds in the dynamic berserk bonus).
@@ -389,6 +400,35 @@
       desc: (lv) => lv === 0 ? "自機を包む破壊の光輪。触れた敵を焼く。"
         : "範囲と威力が拡大する。(Lv" + (lv + 1) + ")",
     },
+    // ---- signature weapons ------------------------------------------------
+    gravity: {
+      name: "グラビティウェル", icon: "⊛", tag: "ウォーデン専用",
+      color: "rgba(120,255,190,1)", accent: "#7affc8", glow: "rgba(80,255,170,0.5)",
+      max: 6,
+      desc: (lv) => lv === 0 ? "自機の周囲に重力場を展開。中の敵を鈍足化し削る。"
+        : "範囲・威力・減速が強まる。(Lv" + (lv + 1) + ")",
+    },
+    storm: {
+      name: "ストームコール", icon: "彡", tag: "テンペスト専用",
+      color: "rgba(160,180,255,1)", accent: "#a6b4ff", glow: "rgba(150,170,255,0.55)",
+      max: 6,
+      desc: (lv) => lv === 0 ? "無差別に落雷を呼び、範囲内の敵を撃つ。"
+        : "落雷数と威力が増す。(Lv" + (lv + 1) + ")",
+    },
+    deadeye: {
+      name: "デッドアイ", icon: "⊹", tag: "ハンター専用",
+      color: "rgba(255,209,102,1)", accent: "#ffd166", glow: "rgba(255,209,102,0.5)",
+      max: 6,
+      desc: (lv) => lv === 0 ? "低速だが超高威力の貫通弾を最も硬い敵へ撃つ。"
+        : "威力・貫通・連射が上がる。(Lv" + (lv + 1) + ")",
+    },
+    staticfield: {
+      name: "静電フィールド", icon: "⌇", tag: "テンペスト専用",
+      color: "rgba(160,180,255,1)", accent: "#a6b4ff", glow: "rgba(150,170,255,0.55)",
+      max: 5,
+      desc: (lv) => lv === 0 ? "周囲の敵へ絶えず微弱な電撃を放つ帯電フィールド。"
+        : "射程と電撃数・威力が増す。(Lv" + (lv + 1) + ")",
+    },
   };
 
   const PASSIVES = {
@@ -428,10 +468,29 @@
       desc: () => "クリティカル倍率 +0.4。" },
     glass: { name: "グラスキャノン", icon: "◇", tag: "PASSIVE", accent: "#ff5a8a", glow: "rgba(255,90,138,0.5)", max: 1,
       desc: () => "ダメージ +40%／最大HP -20。" },
-    berserk: { name: "バーサーカー", icon: "⯍", tag: "PASSIVE", accent: "#ff5a5a", glow: "rgba(255,90,90,0.5)", max: 1,
+    berserk: { name: "バーサーカー", icon: "⯍", tag: "ファントム専用", accent: "#ff5a5a", glow: "rgba(255,90,90,0.5)", max: 1,
       desc: () => "HPが低いほどダメージ上昇（最大 +45%）。" },
-    thorns: { name: "ソーンオーラ", icon: "✷", tag: "PASSIVE", accent: "#9fb4ff", glow: "rgba(159,180,255,0.5)", max: 5,
+    thorns: { name: "ソーンオーラ", icon: "✷", tag: "ウォーデン専用", accent: "#9fb4ff", glow: "rgba(159,180,255,0.5)", max: 5,
       desc: () => "接触した敵に反射ダメージ。" },
+    // ---- Warden signatures ----
+    shield: { name: "バリアジェネレータ", icon: "⛭", tag: "ウォーデン専用", accent: "#9fb4ff", glow: "rgba(159,180,255,0.5)", max: 5,
+      desc: () => "被弾を肩代わりする再生シールド +25（時間で回復）。" },
+    counter: { name: "リアクティブノヴァ", icon: "⊕", tag: "ウォーデン専用", accent: "#7affc8", glow: "rgba(80,255,170,0.5)", max: 4,
+      desc: () => "被弾時に衝撃波で反撃する。" },
+    // ---- Hunter signatures ----
+    execute: { name: "ハンターズマーク", icon: "†", tag: "ハンター専用", accent: "#ffd166", glow: "rgba(255,209,102,0.5)", max: 4,
+      desc: (lv) => "HPが " + (8 + (lv||0) * 3) + "% 以下の敵を即撃破（ボス除く）。" },
+    critblast: { name: "ヘッドショット", icon: "✸", tag: "ハンター専用", accent: "#ffb84d", glow: "rgba(255,184,77,0.5)", max: 4,
+      desc: () => "会心命中で小爆発を起こす。" },
+    coldblood: { name: "コールドブラッド", icon: "❄", tag: "ハンター専用", accent: "#8cdcff", glow: "rgba(140,220,255,0.5)", max: 4,
+      desc: () => "静止中はクリティカル率が大きく上がる。" },
+    // ---- Phantom signatures ----
+    voidburst: { name: "ヴォイドバースト", icon: "❂", tag: "ファントム専用", accent: "#ff5a7a", glow: "rgba(255,90,120,0.5)", max: 4,
+      desc: () => "撃破した敵が爆発し周囲を巻き込む。" },
+    bloodhit: { name: "ブラッドドリンカー", icon: "♢", tag: "ファントム専用", accent: "#ff5a8a", glow: "rgba(255,90,138,0.5)", max: 4,
+      desc: () => "攻撃命中時に確率でHPを吸収する。" },
+    vapor: { name: "ヴェイパートレイル", icon: "≈", tag: "ファントム専用", accent: "#ff9dc0", glow: "rgba(255,157,192,0.5)", max: 4,
+      desc: () => "移動中に敵を焼く残像を残す。" },
   };
 
   // ---------------------------------------------------------------------
@@ -441,36 +500,39 @@
   const UNIVERSAL_SKILLS = ["fullheal", "vitality"];
   const RARE_WEIGHT = 0.06;
 
+  // Vanguard is the "standard" costume and owns the original generic roster.
+  // The other four are built mostly from their own signature skills so each
+  // one plays clearly differently.
   const COSTUMES = {
     vanguard: {
       name: "ヴァンガード", label: "VANGUARD", swatch: "#38f6ff",
-      desc: "連射と手数の突撃機。銃系の火力を伸ばす。",
+      desc: "王道の万能機。定番の武器と汎用強化を幅広く扱える。",
       ship: { glow: "rgba(56,246,255,0.6)", g0: "#eafcff", g1: "#38f6ff", g2: "#1b6fff", flame: "rgba(120,220,255,0.9)" },
-      skills: ["pulse", "spread", "homing", "power", "haste", "multishot", "velocity", "longshot", "crit", "sniper", "bigshot", "swift", "magnet", "greed", "revive"],
+      skills: ["pulse", "spread", "homing", "beam", "power", "haste", "multishot", "velocity", "longshot", "crit", "sniper", "bigshot", "armor", "swift", "magnet", "greed", "lifesteal", "revive"],
     },
     warden: {
       name: "ウォーデン", label: "WARDEN", swatch: "#46f0a0",
-      desc: "近接と範囲で敵をなぎ払う守護機。硬い。",
+      desc: "要塞型。シールドと反撃、重力場で敵を抱え込んで潰す。",
       ship: { glow: "rgba(80,255,170,0.6)", g0: "#eafff4", g1: "#46f0a0", g2: "#12b070", flame: "rgba(120,255,190,0.9)" },
-      skills: ["orbit", "aura", "nova", "homing", "armor", "thorns", "power", "blast", "swift", "magnet", "lifesteal", "bigshot", "berserk", "greed", "haste", "revive"],
+      skills: ["gravity", "orbit", "aura", "nova", "homing", "shield", "counter", "thorns", "armor", "blast", "swift", "bigshot", "magnet", "greed", "revive"],
     },
     tempest: {
       name: "テンペスト", label: "TEMPEST", swatch: "#a56bff",
-      desc: "貫通・連鎖・追尾のエネルギー機。手数と弾速。",
+      desc: "無差別掃射型。落雷と帯電で画面全体の敵を捌く。",
       ship: { glow: "rgba(165,107,255,0.6)", g0: "#f3eaff", g1: "#a56bff", g2: "#6a2bd0", flame: "rgba(200,150,255,0.9)" },
-      skills: ["beam", "chain", "homing", "velocity", "longshot", "haste", "power", "crit", "sniper", "multishot", "blast", "magnet", "greed", "swift", "revive"],
+      skills: ["chain", "storm", "staticfield", "beam", "velocity", "longshot", "haste", "blast", "multishot", "swift", "magnet", "greed", "revive"],
     },
     hunter: {
       name: "ハンター", label: "HUNTER", swatch: "#ffd166",
-      desc: "会心特化の狙撃機。一撃の重さで勝負する。",
+      desc: "一撃必殺型。会心と処刑で硬い敵を一瞬で仕留める。",
       ship: { glow: "rgba(255,190,90,0.6)", g0: "#fff5e0", g1: "#ffb84d", g2: "#d07a1a", flame: "rgba(255,210,120,0.9)" },
-      skills: ["pulse", "beam", "spread", "crit", "sniper", "glass", "power", "velocity", "longshot", "haste", "bigshot", "swift", "magnet", "greed", "revive"],
+      skills: ["deadeye", "beam", "spread", "execute", "critblast", "coldblood", "crit", "sniper", "glass", "longshot", "velocity", "magnet", "greed", "revive"],
     },
     phantom: {
       name: "ファントム", label: "PHANTOM", swatch: "#ff5a7a",
-      desc: "脆いが高火力の紅の機体。吸血と反射で攻める。",
+      desc: "自壊高火力型。撃破の連鎖爆発と吸血で押し切る紅の機体。",
       ship: { glow: "rgba(255,90,120,0.6)", g0: "#ffe6ea", g1: "#ff5a7a", g2: "#c01530", flame: "rgba(255,140,160,0.9)" },
-      skills: ["chain", "aura", "orbit", "nova", "glass", "berserk", "power", "haste", "lifesteal", "thorns", "swift", "blast", "crit", "magnet", "revive"],
+      skills: ["chain", "aura", "voidburst", "bloodhit", "vapor", "berserk", "glass", "lifesteal", "power", "haste", "swift", "magnet", "greed", "revive"],
     },
   };
   let costumeKey = "vanguard";
@@ -567,9 +629,47 @@
       radius: (78 + lv * 16) * player.aoeMul,
     };
   }
+  function gravityStats() {
+    const lv = weaponLv("gravity");
+    return {
+      tick: 0.4,
+      damage: (7 + lv * 5) * dmgMul(),
+      radius: (100 + lv * 20) * player.aoeMul,
+      slow: 0.55 - lv * 0.04,  // enemy speed multiplier inside (lower = slower)
+    };
+  }
+  function stormStats() {
+    const lv = weaponLv("storm");
+    return {
+      cooldown: 1.0 / player.fireRateMul,
+      damage: (18 + lv * 10) * dmgMul(),
+      strikes: 2 + lv,          // bolts per volley
+      range: 520 * player.rangeMul,
+    };
+  }
+  function deadeyeStats() {
+    const lv = weaponLv("deadeye");
+    return {
+      cooldown: 1.5 / player.fireRateMul,
+      damage: (45 + lv * 26) * dmgMul(),
+      pierce: 4 + lv,
+      speed: 720,
+      radius: 9 + lv,
+      range: 900 * player.rangeMul,
+    };
+  }
+  function staticStats() {
+    const lv = weaponLv("staticfield");
+    return {
+      tick: 0.3,
+      damage: (5 + lv * 3) * dmgMul(),
+      radius: (150 + lv * 20) * player.rangeMul,
+      targets: 1 + lv,          // enemies zapped per tick
+    };
+  }
 
   // weapon timers
-  const wt = { pulse: 0, nova: 0, spread: 0, beam: 0, chain: 0, homing: 0, aura: 0 };
+  const wt = { pulse: 0, nova: 0, spread: 0, beam: 0, chain: 0, homing: 0, aura: 0, gravity: 0, storm: 0, deadeye: 0, staticfield: 0 };
 
   // ---------------------------------------------------------------------
   //  Enemy types
@@ -722,11 +822,41 @@
     return best;
   }
 
+  // AoE damage helper (guarded so on-kill explosions can't chain infinitely).
+  let inAoe = false;
+  function aoeDamage(x, y, radius, amount, color) {
+    shockwave(x, y, radius, color || "rgba(255,255,255,0.4)");
+    const r2 = radius * radius;
+    const prev = inAoe; inAoe = true;
+    for (const e of enemies) {
+      if (e.dead) continue;
+      if (dist2(x, y, e.x, e.y) < r2) {
+        const a = Math.atan2(e.y - y, e.x - x);
+        damageEnemy(e, amount, Math.cos(a) * 70, Math.sin(a) * 70, false);
+      }
+    }
+    inAoe = prev;
+  }
+
   function damageEnemy(e, amount, kx, ky, isCrit) {
     e.hp -= amount;
     e.hitFlash = 1;
     if (kx || ky) { e.knock.x += kx; e.knock.y += ky; }
     floater(e.x, e.y - e.r, Math.round(amount), isCrit ? "#ffd166" : "#ffffff", isCrit);
+    // heal-on-hit (Phantom: ブラッドドリンカー)
+    if (player.bloodhitChance > 0 && player.hp < player.maxHp && Math.random() < player.bloodhitChance) {
+      player.hp = Math.min(player.maxHp, player.hp + 2);
+    }
+    // crit explosion (Hunter: ヘッドショット)
+    if (isCrit && player.critblast > 0 && e.hp > 0 && !inAoe) {
+      aoeDamage(e.x, e.y, 60 + player.critblast * 12, amount * 0.5, "rgba(255,184,77,0.5)");
+    }
+    // execute low-HP enemies (Hunter: ハンターズマーク)
+    if (e.hp > 0 && !e.boss && player.executePct > 0 && e.hp <= e.maxHp * player.executePct) {
+      floater(e.x, e.y - e.r - 12, "処刑", "#ffd166", true);
+      killEnemy(e);
+      return;
+    }
     if (e.hp <= 0) killEnemy(e);
   }
 
@@ -736,6 +866,11 @@
     if (player.lifestealChance > 0 && player.hp < player.maxHp && Math.random() < player.lifestealChance) {
       player.hp = Math.min(player.maxHp, player.hp + player.lifestealHeal);
       floater(player.x, player.y - player.r, "+" + player.lifestealHeal, "#ff9dc0", false);
+    }
+    // void burst (Phantom): enemy explodes, damaging others (never chains)
+    if (player.voidburst > 0 && !e.boss && !inAoe) {
+      aoeDamage(e.x, e.y, 60 + player.voidburst * 14, 12 + player.voidburst * 8, WEAPONS.voidburst ? "rgba(255,90,120,0.55)" : "rgba(255,90,120,0.55)");
+      burst(e.x, e.y, "rgba(255,90,120,1)", 12, 220, [1.5, 3.5], 0.5);
     }
     burst(e.x, e.y, e.color, e.boss ? 46 : 14, e.boss ? 320 : 190, [1.5, e.boss ? 5 : 3.5], e.boss ? 0.9 : 0.55);
     shockwave(e.x, e.y, e.boss ? 180 : 46, e.glow);
@@ -879,6 +1014,89 @@
         }
       }
     }
+    // GRAVITY WELL (Warden) — damages + slows enemies inside the field
+    if (weaponLv("gravity") > 0) {
+      wt.gravity -= dt;
+      if (wt.gravity <= 0) {
+        const s = gravityStats();
+        wt.gravity = s.tick;
+        const r2 = s.radius * s.radius;
+        for (const e of enemies) {
+          if (e.boss) continue;
+          if (dist2(player.x, player.y, e.x, e.y) < r2) {
+            e.slowT = 0.5; e.slowMul = s.slow;
+            damageEnemy(e, s.damage, 0, 0, false);
+          }
+        }
+      }
+    }
+    // STORM CALL (Tempest) — random lightning strikes on enemies in range
+    if (weaponLv("storm") > 0) {
+      wt.storm -= dt;
+      if (wt.storm <= 0) {
+        const s = stormStats();
+        wt.storm = s.cooldown;
+        const inRange = [];
+        const r2 = s.range * s.range;
+        for (const e of enemies) if (dist2(player.x, player.y, e.x, e.y) < r2) inRange.push(e);
+        let fired = 0;
+        for (let k = 0; k < s.strikes && inRange.length; k++) {
+          const e = inRange.splice((Math.random() * inRange.length) | 0, 1)[0];
+          lightnings.push({ x1: e.x, y1: e.y - 260, x2: e.x, y2: e.y, life: 1, color: WEAPONS.storm.glow });
+          damageEnemy(e, s.damage, 0, 0, false);
+          burst(e.x, e.y, WEAPONS.storm.color, 6, 150, [1.5, 3], 0.3);
+          fired++;
+        }
+        if (fired) sfx.shoot();
+      }
+    }
+    // DEAD EYE (Hunter) — slow, huge piercing shot at the toughest enemy
+    if (weaponLv("deadeye") > 0) {
+      wt.deadeye -= dt;
+      if (wt.deadeye <= 0) {
+        const s = deadeyeStats();
+        const target = toughestEnemy(player.x, player.y, s.range * s.range);
+        if (target) {
+          wt.deadeye = s.cooldown;
+          const a = Math.atan2(target.y - player.y, target.x - player.x);
+          const b = fireBullet(a, s.speed, s.damage, s.radius, WEAPONS.deadeye.color, WEAPONS.deadeye.glow, s.pierce, true);
+          b.long = true;
+          b.life = 1.6;
+          game.shake = Math.max(game.shake, 4);
+          sfx.shoot();
+        }
+      }
+    }
+    // STATIC FIELD (Tempest) — constant weak zaps to the nearest few enemies
+    if (weaponLv("staticfield") > 0) {
+      wt.staticfield -= dt;
+      if (wt.staticfield <= 0) {
+        const s = staticStats();
+        wt.staticfield = s.tick;
+        const near = [];
+        const r2 = s.radius * s.radius;
+        for (const e of enemies) {
+          const d = dist2(player.x, player.y, e.x, e.y);
+          if (d < r2) near.push({ e, d });
+        }
+        near.sort((a, b) => a.d - b.d);
+        for (let k = 0; k < s.targets && k < near.length; k++) {
+          const e = near[k].e;
+          lightnings.push({ x1: player.x, y1: player.y, x2: e.x, y2: e.y, life: 0.7, color: WEAPONS.staticfield.glow });
+          damageEnemy(e, s.damage, 0, 0, false);
+        }
+      }
+    }
+  }
+
+  function toughestEnemy(x, y, maxD2) {
+    let best = null, bestHp = -1;
+    for (const e of enemies) {
+      if (e.dead) continue;
+      if (dist2(x, y, e.x, e.y) > maxD2) continue;
+      if (e.hp > bestHp) { bestHp = e.hp; best = e; }
+    }
+    return best;
   }
 
   // Chain lightning: hop from enemy to enemy, damaging each and drawing arcs.
@@ -903,8 +1121,14 @@
     }
   }
 
+  function critChanceNow() {
+    let c = player.critChance;
+    if (player.coldblood > 0 && player.stillTime > 0.6) c += player.coldblood * 0.1;
+    return clamp(c, 0, 0.95);
+  }
+
   function fireBullet(angle, speed, damage, radius, color, glow, pierce, isBeam) {
-    const crit = Math.random() < player.critChance;
+    const crit = Math.random() < critChanceNow();
     speed *= player.projSpeedMul;
     const b = {
       x: player.x, y: player.y,
@@ -970,7 +1194,8 @@
     if (touch.active && (touch.nx || touch.ny)) {
       mx = touch.nx; my = touch.ny;
     }
-    if (mx || my) {
+    const moving = !!(mx || my);
+    if (moving) {
       player.facing = Math.atan2(my, mx);
       // trail
       player.trail.push({ x: player.x, y: player.y, life: 1 });
@@ -982,7 +1207,46 @@
     for (const t of player.trail) t.life -= dt * 2.6;
     player.trail = player.trail.filter((t) => t.life > 0);
 
+    // coldblood: track stationary time (Hunter)
+    player.stillTime = moving ? 0 : player.stillTime + dt;
+
+    // vapor trail: drop damaging afterimages while moving (Phantom)
+    if (player.vapor > 0 && moving) {
+      player._vaporCd = (player._vaporCd || 0) - dt;
+      if (player._vaporCd <= 0) {
+        player._vaporCd = 0.08;
+        player.vaporTrail.push({ x: player.x, y: player.y, r: 20 + player.vapor * 4, life: 1, hit: new Set() });
+        if (player.vaporTrail.length > 40) player.vaporTrail.shift();
+      }
+    }
+    updateVaporTrail(dt);
+
+    // shield regen (Warden): recharges after a few seconds without damage
+    if (player.shieldMax > 0) {
+      player.shieldTimer += dt;
+      if (player.shield < player.shieldMax && player.shieldTimer > 3) {
+        player.shield = Math.min(player.shieldMax, player.shield + player.shieldMax * dt * 0.5);
+      }
+    }
+
     if (player.invuln > 0) player.invuln -= dt;
+  }
+
+  function updateVaporTrail(dt) {
+    if (!player.vaporTrail.length) return;
+    const dmg = 4 + player.vapor * 3;
+    for (const v of player.vaporTrail) {
+      v.life -= dt * 1.1;
+      for (const e of enemies) {
+        if (e.dead || v.hit.has(e)) continue;
+        const rr = v.r + e.r;
+        if (dist2(v.x, v.y, e.x, e.y) < rr * rr) {
+          damageEnemy(e, dmg, 0, 0, false);
+          v.hit.add(e);
+        }
+      }
+    }
+    player.vaporTrail = player.vaporTrail.filter((v) => v.life > 0);
   }
 
   function updateEnemies(dt) {
@@ -991,6 +1255,10 @@
       if (e.hitFlash > 0) e.hitFlash -= dt * 4;
       if (e._orbCd > 0) e._orbCd -= dt;
       e.phase += dt * 3;
+
+      // gravity-well slow (Warden)
+      let spd = e.speed;
+      if (e.slowT > 0) { e.slowT -= dt; spd *= (e.slowMul || 1); }
 
       let vx, vy;
       if (e.boss) {
@@ -1001,8 +1269,8 @@
         let ang = Math.atan2(player.y - e.y, player.x - e.x);
         // orbiter type circles the player
         if (e.type === "orbiter") ang += 0.9;
-        vx = Math.cos(ang) * e.speed;
-        vy = Math.sin(ang) * e.speed;
+        vx = Math.cos(ang) * spd;
+        vy = Math.sin(ang) * spd;
         e.angle = ang;
       }
       // knockback
@@ -1140,12 +1408,26 @@
 
   function hurtPlayer(amount) {
     if (player.invuln > 0) return;
-    player.hp -= amount * (1 - player.armor);
+    let dmg = amount * (1 - player.armor);
+    // shield absorbs first (Warden: バリアジェネレータ)
+    if (player.shield > 0) {
+      const absorbed = Math.min(player.shield, dmg);
+      player.shield -= absorbed;
+      dmg -= absorbed;
+      player.shieldTimer = 0; // pause regen after taking a hit
+      shockwave(player.x, player.y, player.r * 2.4, "rgba(159,180,255,0.6)");
+    }
+    player.hp -= dmg;
     player.invuln = 0.6;
     game.shake = Math.max(game.shake, 10);
     game.hitFlash = 1;
     burst(player.x, player.y, "rgba(255,90,90,1)", 12, 200, [2, 4], 0.5);
     sfx.hurt();
+    // reactive nova (Warden: リアクティブノヴァ)
+    if (player.counter > 0 && !inAoe) {
+      aoeDamage(player.x, player.y, 120 + player.counter * 20, 14 + player.counter * 10, "rgba(80,255,170,0.55)");
+      game.shake = Math.max(game.shake, 6);
+    }
     if (player.hp <= 0) {
       if (player.revives > 0) {
         revivePlayer();
@@ -1416,6 +1698,15 @@
         case "glass": player.damageMul += 0.4; player.maxHp = Math.max(20, player.maxHp - 20); player.hp = Math.min(player.hp, player.maxHp); break;
         case "berserk": player.berserk = true; break;
         case "thorns": player.thorns += 12; break;
+        // signatures
+        case "shield": player.shieldMax += 25; player.shield = player.shieldMax; player.shieldTimer = 0; break;
+        case "counter": player.counter += 1; break;
+        case "execute": player.executePct = 0.08 + (player.passives.execute - 1) * 0.03; break;
+        case "critblast": player.critblast += 1; break;
+        case "coldblood": player.coldblood += 1; break;
+        case "voidburst": player.voidburst += 1; break;
+        case "bloodhit": player.bloodhitChance = clamp(player.bloodhitChance + 0.12, 0, 0.6); break;
+        case "vapor": player.vapor += 1; break;
       }
     }
   }
@@ -1445,6 +1736,8 @@
     drawArenaBorder();
     drawGems();
     drawAura();
+    drawGravityField();
+    drawVaporTrail();
     drawEnemies();
     drawEnemyBullets();
     drawBullets();
@@ -1545,6 +1838,19 @@
     ctx.beginPath();
     ctx.arc(player.x, player.y, player.pickupRange, 0, TAU);
     ctx.stroke();
+
+    // shield ring (Warden)
+    if (player.shield > 0.5) {
+      const sf = clamp(player.shield / player.shieldMax, 0, 1);
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      ctx.strokeStyle = "rgba(159,180,255," + (0.35 + sf * 0.4) + ")";
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, player.r * 1.9, 0, TAU);
+      ctx.stroke();
+      ctx.restore();
+    }
 
     const blink = player.invuln > 0 && Math.floor(player.invuln * 20) % 2 === 0;
     drawGlow(player.x, player.y, player.r * 2.6, ship.glow, blink ? 0.4 : 0.9);
@@ -1991,6 +2297,43 @@
     ctx.restore();
   }
 
+  function drawGravityField() {
+    if (weaponLv("gravity") === 0) return;
+    const s = gravityStats();
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    const grd = ctx.createRadialGradient(player.x, player.y, s.radius * 0.15, player.x, player.y, s.radius);
+    grd.addColorStop(0, "rgba(80,255,170,0.14)");
+    grd.addColorStop(0.7, "rgba(80,255,170,0.05)");
+    grd.addColorStop(1, "rgba(80,255,170,0)");
+    ctx.fillStyle = grd;
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, s.radius, 0, TAU);
+    ctx.fill();
+    // inward-spiralling rings
+    for (let i = 0; i < 3; i++) {
+      const t = ((game.time * 0.4 + i / 3) % 1);
+      const rr = s.radius * (1 - t);
+      ctx.strokeStyle = "rgba(120,255,200," + (0.35 * t) + ")";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, rr, 0, TAU);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawVaporTrail() {
+    if (!player.vaporTrail.length) return;
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    for (const v of player.vaporTrail) {
+      const a = clamp(v.life, 0, 1);
+      drawGlow(v.x, v.y, v.r * a, "rgba(255,120,180,0.5)", a * 0.6);
+    }
+    ctx.restore();
+  }
+
   function drawLightnings() {
     if (!lightnings.length) return;
     ctx.save();
@@ -2124,6 +2467,7 @@
     game.spawnTimer = 0; game.nextWaveAt = 30; game.waveCount = 0; game.bossIndex = 0;
     wt.pulse = 0; wt.nova = 0; wt.spread = 0; wt.beam = 0;
     wt.chain = 0; wt.homing = 0; wt.aura = 0;
+    wt.gravity = 0; wt.storm = 0; wt.deadeye = 0; wt.staticfield = 0;
     orbitAngle = 0;
 
     player.x = WORLD.w / 2; player.y = WORLD.h / 2;
@@ -2136,10 +2480,16 @@
     player.armor = 0; player.lifestealChance = 0; player.lifestealHeal = 6;
     player.projectileSize = 1; player.revives = 0;
     player.berserk = false; player.thorns = 0;
-    // start with this costume's first ranged weapon (so early game is viable),
-    // falling back to its first weapon of any kind.
-    const RANGED = ["pulse", "spread", "beam", "chain", "homing"];
-    const startWeapon = costume.skills.find((id) => RANGED.indexOf(id) >= 0)
+    player.shieldMax = 0; player.shield = 0; player.shieldTimer = 0;
+    player.counter = 0; player.executePct = 0; player.critblast = 0; player.coldblood = 0;
+    player.stillTime = 0; player.voidburst = 0; player.bloodhitChance = 0; player.vapor = 0;
+    player.vaporTrail = [];
+    // open with a reliable rapid ranged weapon so the early game is viable;
+    // fall back to any ranged, then any weapon.
+    const PREFERRED = ["pulse", "spread", "beam", "chain", "homing"];
+    const RANGED = PREFERRED.concat(["storm", "staticfield", "deadeye"]);
+    const startWeapon = costume.skills.find((id) => PREFERRED.indexOf(id) >= 0)
+      || costume.skills.find((id) => RANGED.indexOf(id) >= 0)
       || costume.skills.find((id) => WEAPONS[id]) || "pulse";
     player.weapons = {}; player.weapons[startWeapon] = 1;
     player.passives = {};
