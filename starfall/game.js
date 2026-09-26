@@ -327,6 +327,8 @@
   let gems = [];
   let powerups = []; // timed power-up drops
   let sparks = [];   // muzzle flashes / impact sparks / kill flashes (additive)
+  let debris = [];   // spinning shrapnel shards from explosions
+  let booms = [];     // scheduled secondary blasts (boss chain explosions)
   let particles = [];
   let floaters = []; // damage numbers / text
   let shockwaves = [];
@@ -996,7 +998,7 @@
   }
   function updateSparks(dt) {
     for (const s of sparks) {
-      const rate = s.kind === "muzzle" ? 10 : s.kind === "kill" ? 4.5 : 6.5;
+      const rate = s.kind === "muzzle" ? 10 : s.kind === "boom" ? 3.0 : s.kind === "kill" ? 4.5 : 6.5;
       s.life -= dt * rate;
     }
     sparks = sparks.filter((s) => s.life > 0);
@@ -1030,6 +1032,16 @@
         ctx.strokeStyle = "rgba(255,255,255," + a + ")"; ctx.lineWidth = 1.6;
         for (let i = 0; i < 4; i++) { ctx.rotate(Math.PI / 2); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -r); ctx.stroke(); }
         ctx.restore();
+      } else if (s.kind === "boom") {
+        // expanding fireball: white-hot core -> colored plasma -> transparent
+        const r = (12 + (1 - a) * 46) * sc;
+        const g = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, r);
+        g.addColorStop(0, "rgba(255,255,255," + (0.95 * a) + ")");
+        g.addColorStop(0.28, "rgba(255,250,235," + (0.7 * a) + ")");
+        g.addColorStop(0.6, s.color);
+        g.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(s.x, s.y, r, 0, TAU); ctx.fill();
       } else { // impact
         const rr = (1 - a) * 16 * sc + 3;
         drawGlow(s.x, s.y, 13 * a * sc, s.color, a);
@@ -1044,6 +1056,83 @@
     }
     ctx.restore();
     ctx.globalCompositeOperation = "source-over";
+  }
+
+  // ---- explosions: fireball + rings + shrapnel + (boss) chain blasts ----
+  function debrisBurst(x, y, color, n, scale, boss) {
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * TAU;
+      const sp = rand(70, boss ? 360 : 250) * Math.sqrt(scale);
+      debris.push({
+        x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+        rot: Math.random() * TAU, vr: rand(-9, 9),
+        size: rand(2.4, boss ? 7 : 4.6) * scale,
+        life: rand(0.45, 0.85) * (boss ? 1.5 : 1), maxLife: 0.85, color,
+      });
+      if (debris.length > 300) debris.shift();
+    }
+  }
+  function updateDebris(dt) {
+    for (const d of debris) {
+      d.x += d.vx * dt; d.y += d.vy * dt;
+      d.vx *= 0.90; d.vy *= 0.90;
+      d.rot += d.vr * dt; d.life -= dt;
+    }
+    debris = debris.filter((d) => d.life > 0);
+  }
+  function drawDebris() {
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    for (const d of debris) {
+      const a = clamp(d.life / d.maxLife, 0, 1), s = d.size;
+      ctx.save(); ctx.translate(d.x, d.y); ctx.rotate(d.rot);
+      ctx.globalAlpha = a;
+      ctx.fillStyle = d.color;
+      ctx.beginPath(); ctx.moveTo(0, -s); ctx.lineTo(s * 0.72, s * 0.6); ctx.lineTo(-s * 0.72, s * 0.6); ctx.closePath(); ctx.fill();
+      ctx.globalAlpha = a * 0.9; ctx.fillStyle = "rgba(255,255,255,0.85)";
+      ctx.beginPath(); ctx.arc(0, 0, s * 0.34, 0, TAU); ctx.fill();
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+    ctx.restore();
+    ctx.globalCompositeOperation = "source-over";
+  }
+  function scheduleBoom(x, y, color, glow, t, scale) { booms.push({ x, y, color, glow, t, scale }); }
+  function updateBooms(dt) {
+    for (const bm of booms) {
+      bm.t -= dt;
+      if (bm.t <= 0 && !bm._done) {
+        bm._done = true;
+        spark(bm.x, bm.y, 0, bm.glow, "boom", bm.scale);
+        shockwave(bm.x, bm.y, 46 * bm.scale, bm.glow);
+        burst(bm.x, bm.y, bm.color, 10, 230, [1.5, 3.6], 0.5);
+        burst(bm.x, bm.y, "rgba(255,255,255,0.9)", 4, 200, [1, 2.2], 0.4);
+        debrisBurst(bm.x, bm.y, bm.color, 5, bm.scale, false);
+        game.shake = Math.max(game.shake, 5);
+      }
+    }
+    booms = booms.filter((bm) => !bm._done);
+  }
+  function explodeEnemy(e) {
+    const boss = e.boss;
+    const sc = boss ? 1 : clamp(e.r / 15, 0.7, 1.9);
+    // fireball + layered rings + white star flash
+    spark(e.x, e.y, 0, e.glow, "boom", boss ? 3.4 : 1.25 * sc);
+    shockwave(e.x, e.y, (boss ? 175 : 46 * sc), e.glow);
+    shockwave(e.x, e.y, (boss ? 100 : 24 * sc), "rgba(255,255,255,0.85)");
+    spark(e.x, e.y, Math.random() * TAU, boss ? "#ffffff" : e.color, "kill", boss ? 2.7 : 1.1 * sc);
+    // embers (enemy-colored) + white-hot sparks
+    burst(e.x, e.y, e.color, boss ? 48 : Math.round(16 * sc), boss ? 340 : 210, [1.5, boss ? 5 : 3.6], boss ? 0.9 : 0.55);
+    burst(e.x, e.y, "rgba(255,255,255,0.9)", boss ? 18 : Math.round(5 * sc), boss ? 300 : 190, [1, boss ? 3 : 2.2], boss ? 0.6 : 0.4);
+    // spinning shrapnel
+    debrisBurst(e.x, e.y, e.color, boss ? 16 : Math.round(6 * sc), boss ? 1 : sc, boss);
+    if (boss) {
+      game.shake = Math.max(game.shake, 18);
+      // cinematic chain of secondary blasts around the wreck
+      for (let i = 0; i < 5; i++) scheduleBoom(e.x + rand(-70, 70), e.y + rand(-70, 70), e.color, e.glow, 0.08 + i * 0.11, rand(0.9, 1.6));
+    } else {
+      game.shake = Math.max(game.shake, 2 + sc * 1.6);
+    }
   }
 
   // ---------------------------------------------------------------------
@@ -1201,10 +1290,8 @@
       aoeDamage(e.x, e.y, 60 + player.voidburst * 14, 12 + player.voidburst * 8, WEAPONS.voidburst ? "rgba(255,90,120,0.55)" : "rgba(255,90,120,0.55)");
       burst(e.x, e.y, "rgba(255,90,120,1)", 12, 220, [1.5, 3.5], 0.5);
     }
-    burst(e.x, e.y, e.color, e.boss ? 46 : 14, e.boss ? 320 : 190, [1.5, e.boss ? 5 : 3.5], e.boss ? 0.9 : 0.55);
-    shockwave(e.x, e.y, e.boss ? 180 : 46, e.glow);
-    spark(e.x, e.y, Math.random() * TAU, e.boss ? "#ffffff" : e.color, "kill", e.boss ? 2.4 : 1);
-    if (e.boss) { game.shake = Math.max(game.shake, 14); sfx.nova(); }
+    explodeEnemy(e);
+    if (e.boss) sfx.nova();
     else sfx.kill();
 
     // drop XP gems
@@ -2170,6 +2257,8 @@
     lightnings = lightnings.filter((ln) => ln.life > 0);
 
     updateSparks(dt);
+    updateDebris(dt);
+    updateBooms(dt);
 
     if (game.shake > 0) game.shake = Math.max(0, game.shake - dt * 34);
     if (game.hitFlash > 0) game.hitFlash = Math.max(0, game.hitFlash - dt * 2.4);
@@ -2383,6 +2472,7 @@
     drawPlayer();
     drawShockwaves();
     drawParticles();
+    drawDebris();
     drawSparks();
     drawFloaters();
 
@@ -3795,7 +3885,7 @@
   }
 
   function resetRun() {
-    enemies = []; bullets = []; gems = []; particles = []; powerups = []; sparks = [];
+    enemies = []; bullets = []; gems = []; particles = []; powerups = []; sparks = []; debris = []; booms = [];
     floaters = []; shockwaves = []; orbiters = []; lightnings = []; enemyBullets = [];
     game.time = 0; game.kills = 0; game.bossKills = 0; game._committed = false; game.shake = 0; game.hitFlash = 0;
     game.spawnTimer = 0; game.nextWaveAt = 30; game.waveCount = 0; game.bossIndex = 0;
