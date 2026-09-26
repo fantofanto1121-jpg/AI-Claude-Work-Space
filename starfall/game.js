@@ -789,7 +789,7 @@
       name: "ヴァンガード", label: "VANGUARD", swatch: "#38f6ff",
       desc: "王道の万能機。定番の武器と汎用強化を幅広く扱える。",
       ship: { glow: "rgba(56,246,255,0.6)", g0: "#eafcff", g1: "#38f6ff", g2: "#1b6fff", flame: "rgba(120,220,255,0.9)", shape: "interceptor" },
-      skills: ["pulse", "spread", "homing", "twinfang", "missile", "plasmaorb", "power", "haste", "multishot", "velocity", "crit", "bigshot", "swift", "magnet", "revive", "comboedge", "swarm", "momentum"],
+      skills: ["pulse", "spread", "homing", "twinfang", "missile", "plasmaorb", "power", "haste", "velocity", "crit", "swift", "magnet", "revive", "swarm"],
     },
     warden: {
       name: "ウォーデン", label: "WARDEN", swatch: "#46f0a0",
@@ -876,7 +876,7 @@
       name: "セラフ", label: "SERAPH", swatch: "#ffcf5a",
       desc: "光輝の支援機。落雷と光輪、衝撃波で画面を制圧する。",
       ship: { glow: "rgba(255,210,110,0.65)", g0: "#fff7e6", g1: "#ffcf5a", g2: "#c98a1a", flame: "rgba(255,225,140,0.95)", shape: "seraph" },
-      skills: ["nova", "aura", "storm", "prism", "cluster", "swarm", "power", "haste", "magnet", "greed", "lucky", "revive", "pulsewave", "longshot"],
+      skills: ["nova", "aura", "storm", "prism", "cluster", "swarm", "power", "haste", "magnet", "greed", "lucky", "regen", "pulsewave", "longshot"],
       unlock: { desc: "レベル30に到達", test: (p) => p.maxLevel >= 30 },
     },
     novastar: {
