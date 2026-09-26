@@ -99,7 +99,11 @@
         <div id="diff-desc" class="diff-desc"></div>
       </div>
       <button id="start-btn" class="btn primary">ゲーム開始</button>
-      <div class="best-line">BEST SURVIVAL &nbsp;<b id="start-best">0:00</b></div>
+      <div class="best-line">
+        <span class="bl-item">BEST SURVIVAL&nbsp;<b id="start-best">0:00</b></span>
+        <span class="bl-dot"></span>
+        <span class="bl-item">BEST SCORE&nbsp;<b id="start-bestscore">0</b></span>
+      </div>
     </div>
   </div>
 
@@ -143,6 +147,10 @@
         <div class="result-cell"><span>到達レベル</span><b id="final-level">1</b></div>
         <div class="result-cell"><span>撃破数</span><b id="final-kills">0</b></div>
         <div class="result-cell"><span>ベスト</span><b id="final-best">0:00</b></div>
+      </div>
+      <div class="score-line">
+        <span class="sl-item">SCORE&nbsp;<b id="final-score">0</b></span>
+        <span class="sl-item sl-best">自己ベスト&nbsp;<b id="final-bestscore">0</b></span>
       </div>
       <div id="newbest-badge" class="newbest hidden">★ NEW BEST ★</div>
       <button id="retry-btn" class="btn primary">もう一度</button>

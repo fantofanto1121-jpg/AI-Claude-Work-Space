@@ -60,6 +60,12 @@
   // Arena is a bounded world larger than the viewport; camera follows player.
   const WORLD = { w: 3200, h: 3200 };
 
+  // Soft cap on concurrent non-boss enemies. The spawner ramps up forever, so
+  // without this the field can balloon into hundreds (unfair walls + FPS drops)
+  // when a run stalls. The cap keeps on-screen pressure high but bounded; bosses
+  // and their adds are exempt so boss waves always arrive.
+  const ENEMY_CAP = 300;
+
   let dpr = 1;
   let viewW = 0;
   let viewH = 0;
@@ -960,14 +966,19 @@
     game.difficulty = 1 + game.time / 45;
     const hpScale = enemyHpScale();
 
+    // count live non-boss enemies for the concurrency cap
+    let liveCount = 0;
+    for (let i = 0; i < enemies.length; i++) if (!enemies[i].boss) liveCount++;
+
     // steady stream, faster over time (difficulty adjusts the interval)
     game.spawnTimer -= dt;
     const interval = clamp(1.15 - game.time * 0.007, 0.22, 1.15) * diff.spawnMul;
-    if (game.spawnTimer <= 0) {
+    if (game.spawnTimer <= 0 && liveCount < ENEMY_CAP) {
       game.spawnTimer = interval;
-      const batch = 1 + Math.floor(game.time / 40);
+      const batch = Math.min(1 + Math.floor(game.time / 40), ENEMY_CAP - liveCount);
       for (let i = 0; i < batch; i++) {
         spawnAtEdge(rollEnemyType(), hpScale);
+        liveCount++;
       }
     }
 
@@ -986,7 +997,7 @@
           spawnAtEdge(kind, hpScale * (1 + game.waveCount * 0.12) * diff.bossHpMul);
           showWave("警告 — " + BOSS_NAMES[ENEMY_TYPES[kind].bossKind] + " 出現");
         } else {
-          const n = 8 + game.waveCount * 2;
+          const n = Math.min(8 + game.waveCount * 2, Math.max(0, ENEMY_CAP - liveCount));
           for (let i = 0; i < n; i++) spawnAtEdge(rollEnemyType(), hpScale);
           showWave("WAVE " + game.waveCount);
         }
@@ -1044,6 +1055,7 @@
   }
   function shockwave(x, y, radius, color) {
     shockwaves.push({ x, y, r: 8, max: radius, color, life: 1 });
+    if (shockwaves.length > 120) shockwaves.shift();
   }
   // Short-lived additive flash: kind = "muzzle" | "impact" | "kill".
   function spark(x, y, angle, color, kind, scale) {
@@ -4191,12 +4203,27 @@
       game.bests[difficulty] = game.time;
       saveBest();
     }
+    const prevBestScore = progress.bestScore || 0;
+    const isScoreBest = player.score > prevBestScore;
     el("final-time").textContent = fmtTime(game.time);
     el("final-level").textContent = player.level;
     el("final-kills").textContent = game.kills;
     el("final-best").textContent = fmtTime(game.best);
+    el("final-score").textContent = player.score.toLocaleString("en-US");
+    el("final-bestscore").textContent = Math.max(prevBestScore, player.score).toLocaleString("en-US");
     el("newbest-badge").classList.toggle("hidden", !isBest);
+    const sl = document.querySelector(".score-line");
+    if (sl) sl.classList.toggle("newscore", isScoreBest);
     commitProgress();
+    updateScoreLabel();
+  }
+
+  // Reflect the saved lifetime best score onto the start screen.
+  function updateScoreLabel() {
+    try {
+      const e = el("start-bestscore");
+      if (e) e.textContent = (progress.bestScore || 0).toLocaleString("en-US");
+    } catch (_) {}
   }
 
   function loadBest() {
@@ -4378,6 +4405,7 @@
     const newly = [];
     for (const k in unlockedSet) if (unlockedSet[k] && !before[k]) newly.push(COSTUMES[k].name);
     buildCostumeScreen();
+    updateScoreLabel();
     if (newly.length) showUnlockToast(newly);
   }
 
@@ -4483,6 +4511,7 @@
   loadBest();
   loadDifficulty();
   loadProgress();
+  updateScoreLabel();
   loadCostume();
   setState("menu");
   requestAnimationFrame(frame);

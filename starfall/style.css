@@ -567,8 +567,30 @@ kbd {
   font-size: 12px;
   letter-spacing: 0.12em;
   color: rgba(200, 214, 255, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 .best-line b { color: var(--neon-gold); font-size: 15px; }
+.bl-dot { width: 4px; height: 4px; border-radius: 50%; background: rgba(200, 214, 255, 0.35); }
+@media (max-width: 400px) { .bl-dot { display: none; } .best-line { gap: 4px 14px; } }
+
+/* ---- ゲームオーバーのスコア行 ---- */
+.score-line {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  margin-bottom: 16px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: rgba(200, 214, 255, 0.6);
+}
+.score-line b { font-size: 20px; color: #fff; margin-left: 2px; }
+.score-line .sl-best b { color: var(--neon-gold); }
+.score-line.newscore .sl-best b { text-shadow: 0 0 16px rgba(255, 209, 102, 0.7); }
 
 /* ---- レベルアップ ---- */
 .levelup-inner {
