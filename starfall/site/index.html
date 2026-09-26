@@ -206,6 +206,17 @@
   }
 
   /* ---------- ships ---------- */
+  .ships-sub { font-family: var(--font-display); font-size: 12px; letter-spacing: 0.24em; text-transform: uppercase; color: var(--gold); margin: 40px 0 16px; display: flex; align-items: center; gap: 12px; }
+  .ships-sub::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, var(--line-2), transparent); }
+  .ships-lock { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+  @media (max-width: 980px) { .ships-lock { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 560px) { .ships-lock { grid-template-columns: repeat(2, 1fr); } }
+  .ulship { background: var(--panel-2); border: 1px solid var(--line); border-radius: 14px; padding: 12px; text-align: center; transition: transform .2s, border-color .2s; }
+  .ulship:hover { transform: translateY(-3px); border-color: var(--line-2); }
+  .ulship img { width: 76px; height: 76px; margin: 0 auto 6px; display: block; }
+  .ulship .code { font-family: var(--font-display); font-size: 10px; letter-spacing: 0.18em; color: var(--ink-dim); }
+  .ulship h4 { font-family: var(--font-body); font-weight: 800; font-size: 15px; margin: 2px 0 6px; }
+  .ulship .cond { font-size: 11px; color: var(--gold); line-height: 1.4; }
   .ships { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
   @media (max-width: 980px) { .ships { grid-template-columns: repeat(2, 1fr); } }
   @media (max-width: 520px) { .ships { grid-template-columns: 1fr; } }
@@ -341,7 +352,7 @@
       <a class="btn btn-ghost" href="#features">特徴を見る</a>
     </div>
     <div class="stat-row">
-      <div class="stat c1"><b>5</b><span>機体</span></div>
+      <div class="stat c1"><b>15</b><span>機体</span></div>
       <div class="stat c2"><b>10</b><span>系統のボス</span></div>
       <div class="stat c3"><b>4</b><span>難易度</span></div>
       <div class="stat c4"><b>∞</b><span>WAVE</span></div>
@@ -365,8 +376,8 @@
       </div>
       <div class="feat">
         <div class="feat-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 4v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V7z"/><path d="M12 8v6"/></svg></div>
-        <h3>5種の機体</h3>
-        <p>見た目もスキルプールも異なる5機体。専用の必殺機構がプレイスタイルを変える。</p>
+        <h3>15種の機体</h3>
+        <p>見た目もスキルプールも異なる15機体。うち10機体は条件達成で解放される。</p>
       </div>
       <div class="feat">
         <div class="feat-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.5 5 5.5.8-4 3.9.9 5.5L12 20.5 7.1 17.2 8 11.7 4 7.8 9.5 7z"/></svg></div>
@@ -426,8 +437,8 @@
   <div class="wrap">
     <div class="sec-head">
       <p class="sec-eyebrow">Fleet</p>
-      <h2 class="sec-title">五機の機体、五つの戦い方。</h2>
-      <p class="sec-sub">機体ごとにシルエットも配色も、出現するスキルも異なる。相棒を選んで闇へ出撃せよ。</p>
+      <h2 class="sec-title">十五機の機体、それぞれの戦い方。</h2>
+      <p class="sec-sub">機体ごとにシルエットも配色も、出現するスキルも異なる。基本の5機に加え、条件達成で10機が解放される。</p>
     </div>
     <div class="ships">
       <article class="ship" style="--ac: var(--cyan)">
@@ -476,6 +487,20 @@
         </div>
       </article>
     </div>
+
+    <div class="ships-sub">条件で解放される10機体</div>
+    <div class="ships-lock">
+      <div class="ulship"><img src="img/ship-razor.png" alt="レイザー" loading="lazy"><div class="code">RAZOR</div><h4>レイザー</h4><div class="cond">累計500体を撃破</div></div>
+      <div class="ulship"><img src="img/ship-nocturne.png" alt="ノクターン" loading="lazy"><div class="code">NOCTURNE</div><h4>ノクターン</h4><div class="cond">レベル15に到達</div></div>
+      <div class="ulship"><img src="img/ship-colossus.png" alt="コロッサス" loading="lazy"><div class="code">COLOSSUS</div><h4>コロッサス</h4><div class="cond">ボスを累計5体撃破</div></div>
+      <div class="ulship"><img src="img/ship-orbiter.png" alt="オービター" loading="lazy"><div class="code">ORBITER</div><h4>オービター</h4><div class="cond">1回で3分生存</div></div>
+      <div class="ulship"><img src="img/ship-manta.png" alt="マンタ" loading="lazy"><div class="code">MANTA</div><h4>マンタ</h4><div class="cond">スコア30,000達成</div></div>
+      <div class="ulship"><img src="img/ship-pike.png" alt="パイク" loading="lazy"><div class="code">PIKE</div><h4>パイク</h4><div class="cond">累計2,000体を撃破</div></div>
+      <div class="ulship"><img src="img/ship-scarab.png" alt="スカラベ" loading="lazy"><div class="code">SCARAB</div><h4>スカラベ</h4><div class="cond">ハードで2分生存</div></div>
+      <div class="ulship"><img src="img/ship-falcon.png" alt="ファルコン" loading="lazy"><div class="code">FALCON</div><h4>ファルコン</h4><div class="cond">ボスを累計20体撃破</div></div>
+      <div class="ulship"><img src="img/ship-seraph.png" alt="セラフ" loading="lazy"><div class="code">SERAPH</div><h4>セラフ</h4><div class="cond">レベル30に到達</div></div>
+      <div class="ulship"><img src="img/ship-novastar.png" alt="ノヴァスター" loading="lazy"><div class="code">NOVASTAR</div><h4>ノヴァスター</h4><div class="cond">インフェルノで2分生存</div></div>
+    </div>
   </div>
 </section>
 
@@ -495,12 +520,12 @@
       </div>
       <aside class="story-card">
         <h4>By the numbers</h4>
-        <div class="metric"><span>機体（コスチューム）</span><b>5</b></div>
+        <div class="metric"><span>機体（コスチューム）</span><b>15</b></div>
         <div class="metric"><span>武器・強化スキル</span><b>44+</b></div>
         <div class="metric"><span>ボスの系統</span><b>10</b></div>
         <div class="metric"><span>難易度</span><b>4</b></div>
         <div class="metric"><span>依存ライブラリ</span><b>0</b></div>
-        <div class="metric"><span>アップデート回数</span><b>22</b></div>
+        <div class="metric"><span>アップデート回数</span><b>24</b></div>
       </aside>
     </div>
   </div>
@@ -512,9 +537,11 @@
     <div class="sec-head">
       <p class="sec-eyebrow">Changelog</p>
       <h2 class="sec-title">更新履歴</h2>
-      <p class="sec-sub">最初の一歩から最新の難易度まで。積み重ねてきた22回のアップデート。</p>
+      <p class="sec-sub">最初の一歩から最新の機体まで。積み重ねてきた24回のアップデート。</p>
     </div>
     <div class="log">
+      <div class="log-item"><div class="log-top"><span class="log-ver">BUILD 24</span><span class="log-date">2026-09-26</span></div><h4>機体10種を追加（条件解放）</h4><p>固有シルエットの新機体を10種追加し、計15機体に。累計キルや到達レベル、難易度別の生存などの条件で解放。</p></div>
+      <div class="log-item"><div class="log-top"><span class="log-ver">BUILD 23</span><span class="log-date">2026-09-26</span></div><h4>攻撃エフェクト強化</h4><p>マズルフラッシュ、着弾スパーク、クリティカルの金色演出、白熱コアの弾道など、攻撃の見た目を一新。</p></div>
       <div class="log-item"><div class="log-top"><span class="log-ver">BUILD 22</span><span class="log-date">2026-09-25</span></div><h4>インフェルノ＆エンドレス強化</h4><p>最高難度インフェルノを追加。上限に達しても選べる無限強化を用意し、後半の敵をさらに苛烈に。極めても死にうる調整へ。</p></div>
       <div class="log-item boss"><div class="log-top"><span class="log-ver">BUILD 21</span><span class="log-date">2026-09-25</span></div><h4>新ボス5体追加</h4><p>スペクター／モノリス／リーヴァー／ウォーロック／プリズム。ボスは計10系統に。</p></div>
       <div class="log-item"><div class="log-top"><span class="log-ver">BUILD 20</span><span class="log-date">2026-09-25</span></div><h4>新武器2種追加</h4><p>着弾で炸裂する「ミサイルポッド」と、往復して貫通する「グレイブブーメラン」。</p></div>
