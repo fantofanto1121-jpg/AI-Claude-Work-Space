@@ -4240,7 +4240,8 @@
   // so basic-enemy draws drop their most expensive secondary detail to hold framerate.
   let denseSwarm = false;
   function drawEnemies() {
-    denseSwarm = enemies.length > 90;
+    // hysteresis (on >105, off <75) so detail never flickers as the count crosses the threshold
+    denseSwarm = enemies.length > (denseSwarm ? 75 : 105);
     // outer aura glow pass (behind bodies)
     for (const e of enemies) drawGlow(e.x, e.y, e.r * 2.1, e.glow, e.boss ? 0.95 : 0.7);
 
