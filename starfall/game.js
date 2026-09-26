@@ -249,6 +249,8 @@
     state: "menu", // menu | playing | levelup | paused | gameover
     time: 0,
     kills: 0,
+    bossKills: 0,
+    _committed: false,
     best: 0,
     bests: { easy: 0, normal: 0, hard: 0, inferno: 0 },
     shake: 0,
@@ -596,7 +598,79 @@
       ship: { glow: "rgba(255,90,120,0.6)", g0: "#ffe6ea", g1: "#ff5a7a", g2: "#c01530", flame: "rgba(255,140,160,0.9)", shape: "scythe" },
       skills: ["chain", "aura", "voidburst", "bloodhit", "vapor", "boomerang", "berserk", "glass", "lifesteal", "power", "haste", "swift", "magnet", "greed", "revive", "comboedge"],
     },
+    // ---- unlockable costumes (condition-gated) ----
+    razor: {
+      name: "レイザー", label: "RAZOR", swatch: "#7fd8ff",
+      desc: "高速精密機。連射と長射程で近い敵を素早く切り裂く。",
+      ship: { glow: "rgba(120,220,255,0.6)", g0: "#f0fbff", g1: "#7fd8ff", g2: "#2a72d0", flame: "rgba(160,230,255,0.9)", shape: "dart" },
+      skills: ["pulse", "beam", "deadeye", "spread", "crit", "sniper", "haste", "velocity", "swift", "longshot", "multishot", "bigshot", "comboedge", "lucky", "magnet"],
+      unlock: { desc: "累計500体を撃破", test: (p) => p.kills >= 500 },
+    },
+    nocturne: {
+      name: "ノクターン", label: "NOCTURNE", swatch: "#8c7bff",
+      desc: "闇の暗殺機。会心と処刑、撃破の連鎖爆発で静かに刈る。",
+      ship: { glow: "rgba(140,120,255,0.6)", g0: "#efeaff", g1: "#8c7bff", g2: "#3a2a9e", flame: "rgba(170,150,255,0.9)", shape: "wraith" },
+      skills: ["deadeye", "chain", "voidburst", "execute", "critblast", "coldblood", "crit", "sniper", "glass", "vapor", "velocity", "longshot", "comboedge", "magnet", "revive"],
+      unlock: { desc: "レベル15に到達", test: (p) => p.maxLevel >= 15 },
+    },
+    colossus: {
+      name: "コロッサス", label: "COLOSSUS", swatch: "#ffa64d",
+      desc: "超重量の要塞。シールドと反撃、範囲攻撃で押し潰す。",
+      ship: { glow: "rgba(255,160,80,0.6)", g0: "#fff0e0", g1: "#ffa64d", g2: "#b25a12", flame: "rgba(255,190,120,0.9)", shape: "titan" },
+      skills: ["nova", "aura", "gravity", "shield", "counter", "thorns", "armor", "bigshot", "blast", "power", "haste", "missile", "magnet", "greed", "revive"],
+      unlock: { desc: "ボスを累計5体撃破", test: (p) => p.bosses >= 5 },
+    },
+    orbiter: {
+      name: "オービター", label: "ORBITER", swatch: "#57f0c8",
+      desc: "円盤型の制圧機。周回刃と光輪、重力場で敵を囲い焼く。",
+      ship: { glow: "rgba(90,255,210,0.6)", g0: "#eafff8", g1: "#57f0c8", g2: "#12a888", flame: "rgba(140,255,220,0.9)", shape: "saucer" },
+      skills: ["orbit", "aura", "nova", "gravity", "staticfield", "blast", "magnet", "haste", "power", "armor", "swift", "greed", "lucky", "bigshot", "revive"],
+      unlock: { desc: "1回のプレイで3分生存", test: (p) => maxBestTime(p) >= 180 },
+    },
+    manta: {
+      name: "マンタ", label: "MANTA", swatch: "#4fbfff",
+      desc: "滑空型。誘導弾とミサイル、往復刃で広く弾幕を張る。",
+      ship: { glow: "rgba(90,200,255,0.6)", g0: "#e8f8ff", g1: "#4fbfff", g2: "#1466c0", flame: "rgba(150,220,255,0.9)", shape: "manta" },
+      skills: ["homing", "missile", "boomerang", "spread", "velocity", "longshot", "multishot", "swift", "haste", "power", "crit", "magnet", "greed", "comboedge", "revive"],
+      unlock: { desc: "スコア30,000を達成", test: (p) => p.bestScore >= 30000 },
+    },
+    pike: {
+      name: "パイク", label: "PIKE", swatch: "#ff4d6d",
+      desc: "純粋な狙撃槍。貫通と会心で硬い敵を一直線に貫く。",
+      ship: { glow: "rgba(255,80,110,0.6)", g0: "#ffe6ea", g1: "#ff4d6d", g2: "#b01030", flame: "rgba(255,130,150,0.9)", shape: "pike" },
+      skills: ["beam", "deadeye", "spread", "sniper", "crit", "execute", "critblast", "coldblood", "longshot", "velocity", "bigshot", "glass", "power", "comboedge", "revive"],
+      unlock: { desc: "累計2,000体を撃破", test: (p) => p.kills >= 2000 },
+    },
+    scarab: {
+      name: "スカラベ", label: "SCARAB", swatch: "#c8f04d",
+      desc: "甲殻の格闘機。吸血と反射、低HP火力で乱戦を制す。",
+      ship: { glow: "rgba(200,255,90,0.6)", g0: "#f6ffe0", g1: "#c8f04d", g2: "#7aa815", flame: "rgba(220,255,140,0.9)", shape: "scarab" },
+      skills: ["chain", "aura", "boomerang", "lifesteal", "bloodhit", "thorns", "berserk", "armor", "power", "haste", "bigshot", "magnet", "greed", "comboedge", "revive"],
+      unlock: { desc: "ハードで2分生存", test: (p) => p.bestTime.hard >= 120 },
+    },
+    falcon: {
+      name: "ファルコン", label: "FALCON", swatch: "#ffd97a",
+      desc: "熟練の万能エース。会心寄りの安定した攻めが持ち味。",
+      ship: { glow: "rgba(255,225,150,0.6)", g0: "#fffdf5", g1: "#ffd97a", g2: "#c99a2a", flame: "rgba(255,235,170,0.9)", shape: "falcon" },
+      skills: ["pulse", "spread", "homing", "beam", "missile", "crit", "sniper", "haste", "multishot", "velocity", "longshot", "swift", "magnet", "greed", "comboedge", "lucky"],
+      unlock: { desc: "ボスを累計20体撃破", test: (p) => p.bosses >= 20 },
+    },
+    seraph: {
+      name: "セラフ", label: "SERAPH", swatch: "#ffcf5a",
+      desc: "光輝の支援機。落雷と光輪、衝撃波で画面を制圧する。",
+      ship: { glow: "rgba(255,210,110,0.65)", g0: "#fff7e6", g1: "#ffcf5a", g2: "#c98a1a", flame: "rgba(255,225,140,0.95)", shape: "seraph" },
+      skills: ["nova", "aura", "chain", "storm", "staticfield", "blast", "power", "haste", "magnet", "greed", "armor", "lucky", "comboedge", "revive", "bigshot"],
+      unlock: { desc: "レベル30に到達", test: (p) => p.maxLevel >= 30 },
+    },
+    novastar: {
+      name: "ノヴァスター", label: "NOVASTAR", swatch: "#ff5ac8",
+      desc: "全兵装の頂点。あらゆる武器を束ねる究極の星艦。",
+      ship: { glow: "rgba(255,90,200,0.6)", g0: "#ffe6f5", g1: "#ff5ac8", g2: "#c01590", flame: "rgba(255,140,220,0.9)", shape: "starcruiser" },
+      skills: ["pulse", "nova", "chain", "homing", "missile", "boomerang", "deadeye", "gravity", "crit", "sniper", "power", "haste", "multishot", "comboedge", "lucky", "revive"],
+      unlock: { desc: "インフェルノで2分生存", test: (p) => p.bestTime.inferno >= 120 },
+    },
   };
+  function maxBestTime(p) { return Math.max(p.bestTime.easy, p.bestTime.normal, p.bestTime.hard, p.bestTime.inferno); }
   let costumeKey = "vanguard";
   let costume = COSTUMES.vanguard;
   let ship = COSTUMES.vanguard.ship; // active ship colour theme
@@ -1113,6 +1187,7 @@
   function killEnemy(e) {
     e.dead = true;
     game.kills++;
+    if (e.boss) game.bossKills++;
     scoreKill(e);
     // power-up drops: bosses always, others rarely
     if (e.boss) { dropPowerup(e.x, e.y); dropPowerup(e.x + rand(-30, 30), e.y + rand(-30, 30)); }
@@ -2529,6 +2604,75 @@
       stripes: [[[0,-1.05],[0,0.7]],[[-0.28,0.08],[-0.9,-0.06]],[[0.28,0.08],[0.9,-0.06]]],
       lights: [[-1.3,0.05],[1.3,0.05]],
     },
+    // ---- unlockable ship silhouettes ----
+    dart: { // Razor — compact forward-swept racer
+      hull: [[0,-1.4],[0.16,-0.4],[0.22,0.5],[0.12,1.05],[-0.12,1.05],[-0.22,0.5],[-0.16,-0.4]],
+      wings: [[[-0.18,0.0],[-0.85,-0.15],[-0.5,0.35],[-0.24,0.4]],[[0.18,0.0],[0.85,-0.15],[0.5,0.35],[0.24,0.4]]],
+      fins: [[[-0.16,0.7],[-0.42,1.05],[-0.14,0.95]],[[0.16,0.7],[0.42,1.05],[0.14,0.95]]],
+      cockpit: [0,-0.6,0.13,0.44], engines: [[-0.12,1.03,0.13],[0.12,1.03,0.13]],
+      stripes: [[[0,-1.2],[0,0.9]],[[-0.2,0.05],[-0.7,-0.1]],[[0.2,0.05],[0.7,-0.1]]], lights: [[-0.85,-0.15],[0.85,-0.15]],
+    },
+    wraith: { // Nocturne — angular stealth with sharp swept wings
+      hull: [[0,-1.5],[0.2,-0.3],[0.16,0.6],[0.1,1.0],[-0.1,1.0],[-0.16,0.6],[-0.2,-0.3]],
+      wings: [[[-0.16,-0.2],[-1.15,0.85],[-0.85,0.95],[-0.2,0.5]],[[0.16,-0.2],[1.15,0.85],[0.85,0.95],[0.2,0.5]]],
+      fins: [[[-0.16,-0.5],[-0.5,-0.25],[-0.2,-0.05]],[[0.16,-0.5],[0.5,-0.25],[0.2,-0.05]]],
+      cockpit: [0,-0.7,0.1,0.5], engines: [[0,1.0,0.16]],
+      stripes: [[[0,-1.3],[0,0.7]],[[-0.3,0.55],[-0.75,0.9]],[[0.3,0.55],[0.75,0.9]]], lights: [[-1.15,0.85],[1.15,0.85]],
+    },
+    titan: { // Colossus — massive blocky battle-cruiser
+      hull: [[0,-0.95],[0.55,-0.7],[0.66,0.4],[0.5,1.05],[-0.5,1.05],[-0.66,0.4],[-0.55,-0.7]],
+      wings: [[[-0.55,-0.55],[-1.25,-0.3],[-1.3,0.7],[-0.9,1.0],[-0.62,0.6]],[[0.55,-0.55],[1.25,-0.3],[1.3,0.7],[0.9,1.0],[0.62,0.6]]],
+      fins: [[[-0.5,-0.7],[-1.0,-0.6],[-0.85,-0.2],[-0.5,-0.28]],[[0.5,-0.7],[1.0,-0.6],[0.85,-0.2],[0.5,-0.28]]],
+      cockpit: [0,-0.4,0.26,0.3], engines: [[-0.44,1.03,0.2],[0.44,1.03,0.2]],
+      stripes: [[[-0.95,0.55],[-0.6,-0.1]],[[0.95,0.55],[0.6,-0.1]],[[-0.3,-0.85],[0,-0.5]],[[0.3,-0.85],[0,-0.5]]], lights: [[-1.28,0.3],[1.28,0.3]],
+    },
+    saucer: { // Orbiter — round disc with a central dome
+      hull: [[0,-0.7],[0.5,-0.55],[0.85,-0.15],[0.95,0.15],[0.7,0.5],[0.35,0.68],[0,0.72],[-0.35,0.68],[-0.7,0.5],[-0.95,0.15],[-0.85,-0.15],[-0.5,-0.55]],
+      wings: [], fins: [[[-0.4,0.55],[-0.72,0.92],[-0.3,0.7]],[[0.4,0.55],[0.72,0.92],[0.3,0.7]]],
+      cockpit: [0,-0.05,0.3,0.3], engines: [[-0.3,0.66,0.14],[0.3,0.66,0.14]],
+      stripes: [[[-0.85,-0.15],[0.85,-0.15]],[[-0.6,0.4],[0.6,0.4]]], lights: [[-0.95,0.15],[0.95,0.15],[0,-0.7]],
+    },
+    manta: { // Manta — wide flat ray wings
+      hull: [[0,-1.0],[0.18,-0.2],[0.22,0.6],[0.14,1.0],[-0.14,1.0],[-0.22,0.6],[-0.18,-0.2]],
+      wings: [[[-0.18,-0.1],[-1.4,0.5],[-0.9,0.8],[-0.2,0.55]],[[0.18,-0.1],[1.4,0.5],[0.9,0.8],[0.2,0.55]]],
+      fins: [[[-0.14,0.8],[-0.3,1.25],[-0.14,1.0]],[[0.14,0.8],[0.3,1.25],[0.14,1.0]]],
+      cockpit: [0,-0.5,0.14,0.36], engines: [[-0.13,1.0,0.13],[0.13,1.0,0.13]],
+      stripes: [[[0,-0.85],[0,0.85]],[[-0.25,0.2],[-1.1,0.45]],[[0.25,0.2],[1.1,0.45]]], lights: [[-1.4,0.5],[1.4,0.5]],
+    },
+    pike: { // Pike — ultra-long piercing lance
+      hull: [[0,-2.0],[0.1,-0.4],[0.15,0.7],[0.1,1.1],[-0.1,1.1],[-0.15,0.7],[-0.1,-0.4]],
+      wings: [[[-0.12,0.3],[-0.55,0.5],[-0.5,0.7],[-0.14,0.55]],[[0.12,0.3],[0.55,0.5],[0.5,0.7],[0.14,0.55]]],
+      fins: [[[-0.1,0.95],[-0.32,1.2],[-0.1,1.08]],[[0.1,0.95],[0.32,1.2],[0.1,1.08]]],
+      cockpit: [0,-1.1,0.08,0.55], engines: [[0,1.1,0.16]],
+      stripes: [[[0,-1.7],[0,0.95]]], lights: [[-0.55,0.5],[0.55,0.5]],
+    },
+    scarab: { // Scarab — beetle body with forward claws
+      hull: [[0,-0.9],[0.35,-0.6],[0.42,0.3],[0.3,0.95],[-0.3,0.95],[-0.42,0.3],[-0.35,-0.6]],
+      wings: [[[-0.35,-0.3],[-0.95,-0.55],[-1.1,-0.1],[-0.7,0.15],[-0.4,0.1]],[[0.35,-0.3],[0.95,-0.55],[1.1,-0.1],[0.7,0.15],[0.4,0.1]]],
+      fins: [[[-0.3,0.6],[-0.6,1.0],[-0.28,0.8]],[[0.3,0.6],[0.6,1.0],[0.28,0.8]]],
+      cockpit: [0,-0.35,0.22,0.3], engines: [[-0.22,0.92,0.15],[0.22,0.92,0.15]],
+      stripes: [[[0,-0.7],[0,0.8]],[[-0.2,0.0],[-0.5,-0.2]],[[0.2,0.0],[0.5,-0.2]]], lights: [[-1.1,-0.1],[1.1,-0.1]],
+    },
+    falcon: { // Falcon — sharp clean chevron
+      hull: [[0,-1.5],[0.14,-0.5],[0.2,0.4],[0.12,0.95],[-0.12,0.95],[-0.2,0.4],[-0.14,-0.5]],
+      wings: [[[-0.16,-0.1],[-1.05,0.7],[-0.78,0.95],[-0.2,0.55]],[[0.16,-0.1],[1.05,0.7],[0.78,0.95],[0.2,0.55]]],
+      fins: [[[-0.16,-0.45],[-0.48,-0.1],[-0.18,0.05]],[[0.16,-0.45],[0.48,-0.1],[0.18,0.05]]],
+      cockpit: [0,-0.65,0.12,0.46], engines: [[-0.12,0.93,0.13],[0.12,0.93,0.13]],
+      stripes: [[[0,-1.3],[0,0.8]],[[-0.28,0.45],[-0.72,0.82]],[[0.28,0.45],[0.72,0.82]]], lights: [[-1.05,0.7],[1.05,0.7]],
+    },
+    seraph: { // Seraph — radiant craft with upper and lower wing pairs
+      hull: [[0,-1.3],[0.22,-0.4],[0.26,0.45],[0.15,1.0],[-0.15,1.0],[-0.26,0.45],[-0.22,-0.4]],
+      wings: [[[-0.2,-0.15],[-1.1,-0.35],[-0.95,0.15],[-0.5,0.25],[-0.24,0.3]],[[0.2,-0.15],[1.1,-0.35],[0.95,0.15],[0.5,0.25],[0.24,0.3]]],
+      fins: [[[-0.24,0.4],[-0.8,0.85],[-0.26,0.7]],[[0.24,0.4],[0.8,0.85],[0.26,0.7]]],
+      cockpit: [0,-0.55,0.16,0.4], engines: [[-0.18,0.98,0.15],[0.18,0.98,0.15]],
+      stripes: [[[0,-1.1],[0,0.8]],[[-0.3,0.1],[-0.9,-0.15]],[[0.3,0.1],[0.9,-0.15]]], lights: [[-1.1,-0.35],[1.1,-0.35],[-0.8,0.85],[0.8,0.85]],
+    },
+    starcruiser: { // Novastar — multi-point star cruiser
+      hull: [[0,-1.35],[0.3,-0.3],[0.9,-0.05],[0.35,0.2],[0.16,1.1],[-0.16,1.1],[-0.35,0.2],[-0.9,-0.05],[-0.3,-0.3]],
+      wings: [], fins: [[[-0.9,-0.05],[-1.15,-0.2],[-0.75,-0.1]],[[0.9,-0.05],[1.15,-0.2],[0.75,-0.1]]],
+      cockpit: [0,-0.4,0.16,0.38], engines: [[-0.13,1.1,0.13],[0.13,1.1,0.13]],
+      stripes: [[[0,-1.15],[0,0.9]],[[-0.3,-0.1],[-0.8,-0.05]],[[0.3,-0.1],[0.8,-0.05]]], lights: [[-0.9,-0.05],[0.9,-0.05]],
+    },
   };
 
   // Tint a #rrggbb toward black (f<1) or white (f>1); returns an rgba() string.
@@ -3653,7 +3797,7 @@
   function resetRun() {
     enemies = []; bullets = []; gems = []; particles = []; powerups = []; sparks = [];
     floaters = []; shockwaves = []; orbiters = []; lightnings = []; enemyBullets = [];
-    game.time = 0; game.kills = 0; game.shake = 0; game.hitFlash = 0;
+    game.time = 0; game.kills = 0; game.bossKills = 0; game._committed = false; game.shake = 0; game.hitFlash = 0;
     game.spawnTimer = 0; game.nextWaveAt = 30; game.waveCount = 0; game.bossIndex = 0;
     wt.pulse = 0; wt.nova = 0; wt.spread = 0; wt.beam = 0;
     wt.chain = 0; wt.homing = 0; wt.aura = 0;
@@ -3738,6 +3882,7 @@
     el("final-kills").textContent = game.kills;
     el("final-best").textContent = fmtTime(game.best);
     el("newbest-badge").classList.toggle("hidden", !isBest);
+    commitProgress();
   }
 
   function loadBest() {
@@ -3838,7 +3983,7 @@
   el("retry-btn").addEventListener("click", startRun);
   el("home-btn").addEventListener("click", () => setState("menu"));
   el("resume-btn").addEventListener("click", () => setState("playing"));
-  el("quit-btn").addEventListener("click", () => setState("menu"));
+  el("quit-btn").addEventListener("click", () => { commitProgress(); setState("menu"); });
   el("pause-btn").addEventListener("click", togglePause);
 
   // ---------------------------------------------------------------------
@@ -3868,6 +4013,56 @@
   //  Costume selection (dedicated page with previews + skill lists)
   // ---------------------------------------------------------------------
   const COSTUME_KEY = "starfall-arena-costume";
+
+  // ---- persistent progress + costume unlocks ----
+  const PROGRESS_KEY = "starfall-arena-progress";
+  const progress = { kills: 0, bosses: 0, maxLevel: 1, bestScore: 0, bestTime: { easy: 0, normal: 0, hard: 0, inferno: 0 } };
+  let unlockedSet = {};
+  const LOCK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+
+  function loadProgress() {
+    try {
+      const o = JSON.parse(localStorage.getItem(PROGRESS_KEY));
+      if (o) {
+        progress.kills = +o.kills || 0;
+        progress.bosses = +o.bosses || 0;
+        progress.maxLevel = +o.maxLevel || 1;
+        progress.bestScore = +o.bestScore || 0;
+        if (o.bestTime) for (const k in progress.bestTime) progress.bestTime[k] = +o.bestTime[k] || 0;
+      }
+    } catch (e) {}
+    refreshUnlocks();
+  }
+  function saveProgress() { try { localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress)); } catch (e) {} }
+  function isUnlocked(key) { const c = COSTUMES[key]; return !c || !c.unlock || c.unlock.test(progress); }
+  function refreshUnlocks() { for (const k in COSTUMES) unlockedSet[k] = isUnlocked(k); }
+
+  // Fold a finished run into lifetime progress, then re-check unlocks.
+  function commitProgress() {
+    if (game._committed) return;
+    game._committed = true;
+    progress.kills += game.kills;
+    progress.bosses += game.bossKills;
+    progress.maxLevel = Math.max(progress.maxLevel, player.level);
+    progress.bestScore = Math.max(progress.bestScore, player.score);
+    progress.bestTime[difficulty] = Math.max(progress.bestTime[difficulty] || 0, game.time);
+    saveProgress();
+    const before = Object.assign({}, unlockedSet);
+    refreshUnlocks();
+    const newly = [];
+    for (const k in unlockedSet) if (unlockedSet[k] && !before[k]) newly.push(COSTUMES[k].name);
+    buildCostumeScreen();
+    if (newly.length) showUnlockToast(newly);
+  }
+
+  function showUnlockToast(names) {
+    const t = document.createElement("div");
+    t.className = "unlock-toast";
+    t.innerHTML = '<span class="ut-label">新機体を解放</span>' + names.map((n) => '<b>' + n + '</b>').join("<span class='ut-sep'>/</span>");
+    document.body.appendChild(t);
+    requestAnimationFrame(() => t.classList.add("show"));
+    setTimeout(() => { t.classList.remove("show"); setTimeout(() => t.remove(), 500); }, 4600);
+  }
 
   function renderCostumePreview(canvas, cos) {
     const S = 2;
@@ -3903,29 +4098,34 @@
     list.innerHTML = "";
     for (const key in COSTUMES) {
       const c = COSTUMES[key];
+      const locked = !unlockedSet[key];
       const card = document.createElement("div");
-      card.className = "cos-card";
+      card.className = "cos-card" + (locked ? " locked" : "");
       card.dataset.costume = key;
       card.style.setProperty("--cos-color", c.swatch);
       const canvas = document.createElement("canvas");
       const info = document.createElement("div");
       info.className = "cos-info";
       const chips = c.skills.map(skillChip).join("") + UNIVERSAL_SKILLS.map(skillChip).join("");
+      const lockHtml = locked
+        ? '<div class="cos-lock">' + LOCK_SVG + '<span>解放条件 — ' + c.unlock.desc + '</span></div>'
+        : '';
       info.innerHTML =
         '<div class="cos-title"><span class="cos-name">' + c.name + '</span>' +
         '<span class="cos-role">' + c.label + '</span></div>' +
         '<div class="cos-desc">' + c.desc + '</div>' +
+        lockHtml +
         '<div class="cos-skills">' + chips + '</div>';
       card.appendChild(canvas);
       card.appendChild(info);
-      card.addEventListener("click", () => setCostume(key));
+      card.addEventListener("click", () => { if (unlockedSet[key]) setCostume(key); });
       list.appendChild(card);
       renderCostumePreview(canvas, c);
     }
   }
 
   function setCostume(key) {
-    if (!COSTUMES[key]) key = "vanguard";
+    if (!COSTUMES[key] || !unlockedSet[key]) key = "vanguard";
     costumeKey = key;
     costume = COSTUMES[key];
     ship = costume.ship;
@@ -3956,6 +4156,7 @@
   resize();
   loadBest();
   loadDifficulty();
+  loadProgress();
   loadCostume();
   setState("menu");
   requestAnimationFrame(frame);
