@@ -315,6 +315,17 @@
     ricochet: 0,          // bullets bounce to new targets (level = bounces)
     overload: 0,          // kills build temporary damage stacks (level)
     overStacks: 0, overTimer: 0,
+    // extended-roster mechanics
+    pierceBonus: 0,       // +pierce on every bullet
+    bossDmg: 0,           // bonus damage vs bosses (weakpoint)
+    regen: 0,             // hp regenerated per second
+    bulwark: 0,           // extra armor while stationary (level)
+    swarm: 0,             // damage scales with nearby enemy count (level)
+    crowdBonus: 0,        // cached swarm bonus this frame
+    adrenaline: 0,        // damage/speed surge after taking a hit (level)
+    adrenTimer: 0,
+    harvest: 0,           // heal on gem pickup (level)
+    momentum: 0,          // damage while moving (level)
     weapons: {},   // id -> level
     passives: {},  // id -> level
     trail: [],
@@ -334,6 +345,9 @@
       m *= 1 + Math.min(player.comboEdge * 0.2, player.combo * 0.008 * player.comboEdge);
     }
     if (player.overStacks > 0) m *= 1 + player.overStacks * 0.03; // overload snowball
+    if (player.crowdBonus > 0) m *= 1 + player.crowdBonus;                                  // swarm core
+    if (player.momentum > 0 && player.stillTime < 0.12) m *= 1 + player.momentum * 0.08;    // momentum (while moving)
+    if (player.adrenaline > 0 && player.adrenTimer > 0) m *= 1 + player.adrenaline * 0.12;  // adrenaline surge
     return m;
   }
 
@@ -569,6 +583,23 @@
       desc: (lv) => "コンボ中、コンボ数に応じてダメージ上昇（最大 +" + (((lv || 0) + 1) * 20) + "%）。" },
     lucky: { name: "ラッキースター", icon: "❉", tag: "PASSIVE", accent: "#ffd166", glow: "rgba(255,209,102,0.5)", max: 4,
       desc: () => "パワーアップの出現率が上昇する。" },
+    // ---- extended roster (adds distinct playstyles; reduces overlap) ----
+    pierce: { name: "ペネトレイター", icon: "↠", tag: "PASSIVE", accent: "#8cdcff", glow: "rgba(140,220,255,0.5)", max: 4,
+      desc: () => "弾の貫通数 +1。" },
+    weakpoint: { name: "ウィークポイント", icon: "⊙", tag: "PASSIVE", accent: "#ffd166", glow: "rgba(255,209,102,0.5)", max: 5,
+      desc: (lv) => "ボスへ与えるダメージ +" + (((lv || 0) + 1) * 20) + "%。" },
+    regen: { name: "リジェネコア", icon: "✜", tag: "PASSIVE", accent: "#78ffbe", glow: "rgba(120,255,190,0.5)", max: 5,
+      desc: (lv) => "毎秒 HP を " + (((lv || 0) + 1) * 1.2).toFixed(1) + " 回復する。" },
+    bulwark: { name: "ブルワーク", icon: "⬢", tag: "PASSIVE", accent: "#9fb4ff", glow: "rgba(159,180,255,0.5)", max: 5,
+      desc: (lv) => "静止中、被ダメージを追加で " + (((lv || 0) + 1) * 8) + "% 軽減する。" },
+    swarm: { name: "スウォームコア", icon: "❈", tag: "PASSIVE", accent: "#ff78d2", glow: "rgba(255,120,210,0.5)", max: 5,
+      desc: () => "近くの敵の数に応じてダメージ上昇（最大 +60%）。" },
+    adrenaline: { name: "アドレナリン", icon: "⇑", tag: "PASSIVE", accent: "#ff5a5a", glow: "rgba(255,90,90,0.5)", max: 5,
+      desc: (lv) => "被弾直後の数秒、ダメージ +" + (((lv || 0) + 1) * 12) + "%・移動速度上昇。" },
+    harvest: { name: "ハーヴェスト", icon: "❊", tag: "PASSIVE", accent: "#78ffbe", glow: "rgba(120,255,190,0.5)", max: 5,
+      desc: (lv) => "欠片の回収で HP を " + (((lv || 0) + 1) * 0.6).toFixed(1) + " 回復する。" },
+    momentum: { name: "モメンタム", icon: "↝", tag: "PASSIVE", accent: "#38f6ff", glow: "rgba(56,246,255,0.5)", max: 5,
+      desc: (lv) => "移動中、ダメージ +" + (((lv || 0) + 1) * 8) + "%。" },
     // ---- endless upgrades (never max; keep late-game choices flowing) ----
     e_power: { name: "オーバークロック", icon: "▲", tag: "エンドレス", accent: "#ff9d5a", glow: "rgba(255,157,90,0.5)", max: 999,
       desc: (lv) => "全武器のダメージ +8%。（累積 " + ((lv || 0) + 1) + "）" },
@@ -598,101 +629,101 @@
       name: "ヴァンガード", label: "VANGUARD", swatch: "#38f6ff",
       desc: "王道の万能機。定番の武器と汎用強化を幅広く扱える。",
       ship: { glow: "rgba(56,246,255,0.6)", g0: "#eafcff", g1: "#38f6ff", g2: "#1b6fff", flame: "rgba(120,220,255,0.9)", shape: "interceptor" },
-      skills: ["pulse", "spread", "homing", "beam", "missile", "boomerang", "power", "haste", "multishot", "velocity", "longshot", "crit", "sniper", "bigshot", "armor", "swift", "magnet", "greed", "lifesteal", "revive", "comboedge", "lucky"],
+      skills: ["pulse", "spread", "homing", "beam", "missile", "boomerang", "power", "haste", "multishot", "velocity", "crit", "bigshot", "swift", "magnet", "revive", "comboedge", "swarm", "momentum"],
     },
     warden: {
       name: "ウォーデン", label: "WARDEN", swatch: "#46f0a0",
       desc: "要塞型。シールドと反撃、重力場で敵を抱え込んで潰す。",
       ship: { glow: "rgba(80,255,170,0.6)", g0: "#eafff4", g1: "#46f0a0", g2: "#12b070", flame: "rgba(120,255,190,0.9)", shape: "fortress" },
-      skills: ["gravity", "orbit", "aura", "nova", "homing", "missile", "shield", "counter", "thorns", "armor", "blast", "swift", "bigshot", "magnet", "greed", "revive", "lucky"],
+      skills: ["gravity", "orbit", "nova", "homing", "missile", "shield", "counter", "armor", "bigshot", "blast", "power", "haste", "magnet", "revive"],
     },
     tempest: {
       name: "テンペスト", label: "TEMPEST", swatch: "#a56bff",
       desc: "無差別掃射型。落雷と帯電で画面全体の敵を捌く。",
       ship: { glow: "rgba(165,107,255,0.6)", g0: "#f3eaff", g1: "#a56bff", g2: "#6a2bd0", flame: "rgba(200,150,255,0.9)", shape: "bolt" },
-      skills: ["chain", "storm", "staticfield", "beam", "boomerang", "velocity", "longshot", "haste", "blast", "multishot", "swift", "magnet", "greed", "revive", "comboedge", "lucky"],
+      skills: ["chain", "storm", "staticfield", "beam", "boomerang", "swarm", "velocity", "longshot", "haste", "blast", "multishot", "magnet", "comboedge", "lucky"],
     },
     hunter: {
       name: "ハンター", label: "HUNTER", swatch: "#ffd166",
       desc: "一撃必殺型。会心と処刑で硬い敵を一瞬で仕留める。",
       ship: { glow: "rgba(255,190,90,0.6)", g0: "#fff5e0", g1: "#ffb84d", g2: "#d07a1a", flame: "rgba(255,210,120,0.9)", shape: "lance" },
-      skills: ["deadeye", "beam", "spread", "missile", "execute", "critblast", "coldblood", "crit", "sniper", "glass", "longshot", "velocity", "magnet", "greed", "revive", "comboedge"],
+      skills: ["deadeye", "beam", "spread", "execute", "critblast", "coldblood", "weakpoint", "crit", "pierce", "longshot", "velocity", "magnet", "revive", "harvest"],
     },
     phantom: {
       name: "ファントム", label: "PHANTOM", swatch: "#ff5a7a",
       desc: "自壊高火力型。撃破の連鎖爆発と吸血で押し切る紅の機体。",
       ship: { glow: "rgba(255,90,120,0.6)", g0: "#ffe6ea", g1: "#ff5a7a", g2: "#c01530", flame: "rgba(255,140,160,0.9)", shape: "scythe" },
-      skills: ["chain", "aura", "voidburst", "bloodhit", "vapor", "boomerang", "berserk", "glass", "lifesteal", "power", "haste", "swift", "magnet", "greed", "revive", "comboedge"],
+      skills: ["chain", "aura", "voidburst", "bloodhit", "vapor", "boomerang", "berserk", "glass", "lifesteal", "adrenaline", "power", "swift", "magnet", "comboedge"],
     },
     // ---- unlockable costumes (condition-gated) ----
     razor: {
       name: "レイザー", label: "RAZOR", swatch: "#7fd8ff",
       desc: "高速精密機。連射と長射程で近い敵を素早く切り裂く。",
       ship: { glow: "rgba(120,220,255,0.6)", g0: "#f0fbff", g1: "#7fd8ff", g2: "#2a72d0", flame: "rgba(160,230,255,0.9)", shape: "dart" },
-      skills: ["pulse", "beam", "deadeye", "spread", "crit", "sniper", "haste", "velocity", "swift", "longshot", "multishot", "bigshot", "comboedge", "lucky", "magnet"],
+      skills: ["pulse", "beam", "deadeye", "spread", "crit", "sniper", "haste", "velocity", "swift", "pierce", "momentum", "longshot", "comboedge", "bigshot"],
       unlock: { desc: "累計500体を撃破", test: (p) => p.kills >= 500 },
     },
     nocturne: {
       name: "ノクターン", label: "NOCTURNE", swatch: "#8c7bff",
       desc: "闇の暗殺機。会心と処刑、撃破の連鎖爆発で静かに刈る。",
       ship: { glow: "rgba(140,120,255,0.6)", g0: "#efeaff", g1: "#8c7bff", g2: "#3a2a9e", flame: "rgba(170,150,255,0.9)", shape: "wraith" },
-      skills: ["deadeye", "chain", "voidburst", "execute", "critblast", "coldblood", "crit", "sniper", "glass", "vapor", "velocity", "longshot", "comboedge", "magnet", "revive"],
+      skills: ["deadeye", "chain", "voidburst", "execute", "coldblood", "crit", "sniper", "glass", "vapor", "velocity", "momentum", "harvest", "magnet", "revive"],
       unlock: { desc: "レベル15に到達", test: (p) => p.maxLevel >= 15 },
     },
     colossus: {
       name: "コロッサス", label: "COLOSSUS", swatch: "#ffa64d",
       desc: "超重量の要塞。シールドと反撃、範囲攻撃で押し潰す。",
       ship: { glow: "rgba(255,160,80,0.6)", g0: "#fff0e0", g1: "#ffa64d", g2: "#b25a12", flame: "rgba(255,190,120,0.9)", shape: "titan" },
-      skills: ["nova", "aura", "gravity", "shield", "counter", "thorns", "armor", "bigshot", "blast", "power", "haste", "missile", "magnet", "greed", "revive"],
+      skills: ["nova", "gravity", "missile", "spread", "weakpoint", "bulwark", "armor", "power", "bigshot", "blast", "haste", "greed", "revive", "glass"],
       unlock: { desc: "ボスを累計5体撃破", test: (p) => p.bosses >= 5 },
     },
     orbiter: {
       name: "オービター", label: "ORBITER", swatch: "#57f0c8",
       desc: "円盤型の制圧機。周回刃と光輪、重力場で敵を囲い焼く。",
       ship: { glow: "rgba(90,255,210,0.6)", g0: "#eafff8", g1: "#57f0c8", g2: "#12a888", flame: "rgba(140,255,220,0.9)", shape: "saucer" },
-      skills: ["orbit", "aura", "nova", "gravity", "staticfield", "blast", "magnet", "haste", "power", "armor", "swift", "greed", "lucky", "bigshot", "revive"],
+      skills: ["orbit", "staticfield", "chain", "boomerang", "swarm", "harvest", "magnet", "blast", "swift", "haste", "velocity", "greed", "lucky", "revive"],
       unlock: { desc: "1回のプレイで3分生存", test: (p) => maxBestTime(p) >= 180 },
     },
     manta: {
       name: "マンタ", label: "MANTA", swatch: "#4fbfff",
       desc: "滑空型。誘導弾とミサイル、往復刃で広く弾幕を張る。",
       ship: { glow: "rgba(90,200,255,0.6)", g0: "#e8f8ff", g1: "#4fbfff", g2: "#1466c0", flame: "rgba(150,220,255,0.9)", shape: "manta" },
-      skills: ["homing", "missile", "boomerang", "spread", "velocity", "longshot", "multishot", "swift", "haste", "power", "crit", "magnet", "greed", "comboedge", "revive"],
+      skills: ["homing", "missile", "boomerang", "spread", "aura", "velocity", "longshot", "multishot", "swift", "harvest", "swarm", "magnet", "greed", "revive"],
       unlock: { desc: "スコア30,000を達成", test: (p) => p.bestScore >= 30000 },
     },
     pike: {
       name: "パイク", label: "PIKE", swatch: "#ff4d6d",
       desc: "純粋な狙撃槍。貫通と会心で硬い敵を一直線に貫く。",
       ship: { glow: "rgba(255,80,110,0.6)", g0: "#ffe6ea", g1: "#ff4d6d", g2: "#b01030", flame: "rgba(255,130,150,0.9)", shape: "pike" },
-      skills: ["beam", "deadeye", "spread", "sniper", "crit", "execute", "critblast", "coldblood", "longshot", "velocity", "bigshot", "glass", "power", "comboedge", "revive"],
+      skills: ["beam", "deadeye", "spread", "sniper", "execute", "pierce", "longshot", "bigshot", "glass", "power", "momentum", "swift", "revive", "velocity"],
       unlock: { desc: "累計2,000体を撃破", test: (p) => p.kills >= 2000 },
     },
     scarab: {
       name: "スカラベ", label: "SCARAB", swatch: "#c8f04d",
       desc: "甲殻の格闘機。吸血と反射、低HP火力で乱戦を制す。",
       ship: { glow: "rgba(200,255,90,0.6)", g0: "#f6ffe0", g1: "#c8f04d", g2: "#7aa815", flame: "rgba(220,255,140,0.9)", shape: "scarab" },
-      skills: ["chain", "aura", "boomerang", "lifesteal", "bloodhit", "thorns", "berserk", "armor", "power", "haste", "bigshot", "magnet", "greed", "comboedge", "revive"],
+      skills: ["chain", "aura", "boomerang", "lifesteal", "bloodhit", "thorns", "berserk", "adrenaline", "armor", "power", "bigshot", "harvest", "greed", "revive"],
       unlock: { desc: "ハードで2分生存", test: (p) => p.bestTime.hard >= 120 },
     },
     falcon: {
       name: "ファルコン", label: "FALCON", swatch: "#ffd97a",
       desc: "熟練の万能エース。会心寄りの安定した攻めが持ち味。",
       ship: { glow: "rgba(255,225,150,0.6)", g0: "#fffdf5", g1: "#ffd97a", g2: "#c99a2a", flame: "rgba(255,235,170,0.9)", shape: "falcon" },
-      skills: ["pulse", "spread", "homing", "beam", "missile", "crit", "sniper", "haste", "multishot", "velocity", "longshot", "swift", "magnet", "greed", "comboedge", "lucky"],
+      skills: ["pulse", "spread", "homing", "beam", "crit", "sniper", "haste", "velocity", "longshot", "swift", "magnet", "greed", "comboedge", "lucky", "harvest"],
       unlock: { desc: "ボスを累計20体撃破", test: (p) => p.bosses >= 20 },
     },
     seraph: {
       name: "セラフ", label: "SERAPH", swatch: "#ffcf5a",
       desc: "光輝の支援機。落雷と光輪、衝撃波で画面を制圧する。",
       ship: { glow: "rgba(255,210,110,0.65)", g0: "#fff7e6", g1: "#ffcf5a", g2: "#c98a1a", flame: "rgba(255,225,140,0.95)", shape: "seraph" },
-      skills: ["nova", "aura", "chain", "storm", "staticfield", "blast", "power", "haste", "magnet", "greed", "armor", "lucky", "comboedge", "revive", "bigshot"],
+      skills: ["nova", "aura", "storm", "beam", "blast", "swarm", "power", "haste", "magnet", "greed", "lucky", "revive", "bigshot", "longshot"],
       unlock: { desc: "レベル30に到達", test: (p) => p.maxLevel >= 30 },
     },
     novastar: {
       name: "ノヴァスター", label: "NOVASTAR", swatch: "#ff5ac8",
       desc: "全兵装の頂点。あらゆる武器を束ねる究極の星艦。",
       ship: { glow: "rgba(255,90,200,0.6)", g0: "#ffe6f5", g1: "#ff5ac8", g2: "#c01590", flame: "rgba(255,140,220,0.9)", shape: "starcruiser" },
-      skills: ["pulse", "nova", "chain", "homing", "missile", "boomerang", "deadeye", "gravity", "crit", "sniper", "power", "haste", "multishot", "comboedge", "lucky", "revive"],
+      skills: ["pulse", "nova", "chain", "homing", "missile", "boomerang", "deadeye", "gravity", "weakpoint", "crit", "power", "haste", "multishot", "comboedge"],
       unlock: { desc: "インフェルノで2分生存", test: (p) => p.bestTime.inferno >= 120 },
     },
     // ---- signature-mechanic costumes (distinct playstyles) ----
@@ -700,35 +731,35 @@
       name: "グレイシア", label: "GLACIA", swatch: "#8cdcff",
       desc: "氷結制圧機。命中で敵を凍らせ鈍足化し、盤面を支配する。",
       ship: { glow: "rgba(140,220,255,0.6)", g0: "#eafaff", g1: "#8cdcff", g2: "#2f7fd0", flame: "rgba(180,235,255,0.9)", shape: "crystal" },
-      skills: ["cryo", "beam", "chain", "staticfield", "gravity", "aura", "longshot", "velocity", "crit", "bigshot", "armor", "magnet", "greed", "comboedge", "revive"],
+      skills: ["cryo", "beam", "chain", "staticfield", "gravity", "aura", "weakpoint", "regen", "longshot", "crit", "bigshot", "armor", "magnet", "revive"],
       unlock: { desc: "ボスを累計12体撃破", test: (p) => p.bosses >= 12 },
     },
     reflex: {
       name: "リフレクス", label: "REFLEX", swatch: "#78ffbe",
       desc: "跳弾機。弾が敵から敵へ跳ね返り、密集を一掃する。",
       ship: { glow: "rgba(120,255,190,0.6)", g0: "#eafff4", g1: "#78ffbe", g2: "#1aa86e", flame: "rgba(160,255,210,0.9)", shape: "kite" },
-      skills: ["ricochet", "pulse", "spread", "beam", "multishot", "velocity", "longshot", "haste", "crit", "sniper", "swift", "magnet", "greed", "comboedge", "lucky"],
+      skills: ["ricochet", "pulse", "spread", "beam", "homing", "multishot", "pierce", "velocity", "bigshot", "haste", "swift", "comboedge", "adrenaline", "crit"],
       unlock: { desc: "スコア60,000を達成", test: (p) => p.bestScore >= 60000 },
     },
     ignis: {
       name: "イグニス", label: "IGNIS", swatch: "#ffb84d",
       desc: "過負荷機。撃破を重ねるほど火力が雪だるま式に膨れ上がる。",
       ship: { glow: "rgba(255,150,80,0.6)", g0: "#fff2e0", g1: "#ffb84d", g2: "#c05a12", flame: "rgba(255,190,120,0.95)", shape: "flare" },
-      skills: ["overload", "pulse", "spread", "nova", "chain", "power", "haste", "crit", "sniper", "multishot", "bigshot", "swift", "magnet", "greed", "comboedge"],
+      skills: ["overload", "pulse", "spread", "nova", "chain", "adrenaline", "swarm", "power", "haste", "crit", "multishot", "bigshot", "swift", "comboedge"],
       unlock: { desc: "レベル25に到達", test: (p) => p.maxLevel >= 25 },
     },
     guardian: {
       name: "ガーディアン", label: "GUARDIAN", swatch: "#9fd8ff",
       desc: "守勢の要塞。周回刃と光輪、シールドと反撃で鉄壁を敷く。",
       ship: { glow: "rgba(120,180,255,0.6)", g0: "#eef4ff", g1: "#9fd8ff", g2: "#3a6ad0", flame: "rgba(170,205,255,0.9)", shape: "aegis" },
-      skills: ["orbit", "aura", "gravity", "shield", "counter", "thorns", "nova", "homing", "armor", "blast", "bigshot", "haste", "magnet", "greed", "revive", "lucky"],
+      skills: ["orbit", "aura", "gravity", "homing", "thorns", "bulwark", "regen", "armor", "blast", "bigshot", "swift", "magnet", "greed", "revive"],
       unlock: { desc: "ハードで3分生存", test: (p) => p.bestTime.hard >= 180 },
     },
     arbiter: {
       name: "アービター", label: "ARBITER", swatch: "#c9a6ff",
       desc: "処刑執行機。会心と処刑、貫通狙撃で大型を即座に断罪する。",
       ship: { glow: "rgba(190,150,255,0.6)", g0: "#f4ecff", g1: "#c9a6ff", g2: "#7a3ad0", flame: "rgba(210,180,255,0.9)", shape: "reaper" },
-      skills: ["deadeye", "beam", "execute", "critblast", "coldblood", "sniper", "crit", "glass", "longshot", "velocity", "bigshot", "magnet", "greed", "comboedge", "revive"],
+      skills: ["deadeye", "beam", "execute", "critblast", "coldblood", "sniper", "crit", "glass", "weakpoint", "bigshot", "momentum", "comboedge", "revive", "longshot"],
       unlock: { desc: "累計3,500体を撃破", test: (p) => p.kills >= 3500 },
     },
   };
@@ -1287,6 +1318,7 @@
   }
 
   function damageEnemy(e, amount, kx, ky, isCrit) {
+    if (player.bossDmg > 0 && e.boss) amount *= 1 + player.bossDmg; // weakpoint: extra boss damage
     e.hp -= amount;
     e.hitFlash = 1;
     // hit-stop: freeze the struck enemy for a beat so hits land with weight
@@ -1728,7 +1760,7 @@
       vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
       speed: speed,
       damage: crit ? damage * player.critMul : damage, crit,
-      r: radius * player.projectileSize, color, glow, pierce, hits: new Set(),
+      r: radius * player.projectileSize, color, glow, pierce: pierce + (player.pierceBonus || 0), hits: new Set(),
       life: isBeam ? 0.9 : 1.6, angle, long: false,
       homing: false, turn: 0,
       bounces: player.ricochet || 0,
@@ -1831,6 +1863,10 @@
     updateBuffs(dt);
     // overload snowball bleeds off if you stop killing
     if (player.overStacks > 0) { player.overTimer -= dt; if (player.overTimer <= 0) player.overStacks = 0; }
+    // passive HP regeneration (リジェネコア)
+    if (player.regen > 0 && player.hp > 0 && player.hp < player.maxHp) player.hp = Math.min(player.maxHp, player.hp + player.regen * dt);
+    // adrenaline surge decays after a hit
+    if (player.adrenTimer > 0) player.adrenTimer = Math.max(0, player.adrenTimer - dt);
     // dash cooldown always ticks down
     if (player.dashCd > 0) player.dashCd = Math.max(0, player.dashCd - dt);
 
@@ -1872,14 +1908,25 @@
       player.trail.push({ x: player.x, y: player.y, life: 1 });
       if (player.trail.length > 16) player.trail.shift();
     }
-    player.x = clamp(player.x + mx * player.speed * dt, player.r, WORLD.w - player.r);
-    player.y = clamp(player.y + my * player.speed * dt, player.r, WORLD.h - player.r);
+    let spd = player.speed;
+    if (player.adrenaline > 0 && player.adrenTimer > 0) spd *= 1 + player.adrenaline * 0.10; // adrenaline speed surge
+    player.x = clamp(player.x + mx * spd * dt, player.r, WORLD.w - player.r);
+    player.y = clamp(player.y + my * spd * dt, player.r, WORLD.h - player.r);
 
     for (const t of player.trail) t.life -= dt * 2.6;
     player.trail = player.trail.filter((t) => t.life > 0);
 
     // coldblood: track stationary time (Hunter)
     player.stillTime = moving ? 0 : player.stillTime + dt;
+
+    // swarm core: cache a damage bonus scaled by how many enemies are close
+    if (player.swarm > 0) {
+      let near = 0; const R2 = 260 * 260;
+      for (let i = 0; i < enemies.length; i++) { if (dist2(enemies[i].x, enemies[i].y, player.x, player.y) < R2) near++; }
+      player.crowdBonus = Math.min(0.6, near * player.swarm * 0.012);
+    } else if (player.crowdBonus) {
+      player.crowdBonus = 0;
+    }
 
     // vapor trail: drop damaging afterimages while moving (Phantom)
     if (player.vapor > 0 && moving) {
@@ -2236,7 +2283,9 @@
 
   function hurtPlayer(amount) {
     if (player.invuln > 0) return;
-    let dmg = amount * (1 - player.armor);
+    let armor = player.armor;
+    if (player.bulwark > 0 && player.stillTime > 0.5) armor = clamp(armor + player.bulwark * 0.08, 0, 0.85); // bulwark: hunker down
+    let dmg = amount * (1 - armor);
     // shield absorbs first (Warden: バリアジェネレータ)
     if (player.shield > 0) {
       const absorbed = Math.min(player.shield, dmg);
@@ -2247,6 +2296,7 @@
     }
     player.hp -= dmg;
     player.invuln = 0.6;
+    if (player.adrenaline > 0) player.adrenTimer = 3.2; // adrenaline: surge on being hit
     game.shake = Math.max(game.shake, 10);
     game.hitFlash = 1;
     game.slow = Math.max(game.slow, 0.26); // brief slow-motion beat on being hit
@@ -2384,6 +2434,7 @@
       }
       if (d2 < grab) {
         gainXp(g.xp);
+        if (player.harvest > 0 && player.hp > 0 && player.hp < player.maxHp) player.hp = Math.min(player.maxHp, player.hp + player.harvest * 0.6); // harvest heal
         g.dead = true;
         burst(g.x, g.y, "rgba(120,240,255,1)", 3, 90, [1, 2], 0.3);
         sfx.gem();
@@ -2593,6 +2644,15 @@
         case "overload": player.overload += 1; break;
         case "comboedge": player.comboEdge += 1; break;
         case "lucky": player.luck += 1; break;
+        // extended roster
+        case "pierce": player.pierceBonus += 1; break;
+        case "weakpoint": player.bossDmg = clamp(player.bossDmg + 0.2, 0, 1.2); break;
+        case "regen": player.regen += 1.2; break;
+        case "bulwark": player.bulwark += 1; break;
+        case "swarm": player.swarm += 1; break;
+        case "adrenaline": player.adrenaline += 1; break;
+        case "harvest": player.harvest += 1; break;
+        case "momentum": player.momentum += 1; break;
         // endless upgrades
         case "e_power": player.damageMul += 0.08; break;
         case "e_haste": player.fireRateMul += 0.07; break;
@@ -4147,6 +4207,9 @@
     player.counter = 0; player.executePct = 0; player.critblast = 0; player.coldblood = 0;
     player.stillTime = 0; player.voidburst = 0; player.bloodhitChance = 0; player.vapor = 0;
     player.cryo = 0; player.ricochet = 0; player.overload = 0; player.overStacks = 0; player.overTimer = 0;
+    player.pierceBonus = 0; player.bossDmg = 0; player.regen = 0; player.bulwark = 0;
+    player.swarm = 0; player.crowdBonus = 0; player.adrenaline = 0; player.adrenTimer = 0;
+    player.harvest = 0; player.momentum = 0;
     player.vaporTrail = [];
     // open with a reliable rapid ranged weapon so the early game is viable;
     // fall back to any ranged, then any weapon.
