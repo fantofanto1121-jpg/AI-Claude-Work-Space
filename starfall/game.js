@@ -4236,7 +4236,11 @@
     ctx.closePath();
   }
 
+  // Level-of-detail: in a dense swarm, individual ornamentation is imperceptible,
+  // so basic-enemy draws drop their most expensive secondary detail to hold framerate.
+  let denseSwarm = false;
   function drawEnemies() {
+    denseSwarm = enemies.length > 90;
     // outer aura glow pass (behind bodies)
     for (const e of enemies) drawGlow(e.x, e.y, e.r * 2.1, e.glow, e.boss ? 0.95 : 0.7);
 
@@ -4299,13 +4303,15 @@
     const c = eColors(e), r = e.r;
     const pulse = 0.5 + 0.5 * Math.sin(game.time * 4 + e.phase);
     // outer counter-rotating crystal frame
-    ctx.save();
-    ctx.rotate(-e.phase * 0.5);
-    ctx.globalAlpha = 0.5;
-    diamondPath(r * 1.36);
-    ctx.strokeStyle = c.light; ctx.lineWidth = 1.4; ctx.stroke();
-    ctx.globalAlpha = 1;
-    ctx.restore();
+    if (!denseSwarm) {
+      ctx.save();
+      ctx.rotate(-e.phase * 0.5);
+      ctx.globalAlpha = 0.5;
+      diamondPath(r * 1.36);
+      ctx.strokeStyle = c.light; ctx.lineWidth = 1.4; ctx.stroke();
+      ctx.globalAlpha = 1;
+      ctx.restore();
+    }
     // main crystal body
     ctx.save();
     ctx.rotate(e.phase * 0.3);
@@ -4316,12 +4322,14 @@
     ctx.lineWidth = 1.4;
     ctx.stroke();
     // inner facet crystal
-    ctx.beginPath();
-    ctx.moveTo(0, -r); ctx.lineTo(r * 0.5, 0); ctx.lineTo(0, r); ctx.lineTo(-r * 0.5, 0); ctx.closePath();
-    ctx.moveTo(0, -r); ctx.lineTo(0, r);
-    ctx.strokeStyle = "rgba(255,255,255,0.28)";
-    ctx.lineWidth = 1;
-    ctx.stroke();
+    if (!denseSwarm) {
+      ctx.beginPath();
+      ctx.moveTo(0, -r); ctx.lineTo(r * 0.5, 0); ctx.lineTo(0, r); ctx.lineTo(-r * 0.5, 0); ctx.closePath();
+      ctx.moveTo(0, -r); ctx.lineTo(0, r);
+      ctx.strokeStyle = "rgba(255,255,255,0.28)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
     ctx.restore();
     // pulsing energy core
     drawGlow(0, 0, r * (0.6 + 0.2 * pulse), c.base, 0.8);
@@ -4332,10 +4340,14 @@
   function drawRusher(e, flash) {
     const c = eColors(e), r = e.r;
     ctx.rotate(e.angle + Math.PI / 2); // point toward travel
-    // twin plasma engine trails
+    // twin plasma engine trails (single trail in a dense swarm)
     const flare = 0.7 + 0.3 * Math.sin(game.time * 22 + e.phase);
-    drawGlow(-r * 0.5, r * 1.2, r * 0.7 * flare, c.base, 0.7);
-    drawGlow(r * 0.5, r * 1.2, r * 0.7 * flare, c.base, 0.7);
+    if (denseSwarm) {
+      drawGlow(0, r * 1.2, r * 0.8 * flare, c.base, 0.7);
+    } else {
+      drawGlow(-r * 0.5, r * 1.2, r * 0.7 * flare, c.base, 0.7);
+      drawGlow(r * 0.5, r * 1.2, r * 0.7 * flare, c.base, 0.7);
+    }
     // swept predatory dart
     ctx.beginPath();
     ctx.moveTo(0, -r * 1.7);
@@ -4353,8 +4365,10 @@
     ctx.lineWidth = 1.4;
     ctx.stroke();
     // dorsal spine
-    ctx.beginPath(); ctx.moveTo(0, -r * 1.45); ctx.lineTo(0, r * 0.55);
-    ctx.strokeStyle = "rgba(255,255,255,0.35)"; ctx.lineWidth = 1; ctx.stroke();
+    if (!denseSwarm) {
+      ctx.beginPath(); ctx.moveTo(0, -r * 1.45); ctx.lineTo(0, r * 0.55);
+      ctx.strokeStyle = "rgba(255,255,255,0.35)"; ctx.lineWidth = 1; ctx.stroke();
+    }
     drawGlow(0, -r * 1.25, r * 0.45, "rgba(255,255,255,0.95)", 0.85); // hot tip
   }
 
@@ -4392,8 +4406,10 @@
     ctx.fill();
     ctx.strokeStyle = "rgba(255,255,255,0.85)"; ctx.lineWidth = 1.4; ctx.stroke();
     // serrated leading edge highlight
-    ctx.beginPath(); ctx.moveTo(0, -r * 1.5); ctx.lineTo(r * 0.32, -r * 0.5); ctx.moveTo(0, -r * 1.5); ctx.lineTo(-r * 0.32, -r * 0.5);
-    ctx.strokeStyle = "rgba(255,255,255,0.4)"; ctx.lineWidth = 1; ctx.stroke();
+    if (!denseSwarm) {
+      ctx.beginPath(); ctx.moveTo(0, -r * 1.5); ctx.lineTo(r * 0.32, -r * 0.5); ctx.moveTo(0, -r * 1.5); ctx.lineTo(-r * 0.32, -r * 0.5);
+      ctx.strokeStyle = "rgba(255,255,255,0.4)"; ctx.lineWidth = 1; ctx.stroke();
+    }
     // charged core pulses brighter during windup
     const coreA = e.chargeState === "wind" ? 0.6 + 0.4 * Math.abs(Math.sin(game.time * 18)) : 0.8;
     drawGlow(0, -r * 0.9, r * 0.52, "rgba(255,255,255," + coreA.toFixed(2) + ")", 0.9);
@@ -4403,12 +4419,14 @@
     const c = eColors(e), r = e.r;
     const pulse = 0.5 + 0.5 * Math.sin(game.time * 5 + e.phase);
     // outer rotating serrated armor ring
-    ctx.save();
-    ctx.rotate(e.phase * 0.35);
-    starPath(r * 1.26, r * 1.04, 12);
-    ctx.fillStyle = "rgba(18,14,22,0.72)"; ctx.fill();
-    ctx.strokeStyle = c.dark; ctx.lineWidth = 2; ctx.stroke();
-    ctx.restore();
+    if (!denseSwarm) {
+      ctx.save();
+      ctx.rotate(e.phase * 0.35);
+      starPath(r * 1.26, r * 1.04, 12);
+      ctx.fillStyle = "rgba(18,14,22,0.72)"; ctx.fill();
+      ctx.strokeStyle = c.dark; ctx.lineWidth = 2; ctx.stroke();
+      ctx.restore();
+    }
     // main armored hex body
     ctx.save();
     ctx.rotate(-e.phase * 0.12);
@@ -4418,23 +4436,24 @@
     ctx.strokeStyle = c.light;
     ctx.lineWidth = 3;
     ctx.stroke();
-    // radial plate seams
-    ctx.strokeStyle = "rgba(0,0,0,0.38)"; ctx.lineWidth = 1.6;
-    for (let i = 0; i < 6; i++) {
-      const a = (TAU * i) / 6 + Math.PI / 6;
-      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); ctx.stroke();
-    }
+    // radial plate seams + rivets
     hexPath(r * 0.6);
     ctx.strokeStyle = "rgba(255,255,255,0.42)";
     ctx.lineWidth = 2;
     ctx.stroke();
-    // rivets on outer vertices
-    ctx.fillStyle = "rgba(255,255,255,0.7)";
-    for (let i = 0; i < 6; i++) {
-      const a = (TAU * i) / 6 + Math.PI / 6;
-      ctx.beginPath();
-      ctx.arc(Math.cos(a) * r * 0.8, Math.sin(a) * r * 0.8, 2.2, 0, TAU);
-      ctx.fill();
+    if (!denseSwarm) {
+      ctx.strokeStyle = "rgba(0,0,0,0.38)"; ctx.lineWidth = 1.6;
+      for (let i = 0; i < 6; i++) {
+        const a = (TAU * i) / 6 + Math.PI / 6;
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); ctx.stroke();
+      }
+      ctx.fillStyle = "rgba(255,255,255,0.7)";
+      for (let i = 0; i < 6; i++) {
+        const a = (TAU * i) / 6 + Math.PI / 6;
+        ctx.beginPath();
+        ctx.arc(Math.cos(a) * r * 0.8, Math.sin(a) * r * 0.8, 2.2, 0, TAU);
+        ctx.fill();
+      }
     }
     ctx.restore();
     // pulsing weak-point core (telegraphs the heavy)
@@ -4465,26 +4484,32 @@
     ctx.fillStyle = "rgba(255,255,255,0.95)";
     ctx.beginPath(); ctx.arc(0, 0, r * (0.1 + 0.05 * dil), 0, TAU); ctx.fill();
     // orbiting satellites
-    for (let i = 0; i < 3; i++) {
-      const a = -e.phase * 1.4 + (TAU * i) / 3;
-      const sxp = Math.cos(a) * r * 1.25, syp = Math.sin(a) * r * 1.25;
-      drawGlow(sxp, syp, 4.5, c.light, 0.9);
-      ctx.fillStyle = "#ffffff";
-      ctx.beginPath(); ctx.arc(sxp, syp, 1.8, 0, TAU); ctx.fill();
+    if (!denseSwarm) {
+      for (let i = 0; i < 3; i++) {
+        const a = -e.phase * 1.4 + (TAU * i) / 3;
+        const sxp = Math.cos(a) * r * 1.25, syp = Math.sin(a) * r * 1.25;
+        drawGlow(sxp, syp, 4.5, c.light, 0.9);
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath(); ctx.arc(sxp, syp, 1.8, 0, TAU); ctx.fill();
+      }
     }
   }
 
   function drawSplitter(e, flash) {
     const c = eColors(e), r0 = e.r;
     ctx.rotate(e.phase * 0.15);
-    // wobbling organic membrane (looks alive, ready to divide)
-    const lobes = 9, t = game.time * 3 + e.phase;
+    // wobbling organic membrane (looks alive, ready to divide); plain in a dense swarm
     ctx.beginPath();
-    for (let i = 0; i <= lobes; i++) {
-      const a = (TAU * i) / lobes;
-      const rr = r0 * (1 + 0.1 * Math.sin(a * 3 + t));
-      const x = Math.cos(a) * rr, y = Math.sin(a) * rr;
-      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    if (denseSwarm) {
+      ctx.arc(0, 0, r0, 0, TAU);
+    } else {
+      const lobes = 9, t = game.time * 3 + e.phase;
+      for (let i = 0; i <= lobes; i++) {
+        const a = (TAU * i) / lobes;
+        const rr = r0 * (1 + 0.1 * Math.sin(a * 3 + t));
+        const x = Math.cos(a) * rr, y = Math.sin(a) * rr;
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
     }
     ctx.closePath();
     ctx.fillStyle = flash ? "#ffffff" : bodyGrad(r0, c.light, c.base);
@@ -4492,18 +4517,20 @@
     ctx.strokeStyle = "rgba(255,255,255,0.55)";
     ctx.lineWidth = 1.6;
     ctx.stroke();
-    // translucent membrane sheen
-    ctx.save();
-    ctx.globalAlpha = 0.22; ctx.fillStyle = c.light;
-    ctx.beginPath(); ctx.arc(-r0 * 0.3, -r0 * 0.3, r0 * 0.5, 0, TAU); ctx.fill();
-    ctx.restore();
-    // dividing seam (looks ready to split)
-    ctx.strokeStyle = "rgba(15,15,25,0.5)";
-    ctx.lineWidth = 2.2;
-    ctx.beginPath();
-    ctx.moveTo(0, -r0 * 0.9);
-    ctx.quadraticCurveTo(r0 * 0.3, 0, 0, r0 * 0.9);
-    ctx.stroke();
+    if (!denseSwarm) {
+      // translucent membrane sheen
+      ctx.save();
+      ctx.globalAlpha = 0.22; ctx.fillStyle = c.light;
+      ctx.beginPath(); ctx.arc(-r0 * 0.3, -r0 * 0.3, r0 * 0.5, 0, TAU); ctx.fill();
+      ctx.restore();
+      // dividing seam (looks ready to split)
+      ctx.strokeStyle = "rgba(15,15,25,0.5)";
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.moveTo(0, -r0 * 0.9);
+      ctx.quadraticCurveTo(r0 * 0.3, 0, 0, r0 * 0.9);
+      ctx.stroke();
+    }
     // two nuclei
     drawGlow(-r0 * 0.36, 0, r0 * 0.44, c.base, 0.85);
     drawGlow(r0 * 0.36, 0, r0 * 0.44, c.base, 0.85);
