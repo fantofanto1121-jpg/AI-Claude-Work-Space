@@ -366,6 +366,9 @@
   let orbiters = [];
   let lightnings = []; // chain-lightning arcs (visual, short-lived)
   let slashes = [];    // arc-whip sweep arcs (visual, short-lived)
+  let scythes = [];    // orbiting reaper blades (soul scythe weapon)
+  let scytheAngle = 0;
+  let waves = [];      // expanding damage rings (pulse wave weapon)
   let enemyBullets = []; // hostile projectiles (sentry boss)
 
   // ---------------------------------------------------------------------
@@ -623,6 +626,27 @@
       desc: (lv) => lv === 0 ? "特異点を設置し、周囲の敵を引き寄せながら削る。"
         : "範囲・引力・威力が増す。(Lv" + (lv + 1) + ")",
     },
+    scythe: {
+      name: "ソウルサイス", icon: "☾", tag: "WEAPON",
+      color: "rgba(200,130,255,1)", accent: "#c882ff", glow: "rgba(180,110,255,0.55)",
+      max: 6,
+      desc: (lv) => lv === 0 ? "自機の周囲を巡る大鎌。触れた敵を刈り取り続ける。"
+        : "刃数・範囲・威力が増す。(Lv" + (lv + 1) + ")",
+    },
+    voltage: {
+      name: "ボルテージ", icon: "Ϟ", tag: "WEAPON",
+      color: "rgba(140,200,255,1)", accent: "#8cc8ff", glow: "rgba(140,200,255,0.6)",
+      max: 6,
+      desc: (lv) => lv === 0 ? "一定間隔で近くの敵へ自動放電する。複数へ同時に落雷。"
+        : "本数・射程・威力が増す。(Lv" + (lv + 1) + ")",
+    },
+    pulsewave: {
+      name: "パルスウェーブ", icon: "⌾", tag: "WEAPON",
+      color: "rgba(120,255,235,1)", accent: "#78ffeb", glow: "rgba(120,255,235,0.55)",
+      max: 6,
+      desc: (lv) => lv === 0 ? "外周へ広がる衝撃の輪。通過する敵を弾き飛ばし削る。"
+        : "範囲・威力・波数が増す。(Lv" + (lv + 1) + ")",
+    },
   };
 
   const PASSIVES = {
@@ -749,13 +773,13 @@
       name: "ウォーデン", label: "WARDEN", swatch: "#46f0a0",
       desc: "要塞型。シールドと反撃、重力場で敵を抱え込んで潰す。",
       ship: { glow: "rgba(80,255,170,0.6)", g0: "#eafff4", g1: "#46f0a0", g2: "#12b070", flame: "rgba(120,255,190,0.9)", shape: "fortress" },
-      skills: ["gravity", "orbit", "nova", "homing", "cluster", "shield", "counter", "armor", "bigshot", "sentry", "power", "haste", "magnet", "revive"],
+      skills: ["gravity", "orbit", "nova", "homing", "cluster", "shield", "counter", "armor", "voltage", "sentry", "power", "haste", "magnet", "revive"],
     },
     tempest: {
       name: "テンペスト", label: "TEMPEST", swatch: "#a56bff",
       desc: "無差別掃射型。落雷と帯電で画面全体の敵を捌く。",
       ship: { glow: "rgba(165,107,255,0.6)", g0: "#f3eaff", g1: "#a56bff", g2: "#6a2bd0", flame: "rgba(200,150,255,0.9)", shape: "bolt" },
-      skills: ["chain", "storm", "staticfield", "beam", "mine", "swarm", "velocity", "longshot", "haste", "blackhole", "multishot", "magnet", "comboedge", "lucky"],
+      skills: ["chain", "storm", "staticfield", "beam", "mine", "swarm", "velocity", "longshot", "haste", "blackhole", "voltage", "magnet", "comboedge", "lucky"],
     },
     hunter: {
       name: "ハンター", label: "HUNTER", swatch: "#ffd166",
@@ -781,7 +805,7 @@
       name: "ノクターン", label: "NOCTURNE", swatch: "#8c7bff",
       desc: "闇の暗殺機。会心と処刑、撃破の連鎖爆発で静かに刈る。",
       ship: { glow: "rgba(140,120,255,0.6)", g0: "#efeaff", g1: "#8c7bff", g2: "#3a2a9e", flame: "rgba(170,150,255,0.9)", shape: "wraith" },
-      skills: ["deadeye", "mine", "voidburst", "execute", "coldblood", "crit", "sniper", "glass", "vapor", "velocity", "momentum", "harvest", "magnet", "revive"],
+      skills: ["deadeye", "mine", "voidburst", "execute", "coldblood", "crit", "sniper", "glass", "vapor", "velocity", "scythe", "harvest", "magnet", "revive"],
       unlock: { desc: "レベル15に到達", test: (p) => p.maxLevel >= 15 },
     },
     colossus: {
@@ -830,7 +854,7 @@
       name: "セラフ", label: "SERAPH", swatch: "#ffcf5a",
       desc: "光輝の支援機。落雷と光輪、衝撃波で画面を制圧する。",
       ship: { glow: "rgba(255,210,110,0.65)", g0: "#fff7e6", g1: "#ffcf5a", g2: "#c98a1a", flame: "rgba(255,225,140,0.95)", shape: "seraph" },
-      skills: ["nova", "aura", "storm", "prism", "cluster", "swarm", "power", "haste", "magnet", "greed", "lucky", "revive", "bigshot", "longshot"],
+      skills: ["nova", "aura", "storm", "prism", "cluster", "swarm", "power", "haste", "magnet", "greed", "lucky", "revive", "pulsewave", "longshot"],
       unlock: { desc: "レベル30に到達", test: (p) => p.maxLevel >= 30 },
     },
     novastar: {
@@ -866,14 +890,14 @@
       name: "ガーディアン", label: "GUARDIAN", swatch: "#9fd8ff",
       desc: "守勢の要塞。光輪と反射棘、再生と装甲で鉄壁を敷き耐え抜く。",
       ship: { glow: "rgba(120,180,255,0.6)", g0: "#eef4ff", g1: "#9fd8ff", g2: "#3a6ad0", flame: "rgba(170,205,255,0.9)", shape: "aegis" },
-      skills: ["orbit", "aura", "gravity", "homing", "flak", "thorns", "bulwark", "regen", "armor", "disruptor", "swift", "magnet", "greed", "revive"],
+      skills: ["orbit", "aura", "gravity", "homing", "flak", "thorns", "bulwark", "regen", "armor", "disruptor", "pulsewave", "magnet", "greed", "revive"],
       unlock: { desc: "ハードで3分生存", test: (p) => p.bestTime.hard >= 180 },
     },
     arbiter: {
       name: "アービター", label: "ARBITER", swatch: "#c9a6ff",
       desc: "処刑執行機。会心と処刑、貫通狙撃で大型を即座に断罪する。",
       ship: { glow: "rgba(190,150,255,0.6)", g0: "#f4ecff", g1: "#c9a6ff", g2: "#7a3ad0", flame: "rgba(210,180,255,0.9)", shape: "reaper" },
-      skills: ["deadeye", "beam", "execute", "critblast", "coldblood", "sniper", "crit", "glass", "weakpoint", "bigshot", "momentum", "comboedge", "revive", "longshot"],
+      skills: ["deadeye", "beam", "execute", "critblast", "coldblood", "sniper", "crit", "glass", "weakpoint", "bigshot", "momentum", "comboedge", "revive", "scythe"],
       unlock: { desc: "累計3,500体を撃破", test: (p) => p.kills >= 3500 },
     },
   };
@@ -1113,6 +1137,35 @@
       range: (460 + lv * 20) * player.rangeMul,
     };
   }
+  function scytheStats() {
+    const lv = weaponLv("scythe");
+    return {
+      count: lv === 0 ? 0 : 1 + Math.floor((lv + 1) / 2),
+      radius: 86 + lv * 8,
+      size: 20 + lv * 2,
+      spin: 2.0,
+      damage: (14 + lv * 6) * dmgMul(),
+    };
+  }
+  function voltageStats() {
+    const lv = weaponLv("voltage");
+    return {
+      cooldown: 0.85 / player.fireRateMul,
+      damage: (10 + lv * 5) * dmgMul(),
+      arcs: 2 + lv,
+      range: (240 + lv * 18) * player.rangeMul,
+    };
+  }
+  function pulsewaveStats() {
+    const lv = weaponLv("pulsewave");
+    return {
+      cooldown: 1.5 / player.fireRateMul,
+      damage: (12 + lv * 5) * dmgMul(),
+      maxR: (170 + lv * 18) * player.aoeMul,
+      speed: 300 + lv * 20,
+      waves: 1 + Math.floor(lv / 3),
+    };
+  }
   function orbitCount() { const lv = weaponLv("orbit"); return lv === 0 ? 0 : 2 + Math.floor(lv * 0.9); }
   function orbitStats() {
     const lv = weaponLv("orbit");
@@ -1226,7 +1279,7 @@
   }
 
   // weapon timers
-  const wt = { pulse: 0, nova: 0, spread: 0, beam: 0, chain: 0, homing: 0, aura: 0, gravity: 0, storm: 0, deadeye: 0, staticfield: 0, missile: 0, boomerang: 0, flak: 0, fork: 0, plasmaorb: 0, frost: 0, cluster: 0, whip: 0, seeker: 0, flame: 0, mine: 0, disruptor: 0, railspike: 0, sentry: 0, scattergun: 0, twinfang: 0, prism: 0, blackhole: 0 };
+  const wt = { pulse: 0, nova: 0, spread: 0, beam: 0, chain: 0, homing: 0, aura: 0, gravity: 0, storm: 0, deadeye: 0, staticfield: 0, missile: 0, boomerang: 0, flak: 0, fork: 0, plasmaorb: 0, frost: 0, cluster: 0, whip: 0, seeker: 0, flame: 0, mine: 0, disruptor: 0, railspike: 0, sentry: 0, scattergun: 0, twinfang: 0, prism: 0, blackhole: 0, scythe: 0, voltage: 0, pulsewave: 0 };
 
   // ---------------------------------------------------------------------
   //  Enemy types
@@ -2202,6 +2255,38 @@
         sfx.nova();
       }
     }
+    // VOLTAGE (auto self-centered lightning to nearby foes)
+    if (weaponLv("voltage") > 0) {
+      wt.voltage -= dt;
+      if (wt.voltage <= 0) {
+        const s = voltageStats();
+        const r2 = s.range * s.range;
+        const near = [];
+        for (const e of enemies) { if (e.dead) continue; const d2 = dist2(player.x, player.y, e.x, e.y); if (d2 < r2) near.push({ e, d2 }); }
+        if (near.length) {
+          wt.voltage = s.cooldown;
+          near.sort((a, b) => a.d2 - b.d2);
+          for (let i = 0; i < Math.min(s.arcs, near.length); i++) {
+            const e = near[i].e;
+            lightnings.push({ x1: player.x, y1: player.y, x2: e.x, y2: e.y, life: 0.85, color: WEAPONS.voltage.glow });
+            damageEnemy(e, s.damage, 0, 0, false);
+          }
+          sfx.shoot();
+        }
+      }
+    }
+    // PULSE WAVE (expanding damaging rings)
+    if (weaponLv("pulsewave") > 0) {
+      wt.pulsewave -= dt;
+      if (wt.pulsewave <= 0) {
+        const s = pulsewaveStats();
+        wt.pulsewave = s.cooldown;
+        for (let i = 0; i < s.waves; i++) {
+          waves.push({ x: player.x, y: player.y, r: 12 + i * 26, maxR: s.maxR, speed: s.speed, damage: s.damage, hits: new Set(), color: WEAPONS.pulsewave.glow });
+        }
+        sfx.nova();
+      }
+    }
     // PULSAR AURA (continuous field)
     if (weaponLv("aura") > 0) {
       wt.aura -= dt;
@@ -2383,6 +2468,45 @@
     }
   }
 
+  function updateScythe(dt) {
+    const s = scytheStats();
+    if (s.count === 0) { scythes.length = 0; return; }
+    scytheAngle += s.spin * dt;
+    scythes.length = 0;
+    for (let i = 0; i < s.count; i++) {
+      const a = scytheAngle + (TAU * i) / s.count;
+      scythes.push({ x: player.x + Math.cos(a) * s.radius, y: player.y + Math.sin(a) * s.radius, r: s.size, damage: s.damage, a });
+    }
+    for (const o of scythes) {
+      for (const e of enemies) {
+        if (e.dead) continue;
+        const rr = o.r + e.r;
+        if (dist2(o.x, o.y, e.x, e.y) < rr * rr && (!e._scyCd || e._scyCd <= 0)) {
+          const a = Math.atan2(e.y - player.y, e.x - player.x);
+          damageEnemy(e, o.damage, Math.cos(a) * 90, Math.sin(a) * 90, false);
+          e._scyCd = 0.28;
+        }
+      }
+    }
+  }
+
+  function updateWaves(dt) {
+    for (const w of waves) {
+      w.r += w.speed * dt;
+      const band = 22;
+      for (const e of enemies) {
+        if (e.dead || w.hits.has(e)) continue;
+        const d = Math.hypot(e.x - w.x, e.y - w.y);
+        if (d > w.r - band - e.r && d < w.r + e.r) {
+          const a = Math.atan2(e.y - w.y, e.x - w.x);
+          damageEnemy(e, w.damage, Math.cos(a) * 180, Math.sin(a) * 180, false);
+          w.hits.add(e);
+        }
+      }
+    }
+    waves = waves.filter((w) => w.r < w.maxR);
+  }
+
   // ---------------------------------------------------------------------
   //  Update loop pieces
   // ---------------------------------------------------------------------
@@ -2551,6 +2675,7 @@
       if (e.hitFlash > 0) e.hitFlash -= dt * 4;
       if (e.frost > 0) e.frost -= dt;
       if (e._orbCd > 0) e._orbCd -= dt;
+      if (e._scyCd > 0) e._scyCd -= dt;
       e.phase += dt * 3;
 
       // gravity-well slow (Warden)
@@ -3348,6 +3473,8 @@
     drawLightnings();
     drawSlashes();
     drawOrbiters();
+    drawScythe();
+    drawWaves();
     drawPlayer();
     drawSmoke();
     drawShockwaves();
@@ -4611,6 +4738,41 @@
     ctx.globalCompositeOperation = "source-over";
   }
 
+  function drawScythe() {
+    if (!scythes.length) return;
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    for (const o of scythes) {
+      drawGlow(o.x, o.y, o.r * 1.8, WEAPONS.scythe.glow, 0.8);
+      ctx.save();
+      ctx.translate(o.x, o.y);
+      ctx.rotate(o.a + game.time * 6);
+      // crescent blade
+      ctx.strokeStyle = "#f0e0ff"; ctx.lineWidth = 3; ctx.lineCap = "round";
+      ctx.beginPath(); ctx.arc(0, 0, o.r * 0.9, -0.7, 2.4); ctx.stroke();
+      ctx.strokeStyle = WEAPONS.scythe.glow; ctx.lineWidth = 6;
+      ctx.beginPath(); ctx.arc(0, 0, o.r * 0.9, -0.7, 2.4); ctx.stroke();
+      ctx.restore();
+    }
+    ctx.globalCompositeOperation = "source-over";
+  }
+
+  function drawWaves() {
+    if (!waves.length) return;
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    for (const w of waves) {
+      const a = clamp(1 - w.r / w.maxR, 0, 1);
+      ctx.strokeStyle = w.color;
+      ctx.lineWidth = 8 * a + 1.5;
+      ctx.beginPath(); ctx.arc(w.x, w.y, w.r, 0, TAU); ctx.stroke();
+      ctx.strokeStyle = "rgba(230,255,250," + (a * 0.8) + ")";
+      ctx.lineWidth = 2.5 * a + 0.5;
+      ctx.beginPath(); ctx.arc(w.x, w.y, w.r, 0, TAU); ctx.stroke();
+    }
+    ctx.globalCompositeOperation = "source-over";
+  }
+
   function drawAura() {
     if (weaponLv("aura") === 0) return;
     const s = auraStats();
@@ -4889,7 +5051,7 @@
 
   function resetRun() {
     enemies = []; bullets = []; gems = []; particles = []; powerups = []; sparks = []; debris = []; booms = []; smoke = [];
-    floaters = []; shockwaves = []; orbiters = []; lightnings = []; slashes = []; enemyBullets = [];
+    floaters = []; shockwaves = []; orbiters = []; lightnings = []; slashes = []; scythes = []; scytheAngle = 0; waves = []; enemyBullets = [];
     game.time = 0; game.kills = 0; game.bossKills = 0; game._committed = false; game.freeze = 0; game.slow = 0; game.expFlash = 0; game.shake = 0; game.hitFlash = 0;
     game.spawnTimer = 0; game.nextWaveAt = 30; game.waveCount = 0; game.bossIndex = 0;
     wt.pulse = 0; wt.nova = 0; wt.spread = 0; wt.beam = 0;
@@ -5045,6 +5207,8 @@
         updatePlayer(wdt);
         fireWeapons(wdt);
         updateOrbiters(wdt);
+        updateScythe(wdt);
+        updateWaves(wdt);
         updateBullets(wdt);
         updateEnemies(wdt);
         updateEnemyBullets(wdt);
