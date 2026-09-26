@@ -4297,40 +4297,65 @@
 
   function drawDrifter(e, flash) {
     const c = eColors(e), r = e.r;
-    ctx.rotate(e.phase * 0.25);
+    const pulse = 0.5 + 0.5 * Math.sin(game.time * 4 + e.phase);
+    // outer counter-rotating crystal frame
+    ctx.save();
+    ctx.rotate(-e.phase * 0.5);
+    ctx.globalAlpha = 0.5;
+    diamondPath(r * 1.36);
+    ctx.strokeStyle = c.light; ctx.lineWidth = 1.4; ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.restore();
+    // main crystal body
+    ctx.save();
+    ctx.rotate(e.phase * 0.3);
     diamondPath(r);
     ctx.fillStyle = flash ? "#ffffff" : bodyGrad(r, c.light, c.base);
     ctx.fill();
-    ctx.strokeStyle = "rgba(255,255,255,0.55)";
+    ctx.strokeStyle = "rgba(255,255,255,0.6)";
     ctx.lineWidth = 1.4;
     ctx.stroke();
-    // facet lines
+    // inner facet crystal
     ctx.beginPath();
-    ctx.moveTo(0, -r); ctx.lineTo(0, r); ctx.moveTo(-r, 0); ctx.lineTo(r, 0);
+    ctx.moveTo(0, -r); ctx.lineTo(r * 0.5, 0); ctx.lineTo(0, r); ctx.lineTo(-r * 0.5, 0); ctx.closePath();
+    ctx.moveTo(0, -r); ctx.lineTo(0, r);
     ctx.strokeStyle = "rgba(255,255,255,0.28)";
     ctx.lineWidth = 1;
     ctx.stroke();
-    drawGlow(0, 0, r * 0.7, c.base, 0.7);
-    ctx.fillStyle = "rgba(255,255,255,0.9)";
-    ctx.beginPath(); ctx.arc(0, 0, r * 0.2, 0, TAU); ctx.fill();
+    ctx.restore();
+    // pulsing energy core
+    drawGlow(0, 0, r * (0.6 + 0.2 * pulse), c.base, 0.8);
+    ctx.fillStyle = "rgba(255,255,255," + (0.75 + 0.2 * pulse).toFixed(2) + ")";
+    ctx.beginPath(); ctx.arc(0, 0, r * (0.18 + 0.05 * pulse), 0, TAU); ctx.fill();
   }
 
   function drawRusher(e, flash) {
     const c = eColors(e), r = e.r;
     ctx.rotate(e.angle + Math.PI / 2); // point toward travel
-    drawGlow(0, r * 1.05, r * 0.95, c.base, 0.75); // engine wake
+    // twin plasma engine trails
+    const flare = 0.7 + 0.3 * Math.sin(game.time * 22 + e.phase);
+    drawGlow(-r * 0.5, r * 1.2, r * 0.7 * flare, c.base, 0.7);
+    drawGlow(r * 0.5, r * 1.2, r * 0.7 * flare, c.base, 0.7);
+    // swept predatory dart
     ctx.beginPath();
-    ctx.moveTo(0, -r * 1.55);
-    ctx.lineTo(r * 0.95, r * 0.9);
-    ctx.lineTo(0, r * 0.4);
-    ctx.lineTo(-r * 0.95, r * 0.9);
+    ctx.moveTo(0, -r * 1.7);
+    ctx.lineTo(r * 0.42, -r * 0.3);
+    ctx.lineTo(r * 1.18, r * 1.05);
+    ctx.lineTo(r * 0.32, r * 0.5);
+    ctx.lineTo(0, r * 0.85);
+    ctx.lineTo(-r * 0.32, r * 0.5);
+    ctx.lineTo(-r * 1.18, r * 1.05);
+    ctx.lineTo(-r * 0.42, -r * 0.3);
     ctx.closePath();
     ctx.fillStyle = flash ? "#ffffff" : bodyGrad(r, c.light, c.base);
     ctx.fill();
-    ctx.strokeStyle = "rgba(255,255,255,0.8)";
+    ctx.strokeStyle = "rgba(255,255,255,0.85)";
     ctx.lineWidth = 1.4;
     ctx.stroke();
-    drawGlow(0, -r * 1.15, r * 0.5, "rgba(255,255,255,0.9)", 0.8); // hot tip
+    // dorsal spine
+    ctx.beginPath(); ctx.moveTo(0, -r * 1.45); ctx.lineTo(0, r * 0.55);
+    ctx.strokeStyle = "rgba(255,255,255,0.35)"; ctx.lineWidth = 1; ctx.stroke();
+    drawGlow(0, -r * 1.25, r * 0.45, "rgba(255,255,255,0.95)", 0.85); // hot tip
   }
 
   function drawCharger(e, flash) {
@@ -4349,38 +4374,58 @@
       ctx.restore();
     }
     ctx.rotate(e.angle + Math.PI / 2);
-    if (e.chargeState === "dash") drawGlow(0, r * 1.4, r * 1.15, c.base, 0.9); // streak wake
+    if (e.chargeState === "dash") drawGlow(0, r * 1.5, r * 1.25, c.base, 0.9); // streak wake
+    // barbed ramming spearhead
     ctx.beginPath();
-    ctx.moveTo(0, -r * 1.55);
-    ctx.lineTo(r * 0.5, -r * 0.2);
-    ctx.lineTo(r * 1.15, r * 0.22);
-    ctx.lineTo(r * 0.46, r * 0.36);
-    ctx.lineTo(r * 0.72, r * 1.0);
-    ctx.lineTo(0, r * 0.55);
-    ctx.lineTo(-r * 0.72, r * 1.0);
-    ctx.lineTo(-r * 0.46, r * 0.36);
-    ctx.lineTo(-r * 1.15, r * 0.22);
-    ctx.lineTo(-r * 0.5, -r * 0.2);
+    ctx.moveTo(0, -r * 1.7);
+    ctx.lineTo(r * 0.4, -r * 0.5);
+    ctx.lineTo(r * 1.32, -r * 0.08); // side barb
+    ctx.lineTo(r * 0.55, r * 0.26);
+    ctx.lineTo(r * 0.8, r * 1.05);
+    ctx.lineTo(0, r * 0.58);
+    ctx.lineTo(-r * 0.8, r * 1.05);
+    ctx.lineTo(-r * 0.55, r * 0.26);
+    ctx.lineTo(-r * 1.32, -r * 0.08);
+    ctx.lineTo(-r * 0.4, -r * 0.5);
     ctx.closePath();
     ctx.fillStyle = flash ? "#ffffff" : bodyGrad(r, c.light, c.base);
     ctx.fill();
-    ctx.strokeStyle = "rgba(255,255,255,0.8)"; ctx.lineWidth = 1.4; ctx.stroke();
+    ctx.strokeStyle = "rgba(255,255,255,0.85)"; ctx.lineWidth = 1.4; ctx.stroke();
+    // serrated leading edge highlight
+    ctx.beginPath(); ctx.moveTo(0, -r * 1.5); ctx.lineTo(r * 0.32, -r * 0.5); ctx.moveTo(0, -r * 1.5); ctx.lineTo(-r * 0.32, -r * 0.5);
+    ctx.strokeStyle = "rgba(255,255,255,0.4)"; ctx.lineWidth = 1; ctx.stroke();
     // charged core pulses brighter during windup
     const coreA = e.chargeState === "wind" ? 0.6 + 0.4 * Math.abs(Math.sin(game.time * 18)) : 0.8;
-    drawGlow(0, -r * 0.9, r * 0.5, "rgba(255,255,255," + coreA.toFixed(2) + ")", 0.9);
+    drawGlow(0, -r * 0.9, r * 0.52, "rgba(255,255,255," + coreA.toFixed(2) + ")", 0.9);
   }
 
   function drawTank(e, flash) {
     const c = eColors(e), r = e.r;
-    ctx.rotate(e.phase * 0.12);
+    const pulse = 0.5 + 0.5 * Math.sin(game.time * 5 + e.phase);
+    // outer rotating serrated armor ring
+    ctx.save();
+    ctx.rotate(e.phase * 0.35);
+    starPath(r * 1.26, r * 1.04, 12);
+    ctx.fillStyle = "rgba(18,14,22,0.72)"; ctx.fill();
+    ctx.strokeStyle = c.dark; ctx.lineWidth = 2; ctx.stroke();
+    ctx.restore();
+    // main armored hex body
+    ctx.save();
+    ctx.rotate(-e.phase * 0.12);
     hexPath(r);
     ctx.fillStyle = flash ? "#ffffff" : bodyGrad(r, c.light, c.dark);
     ctx.fill();
     ctx.strokeStyle = c.light;
     ctx.lineWidth = 3;
     ctx.stroke();
+    // radial plate seams
+    ctx.strokeStyle = "rgba(0,0,0,0.38)"; ctx.lineWidth = 1.6;
+    for (let i = 0; i < 6; i++) {
+      const a = (TAU * i) / 6 + Math.PI / 6;
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); ctx.stroke();
+    }
     hexPath(r * 0.6);
-    ctx.strokeStyle = "rgba(255,255,255,0.45)";
+    ctx.strokeStyle = "rgba(255,255,255,0.42)";
     ctx.lineWidth = 2;
     ctx.stroke();
     // rivets on outer vertices
@@ -4388,33 +4433,41 @@
     for (let i = 0; i < 6; i++) {
       const a = (TAU * i) / 6 + Math.PI / 6;
       ctx.beginPath();
-      ctx.arc(Math.cos(a) * r * 0.78, Math.sin(a) * r * 0.78, 2.2, 0, TAU);
+      ctx.arc(Math.cos(a) * r * 0.8, Math.sin(a) * r * 0.8, 2.2, 0, TAU);
       ctx.fill();
     }
-    drawGlow(0, 0, r * 0.55, c.base, 0.7);
-    ctx.fillStyle = "rgba(255,235,235,0.9)";
+    ctx.restore();
+    // pulsing weak-point core (telegraphs the heavy)
+    drawGlow(0, 0, r * (0.5 + 0.15 * pulse), c.base, 0.85);
+    ctx.fillStyle = "rgba(255,240,240," + (0.8 + 0.2 * pulse).toFixed(2) + ")";
     ctx.beginPath(); ctx.arc(0, 0, r * 0.2, 0, TAU); ctx.fill();
   }
 
   function drawOrbiterEnemy(e, flash) {
     const c = eColors(e), r = e.r;
+    // spiked sentinel shell, rotating
     ctx.save();
     ctx.rotate(e.phase * 0.9);
-    starPath(r, r * 0.44, 5);
+    starPath(r, r * 0.5, 6);
     ctx.fillStyle = flash ? "#ffffff" : bodyGrad(r, c.light, c.base);
     ctx.fill();
     ctx.strokeStyle = "rgba(255,255,255,0.7)";
     ctx.lineWidth = 1.3;
     ctx.stroke();
     ctx.restore();
-    const pr = r * (0.28 + 0.1 * Math.sin(game.time * 8 + e.phase));
-    drawGlow(0, 0, r * 0.7, c.base, 0.8);
-    ctx.fillStyle = "rgba(255,255,255,0.92)";
-    ctx.beginPath(); ctx.arc(0, 0, pr, 0, TAU); ctx.fill();
+    // dilating eye
+    const dil = 0.5 + 0.5 * Math.sin(game.time * 3 + e.phase);
+    drawGlow(0, 0, r * 0.75, c.base, 0.85);
+    ctx.fillStyle = "rgba(10,8,20,0.85)";
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.5, 0, TAU); ctx.fill();
+    ctx.fillStyle = c.light;
+    ctx.beginPath(); ctx.arc(0, 0, r * (0.28 + 0.12 * dil), 0, TAU); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,0.95)";
+    ctx.beginPath(); ctx.arc(0, 0, r * (0.1 + 0.05 * dil), 0, TAU); ctx.fill();
     // orbiting satellites
     for (let i = 0; i < 3; i++) {
       const a = -e.phase * 1.4 + (TAU * i) / 3;
-      const sxp = Math.cos(a) * r * 1.15, syp = Math.sin(a) * r * 1.15;
+      const sxp = Math.cos(a) * r * 1.25, syp = Math.sin(a) * r * 1.25;
       drawGlow(sxp, syp, 4.5, c.light, 0.9);
       ctx.fillStyle = "#ffffff";
       ctx.beginPath(); ctx.arc(sxp, syp, 1.8, 0, TAU); ctx.fill();
@@ -4422,28 +4475,41 @@
   }
 
   function drawSplitter(e, flash) {
-    const c = eColors(e);
-    const r = e.r * (1 + 0.06 * Math.sin(game.time * 7 + e.phase));
-    ctx.rotate(e.phase * 0.2);
-    ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU);
-    ctx.fillStyle = flash ? "#ffffff" : bodyGrad(r, c.light, c.base);
+    const c = eColors(e), r0 = e.r;
+    ctx.rotate(e.phase * 0.15);
+    // wobbling organic membrane (looks alive, ready to divide)
+    const lobes = 9, t = game.time * 3 + e.phase;
+    ctx.beginPath();
+    for (let i = 0; i <= lobes; i++) {
+      const a = (TAU * i) / lobes;
+      const rr = r0 * (1 + 0.1 * Math.sin(a * 3 + t));
+      const x = Math.cos(a) * rr, y = Math.sin(a) * rr;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fillStyle = flash ? "#ffffff" : bodyGrad(r0, c.light, c.base);
     ctx.fill();
-    ctx.strokeStyle = "rgba(255,255,255,0.6)";
+    ctx.strokeStyle = "rgba(255,255,255,0.55)";
     ctx.lineWidth = 1.6;
     ctx.stroke();
+    // translucent membrane sheen
+    ctx.save();
+    ctx.globalAlpha = 0.22; ctx.fillStyle = c.light;
+    ctx.beginPath(); ctx.arc(-r0 * 0.3, -r0 * 0.3, r0 * 0.5, 0, TAU); ctx.fill();
+    ctx.restore();
     // dividing seam (looks ready to split)
-    ctx.strokeStyle = "rgba(15,15,25,0.55)";
+    ctx.strokeStyle = "rgba(15,15,25,0.5)";
     ctx.lineWidth = 2.2;
     ctx.beginPath();
-    ctx.moveTo(0, -r);
-    ctx.quadraticCurveTo(r * 0.3, 0, 0, r);
+    ctx.moveTo(0, -r0 * 0.9);
+    ctx.quadraticCurveTo(r0 * 0.3, 0, 0, r0 * 0.9);
     ctx.stroke();
     // two nuclei
-    drawGlow(-r * 0.36, 0, r * 0.42, c.base, 0.85);
-    drawGlow(r * 0.36, 0, r * 0.42, c.base, 0.85);
+    drawGlow(-r0 * 0.36, 0, r0 * 0.44, c.base, 0.85);
+    drawGlow(r0 * 0.36, 0, r0 * 0.44, c.base, 0.85);
     ctx.fillStyle = "rgba(255,255,255,0.9)";
-    ctx.beginPath(); ctx.arc(-r * 0.36, 0, r * 0.16, 0, TAU); ctx.fill();
-    ctx.beginPath(); ctx.arc(r * 0.36, 0, r * 0.16, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(-r0 * 0.36, 0, r0 * 0.16, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(r0 * 0.36, 0, r0 * 0.16, 0, TAU); ctx.fill();
   }
 
   function drawBoss(e, flash) {
