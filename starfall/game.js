@@ -672,14 +672,14 @@
     },
     colossus: {
       name: "コロッサス", label: "COLOSSUS", swatch: "#ffa64d",
-      desc: "超重量の要塞。シールドと反撃、範囲攻撃で押し潰す。",
+      desc: "超重量の砲塔要塞。重力場と範囲砲、対大型火力で戦線を踏み潰す。",
       ship: { glow: "rgba(255,160,80,0.6)", g0: "#fff0e0", g1: "#ffa64d", g2: "#b25a12", flame: "rgba(255,190,120,0.9)", shape: "titan" },
       skills: ["nova", "gravity", "missile", "spread", "weakpoint", "bulwark", "armor", "power", "bigshot", "blast", "haste", "greed", "revive", "glass"],
       unlock: { desc: "ボスを累計5体撃破", test: (p) => p.bosses >= 5 },
     },
     orbiter: {
       name: "オービター", label: "ORBITER", swatch: "#57f0c8",
-      desc: "円盤型の制圧機。周回刃と光輪、重力場で敵を囲い焼く。",
+      desc: "円盤型の制圧機。周回刃と帯電・連鎖で群れごと薙ぎ払う。",
       ship: { glow: "rgba(90,255,210,0.6)", g0: "#eafff8", g1: "#57f0c8", g2: "#12a888", flame: "rgba(140,255,220,0.9)", shape: "saucer" },
       skills: ["orbit", "staticfield", "chain", "boomerang", "swarm", "harvest", "magnet", "blast", "swift", "haste", "velocity", "greed", "lucky", "revive"],
       unlock: { desc: "1回のプレイで3分生存", test: (p) => maxBestTime(p) >= 180 },
@@ -750,7 +750,7 @@
     },
     guardian: {
       name: "ガーディアン", label: "GUARDIAN", swatch: "#9fd8ff",
-      desc: "守勢の要塞。周回刃と光輪、シールドと反撃で鉄壁を敷く。",
+      desc: "守勢の要塞。光輪と反射棘、再生と装甲で鉄壁を敷き耐え抜く。",
       ship: { glow: "rgba(120,180,255,0.6)", g0: "#eef4ff", g1: "#9fd8ff", g2: "#3a6ad0", flame: "rgba(170,205,255,0.9)", shape: "aegis" },
       skills: ["orbit", "aura", "gravity", "homing", "thorns", "bulwark", "regen", "armor", "blast", "bigshot", "swift", "magnet", "greed", "revive"],
       unlock: { desc: "ハードで3分生存", test: (p) => p.bestTime.hard >= 180 },
