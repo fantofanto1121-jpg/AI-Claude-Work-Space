@@ -251,6 +251,7 @@
     kills: 0,
     bossKills: 0,
     _committed: false,
+    freeze: 0,
     best: 0,
     bests: { easy: 0, normal: 0, hard: 0, inferno: 0 },
     shake: 0,
@@ -329,6 +330,7 @@
   let sparks = [];   // muzzle flashes / impact sparks / kill flashes (additive)
   let debris = [];   // spinning shrapnel shards from explosions
   let booms = [];     // scheduled secondary blasts (boss chain explosions)
+  let smoke = [];     // soft lingering smoke puffs
   let particles = [];
   let floaters = []; // damage numbers / text
   let shockwaves = [];
@@ -867,7 +869,7 @@
       speed: t.speed, dmg: t.dmg * enemyDmgScale(), xp: t.xp,
       color: t.color, glow: t.glow, shape: t.shape,
       splits: !!t.splits, boss: !!t.boss, bossKind: t.bossKind || null,
-      hitFlash: 0, phase: Math.random() * TAU, angle: 0,
+      hitFlash: 0, hitStop: 0, phase: Math.random() * TAU, angle: 0,
       knock: { x: 0, y: 0 },
       aTimer: 3, teleT: 0, dashT: 0, dvx: 0, dvy: 0,
       chargeState: "seek", chargeT: 0, chargeCd: rand(0.6, 1.6),
@@ -1097,6 +1099,43 @@
     ctx.restore();
     ctx.globalCompositeOperation = "source-over";
   }
+  // Soft lingering smoke — light haze tinted by the wreck's colour.
+  function smokePuff(x, y, color, n, scale) {
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * TAU, sp = rand(8, 55) * scale;
+      smoke.push({
+        x: x + rand(-6, 6), y: y + rand(-6, 6),
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 10,
+        r: rand(8, 16) * scale, maxR: rand(34, 60) * scale,
+        life: rand(0.9, 1.5) * (scale > 1.4 ? 1.35 : 1), maxLife: 1.5,
+        rot: Math.random() * TAU, vr: rand(-1, 1), tint: color,
+      });
+      if (smoke.length > 220) smoke.shift();
+    }
+  }
+  function updateSmoke(dt) {
+    for (const s of smoke) {
+      s.x += s.vx * dt; s.y += s.vy * dt;
+      s.vx *= 0.93; s.vy *= 0.93;
+      s.r += (s.maxR - s.r) * dt * 1.7;
+      s.life -= dt; s.rot += s.vr * dt;
+    }
+    smoke = smoke.filter((s) => s.life > 0);
+  }
+  function drawSmoke() {
+    for (const s of smoke) {
+      const a = clamp(s.life / s.maxLife, 0, 1);
+      const alpha = a * a * 0.44; // ease-out fade, soft
+      const c = rgbaParse(s.tint);
+      const mr = ((c.r + 190) / 2) | 0, mg = ((c.g + 198) / 2) | 0, mb = ((c.b + 214) / 2) | 0;
+      const g = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, s.r);
+      g.addColorStop(0, "rgba(232,236,248," + alpha + ")");
+      g.addColorStop(0.5, "rgba(" + mr + "," + mg + "," + mb + "," + (alpha * 0.55) + ")");
+      g.addColorStop(1, "rgba(24,28,42,0)");
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, TAU); ctx.fill();
+    }
+  }
   function scheduleBoom(x, y, color, glow, t, scale) { booms.push({ x, y, color, glow, t, scale }); }
   function updateBooms(dt) {
     for (const bm of booms) {
@@ -1108,6 +1147,7 @@
         burst(bm.x, bm.y, bm.color, 10, 230, [1.5, 3.6], 0.5);
         burst(bm.x, bm.y, "rgba(255,255,255,0.9)", 4, 200, [1, 2.2], 0.4);
         debrisBurst(bm.x, bm.y, bm.color, 5, bm.scale, false);
+        smokePuff(bm.x, bm.y, bm.color, 3, bm.scale);
         game.shake = Math.max(game.shake, 5);
       }
     }
@@ -1124,10 +1164,12 @@
     // embers (enemy-colored) + white-hot sparks
     burst(e.x, e.y, e.color, boss ? 48 : Math.round(16 * sc), boss ? 340 : 210, [1.5, boss ? 5 : 3.6], boss ? 0.9 : 0.55);
     burst(e.x, e.y, "rgba(255,255,255,0.9)", boss ? 18 : Math.round(5 * sc), boss ? 300 : 190, [1, boss ? 3 : 2.2], boss ? 0.6 : 0.4);
-    // spinning shrapnel
+    // spinning shrapnel + lingering smoke
     debrisBurst(e.x, e.y, e.color, boss ? 16 : Math.round(6 * sc), boss ? 1 : sc, boss);
+    smokePuff(e.x, e.y, e.color, boss ? 18 : Math.max(3, Math.round(5 * sc)), boss ? 1.9 : sc);
     if (boss) {
       game.shake = Math.max(game.shake, 18);
+      game.freeze = Math.max(game.freeze, 0.11); // hit-stop the whole scene for a beat
       // cinematic chain of secondary blasts around the wreck
       for (let i = 0; i < 5; i++) scheduleBoom(e.x + rand(-70, 70), e.y + rand(-70, 70), e.color, e.glow, 0.08 + i * 0.11, rand(0.9, 1.6));
     } else {
@@ -1166,6 +1208,9 @@
   function damageEnemy(e, amount, kx, ky, isCrit) {
     e.hp -= amount;
     e.hitFlash = 1;
+    // hit-stop: freeze the struck enemy for a beat so hits land with weight
+    // (bosses are exempt so sustained fire can't stall their attack patterns)
+    if (!e.boss) e.hitStop = Math.max(e.hitStop || 0, isCrit ? 0.08 : 0.05);
     if (kx || ky) { e.knock.x += kx; e.knock.y += ky; }
     floater(e.x, e.y - e.r, Math.round(amount), isCrit ? "#ffd166" : "#ffffff", isCrit);
     // heal-on-hit (Phantom: ブラッドドリンカー)
@@ -1825,11 +1870,15 @@
         vy = Math.sin(ang) * spd;
         e.angle = ang;
       }
-      // knockback
-      vx += e.knock.x; vy += e.knock.y;
-      e.knock.x *= 0.86; e.knock.y *= 0.86;
-      e.x += vx * dt;
-      e.y += vy * dt;
+      // hit-stop: a struck enemy freezes in place for a beat (knockback resumes after)
+      if (e.hitStop > 0) {
+        e.hitStop -= dt;
+      } else {
+        vx += e.knock.x; vy += e.knock.y;
+        e.knock.x *= 0.86; e.knock.y *= 0.86;
+        e.x += vx * dt;
+        e.y += vy * dt;
+      }
       e.x = clamp(e.x, 20, WORLD.w - 20);
       e.y = clamp(e.y, 20, WORLD.h - 20);
 
@@ -2259,6 +2308,7 @@
     updateSparks(dt);
     updateDebris(dt);
     updateBooms(dt);
+    updateSmoke(dt);
 
     if (game.shake > 0) game.shake = Math.max(0, game.shake - dt * 34);
     if (game.hitFlash > 0) game.hitFlash = Math.max(0, game.hitFlash - dt * 2.4);
@@ -2470,6 +2520,7 @@
     drawLightnings();
     drawOrbiters();
     drawPlayer();
+    drawSmoke();
     drawShockwaves();
     drawParticles();
     drawDebris();
@@ -3050,6 +3101,11 @@
       const flash = e.hitFlash > 0;
       ctx.save();
       ctx.translate(e.x, e.y);
+      // squash-and-stretch pop while frozen in hit-stop
+      if (e.hitStop > 0 && !e.boss) {
+        const pop = 1 + Math.min(0.18, e.hitStop * 2.6);
+        ctx.scale(pop, 1 / pop * 1.02);
+      }
       if (e.boss) {
         drawBoss(e, flash);
       } else {
@@ -3885,9 +3941,9 @@
   }
 
   function resetRun() {
-    enemies = []; bullets = []; gems = []; particles = []; powerups = []; sparks = []; debris = []; booms = [];
+    enemies = []; bullets = []; gems = []; particles = []; powerups = []; sparks = []; debris = []; booms = []; smoke = [];
     floaters = []; shockwaves = []; orbiters = []; lightnings = []; enemyBullets = [];
-    game.time = 0; game.kills = 0; game.bossKills = 0; game._committed = false; game.shake = 0; game.hitFlash = 0;
+    game.time = 0; game.kills = 0; game.bossKills = 0; game._committed = false; game.freeze = 0; game.shake = 0; game.hitFlash = 0;
     game.spawnTimer = 0; game.nextWaveAt = 30; game.waveCount = 0; game.bossIndex = 0;
     wt.pulse = 0; wt.nova = 0; wt.spread = 0; wt.beam = 0;
     wt.chain = 0; wt.homing = 0; wt.aura = 0;
@@ -4008,20 +4064,25 @@
     if (dt > 0.05) dt = 0.05; // clamp big gaps
 
     if (game.state === "playing") {
-      game.time += dt;
-      updatePlayer(dt);
-      fireWeapons(dt);
-      updateOrbiters(dt);
-      updateBullets(dt);
-      updateEnemies(dt);
-      updateEnemyBullets(dt);
-      updateGems(dt);
-      updatePowerups(dt);
-      updateSpawner(dt);
-      // combo decays if you stop killing
-      if (player.comboTimer > 0) { player.comboTimer -= dt; if (player.comboTimer <= 0) player.combo = 0; }
-      updateEffects(dt);
-      updateHud();
+      // freeze frames: hold the whole scene still for a beat (boss-kill hit-stop)
+      if (game.freeze > 0) {
+        game.freeze -= dt;
+      } else {
+        game.time += dt;
+        updatePlayer(dt);
+        fireWeapons(dt);
+        updateOrbiters(dt);
+        updateBullets(dt);
+        updateEnemies(dt);
+        updateEnemyBullets(dt);
+        updateGems(dt);
+        updatePowerups(dt);
+        updateSpawner(dt);
+        // combo decays if you stop killing
+        if (player.comboTimer > 0) { player.comboTimer -= dt; if (player.comboTimer <= 0) player.combo = 0; }
+        updateEffects(dt);
+        updateHud();
+      }
     } else {
       // keep effects alive on game over / menu for ambiance
       updateEffects(dt);
