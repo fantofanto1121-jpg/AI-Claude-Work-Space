@@ -365,6 +365,7 @@
   let shockwaves = [];
   let orbiters = [];
   let lightnings = []; // chain-lightning arcs (visual, short-lived)
+  let slashes = [];    // arc-whip sweep arcs (visual, short-lived)
   let enemyBullets = []; // hostile projectiles (sentry boss)
 
   // ---------------------------------------------------------------------
@@ -524,6 +525,41 @@
       desc: (lv) => lv === 0 ? "命中した弾が分裂し、左右の敵へ二次弾を撒く速射砲。"
         : "分裂数・連射・威力が増す。(Lv" + (lv + 1) + ")",
     },
+    plasmaorb: {
+      name: "プラズマオーブ", icon: "⦿", tag: "WEAPON",
+      color: "rgba(180,130,255,1)", accent: "#b482ff", glow: "rgba(165,107,255,0.55)",
+      max: 6,
+      desc: (lv) => lv === 0 ? "低速の巨大プラズマ球を放ち、群れを貫いて焼き払う。"
+        : "サイズ・貫通・威力が拡大する。(Lv" + (lv + 1) + ")",
+    },
+    frost: {
+      name: "フロストランス", icon: "❆", tag: "WEAPON",
+      color: "rgba(150,225,255,1)", accent: "#96e1ff", glow: "rgba(140,220,255,0.55)",
+      max: 6,
+      desc: (lv) => lv === 0 ? "貫通する氷槍を撃ち、当たった敵を凍らせ鈍足化する。"
+        : "貫通・威力・凍結が強まる。(Lv" + (lv + 1) + ")",
+    },
+    cluster: {
+      name: "クラスターボム", icon: "⁂", tag: "WEAPON",
+      color: "rgba(255,140,110,1)", accent: "#ff8c6e", glow: "rgba(255,120,90,0.55)",
+      max: 6,
+      desc: (lv) => lv === 0 ? "着弾で炸裂し、四方へ子弾を撒き散らす拡散弾。"
+        : "子弾数・爆風・威力が増す。(Lv" + (lv + 1) + ")",
+    },
+    whip: {
+      name: "アークウィップ", icon: "⟋", tag: "WEAPON",
+      color: "rgba(255,120,200,1)", accent: "#ff78c8", glow: "rgba(255,120,200,0.55)",
+      max: 6,
+      desc: (lv) => lv === 0 ? "自機の前方を薙ぐ光の鞭。近距離の敵をまとめて斬る。"
+        : "範囲・威力・薙ぎ速度が増す。(Lv" + (lv + 1) + ")",
+    },
+    seeker: {
+      name: "シーカー", icon: "⊚", tag: "WEAPON",
+      color: "rgba(120,255,190,1)", accent: "#78ffbe", glow: "rgba(120,255,190,0.55)",
+      max: 6,
+      desc: (lv) => lv === 0 ? "多数の小型追尾弾を斉射し、敵を執拗に追い回す。"
+        : "弾数・旋回・威力が増す。(Lv" + (lv + 1) + ")",
+    },
   };
 
   const PASSIVES = {
@@ -644,13 +680,13 @@
       name: "ヴァンガード", label: "VANGUARD", swatch: "#38f6ff",
       desc: "王道の万能機。定番の武器と汎用強化を幅広く扱える。",
       ship: { glow: "rgba(56,246,255,0.6)", g0: "#eafcff", g1: "#38f6ff", g2: "#1b6fff", flame: "rgba(120,220,255,0.9)", shape: "interceptor" },
-      skills: ["pulse", "spread", "homing", "beam", "missile", "boomerang", "power", "haste", "multishot", "velocity", "crit", "bigshot", "swift", "magnet", "revive", "comboedge", "swarm", "momentum"],
+      skills: ["pulse", "spread", "homing", "beam", "missile", "plasmaorb", "power", "haste", "multishot", "velocity", "crit", "bigshot", "swift", "magnet", "revive", "comboedge", "swarm", "momentum"],
     },
     warden: {
       name: "ウォーデン", label: "WARDEN", swatch: "#46f0a0",
       desc: "要塞型。シールドと反撃、重力場で敵を抱え込んで潰す。",
       ship: { glow: "rgba(80,255,170,0.6)", g0: "#eafff4", g1: "#46f0a0", g2: "#12b070", flame: "rgba(120,255,190,0.9)", shape: "fortress" },
-      skills: ["gravity", "orbit", "nova", "homing", "missile", "shield", "counter", "armor", "bigshot", "blast", "power", "haste", "magnet", "revive"],
+      skills: ["gravity", "orbit", "nova", "homing", "cluster", "shield", "counter", "armor", "bigshot", "blast", "power", "haste", "magnet", "revive"],
     },
     tempest: {
       name: "テンペスト", label: "TEMPEST", swatch: "#a56bff",
@@ -668,7 +704,7 @@
       name: "ファントム", label: "PHANTOM", swatch: "#ff5a7a",
       desc: "自壊高火力型。撃破の連鎖爆発と吸血で押し切る紅の機体。",
       ship: { glow: "rgba(255,90,120,0.6)", g0: "#ffe6ea", g1: "#ff5a7a", g2: "#c01530", flame: "rgba(255,140,160,0.9)", shape: "scythe" },
-      skills: ["chain", "aura", "voidburst", "bloodhit", "vapor", "boomerang", "berserk", "glass", "lifesteal", "adrenaline", "power", "swift", "magnet", "comboedge"],
+      skills: ["chain", "aura", "voidburst", "bloodhit", "vapor", "whip", "berserk", "glass", "lifesteal", "adrenaline", "power", "swift", "magnet", "comboedge"],
     },
     // ---- unlockable costumes (condition-gated) ----
     razor: {
@@ -696,7 +732,7 @@
       name: "オービター", label: "ORBITER", swatch: "#57f0c8",
       desc: "円盤型の制圧機。周回刃と帯電・連鎖で群れごと薙ぎ払う。",
       ship: { glow: "rgba(90,255,210,0.6)", g0: "#eafff8", g1: "#57f0c8", g2: "#12a888", flame: "rgba(140,255,220,0.9)", shape: "saucer" },
-      skills: ["orbit", "staticfield", "chain", "boomerang", "swarm", "harvest", "magnet", "blast", "swift", "haste", "velocity", "greed", "lucky", "revive"],
+      skills: ["orbit", "staticfield", "chain", "seeker", "swarm", "harvest", "magnet", "blast", "swift", "haste", "velocity", "greed", "lucky", "revive"],
       unlock: { desc: "1回のプレイで3分生存", test: (p) => maxBestTime(p) >= 180 },
     },
     manta: {
@@ -710,35 +746,35 @@
       name: "パイク", label: "PIKE", swatch: "#ff4d6d",
       desc: "純粋な狙撃槍。貫通と会心で硬い敵を一直線に貫く。",
       ship: { glow: "rgba(255,80,110,0.6)", g0: "#ffe6ea", g1: "#ff4d6d", g2: "#b01030", flame: "rgba(255,130,150,0.9)", shape: "pike" },
-      skills: ["beam", "deadeye", "spread", "sniper", "execute", "pierce", "longshot", "bigshot", "glass", "power", "momentum", "swift", "revive", "velocity"],
+      skills: ["beam", "deadeye", "frost", "sniper", "execute", "pierce", "longshot", "bigshot", "glass", "power", "momentum", "swift", "revive", "velocity"],
       unlock: { desc: "累計2,000体を撃破", test: (p) => p.kills >= 2000 },
     },
     scarab: {
       name: "スカラベ", label: "SCARAB", swatch: "#c8f04d",
       desc: "甲殻の格闘機。吸血と反射、低HP火力で乱戦を制す。",
       ship: { glow: "rgba(200,255,90,0.6)", g0: "#f6ffe0", g1: "#c8f04d", g2: "#7aa815", flame: "rgba(220,255,140,0.9)", shape: "scarab" },
-      skills: ["chain", "aura", "boomerang", "lifesteal", "bloodhit", "thorns", "berserk", "adrenaline", "armor", "power", "bigshot", "harvest", "greed", "revive"],
+      skills: ["chain", "aura", "whip", "lifesteal", "bloodhit", "thorns", "berserk", "adrenaline", "armor", "power", "bigshot", "harvest", "greed", "revive"],
       unlock: { desc: "ハードで2分生存", test: (p) => p.bestTime.hard >= 120 },
     },
     falcon: {
       name: "ファルコン", label: "FALCON", swatch: "#ffd97a",
       desc: "熟練の万能エース。会心寄りの安定した攻めが持ち味。",
       ship: { glow: "rgba(255,225,150,0.6)", g0: "#fffdf5", g1: "#ffd97a", g2: "#c99a2a", flame: "rgba(255,235,170,0.9)", shape: "falcon" },
-      skills: ["fork", "pulse", "spread", "homing", "crit", "sniper", "haste", "velocity", "longshot", "swift", "magnet", "greed", "comboedge", "harvest"],
+      skills: ["fork", "pulse", "spread", "seeker", "crit", "sniper", "haste", "velocity", "longshot", "swift", "magnet", "greed", "comboedge", "harvest"],
       unlock: { desc: "ボスを累計20体撃破", test: (p) => p.bosses >= 20 },
     },
     seraph: {
       name: "セラフ", label: "SERAPH", swatch: "#ffcf5a",
       desc: "光輝の支援機。落雷と光輪、衝撃波で画面を制圧する。",
       ship: { glow: "rgba(255,210,110,0.65)", g0: "#fff7e6", g1: "#ffcf5a", g2: "#c98a1a", flame: "rgba(255,225,140,0.95)", shape: "seraph" },
-      skills: ["nova", "aura", "storm", "flak", "blast", "swarm", "power", "haste", "magnet", "greed", "lucky", "revive", "bigshot", "longshot"],
+      skills: ["nova", "aura", "storm", "flak", "cluster", "swarm", "power", "haste", "magnet", "greed", "lucky", "revive", "bigshot", "longshot"],
       unlock: { desc: "レベル30に到達", test: (p) => p.maxLevel >= 30 },
     },
     novastar: {
       name: "ノヴァスター", label: "NOVASTAR", swatch: "#ff5ac8",
       desc: "全兵装の頂点。あらゆる武器を束ねる究極の星艦。",
       ship: { glow: "rgba(255,90,200,0.6)", g0: "#ffe6f5", g1: "#ff5ac8", g2: "#c01590", flame: "rgba(255,140,220,0.9)", shape: "starcruiser" },
-      skills: ["pulse", "nova", "chain", "homing", "missile", "boomerang", "deadeye", "gravity", "weakpoint", "crit", "power", "haste", "multishot", "comboedge"],
+      skills: ["pulse", "nova", "chain", "homing", "missile", "plasmaorb", "deadeye", "gravity", "weakpoint", "crit", "power", "haste", "multishot", "comboedge"],
       unlock: { desc: "インフェルノで2分生存", test: (p) => p.bestTime.inferno >= 120 },
     },
     // ---- signature-mechanic costumes (distinct playstyles) ----
@@ -746,7 +782,7 @@
       name: "グレイシア", label: "GLACIA", swatch: "#8cdcff",
       desc: "氷結制圧機。命中で敵を凍らせ鈍足化し、盤面を支配する。",
       ship: { glow: "rgba(140,220,255,0.6)", g0: "#eafaff", g1: "#8cdcff", g2: "#2f7fd0", flame: "rgba(180,235,255,0.9)", shape: "crystal" },
-      skills: ["cryo", "beam", "chain", "staticfield", "gravity", "aura", "weakpoint", "regen", "longshot", "crit", "bigshot", "armor", "magnet", "revive"],
+      skills: ["cryo", "frost", "beam", "staticfield", "gravity", "aura", "weakpoint", "regen", "longshot", "crit", "bigshot", "armor", "magnet", "revive"],
       unlock: { desc: "ボスを累計12体撃破", test: (p) => p.bosses >= 12 },
     },
     reflex: {
@@ -848,6 +884,64 @@
       count: player.projectiles,
       forks: 2 + Math.floor(lv / 2),
       range: (540 + lv * 20) * player.rangeMul,
+    };
+  }
+  function plasmaorbStats() {
+    const lv = weaponLv("plasmaorb");
+    return {
+      cooldown: 1.3 / player.fireRateMul,
+      damage: (13 + lv * 6) * dmgMul(),
+      speed: 190 + lv * 6,
+      radius: 15 + lv * 1.6,
+      pierce: 6 + lv * 2,
+      range: (540 + lv * 20) * player.rangeMul,
+    };
+  }
+  function frostStats() {
+    const lv = weaponLv("frost");
+    return {
+      cooldown: 0.72 / player.fireRateMul,
+      damage: (11 + lv * 5) * dmgMul(),
+      speed: 500 + lv * 12,
+      radius: 6.5 + lv * 0.5,
+      pierce: 2 + Math.floor(lv / 2),
+      slowMul: Math.max(0.35, 0.6 - lv * 0.05),
+      slowT: 1.1 + lv * 0.1,
+      range: (560 + lv * 20) * player.rangeMul,
+    };
+  }
+  function clusterStats() {
+    const lv = weaponLv("cluster");
+    return {
+      cooldown: 1.35 / player.fireRateMul,
+      damage: (13 + lv * 6) * dmgMul(),
+      speed: 330 + lv * 8,
+      radius: 7 + lv * 0.5,
+      blast: 58 + lv * 8,
+      shards: 5 + lv,
+      life: 0.7 + lv * 0.03,
+      range: (500 + lv * 20) * player.rangeMul,
+    };
+  }
+  function whipStats() {
+    const lv = weaponLv("whip");
+    return {
+      cooldown: 0.5 / player.fireRateMul,
+      damage: (12 + lv * 6) * dmgMul(),
+      reach: (110 + lv * 12) * player.rangeMul,
+      arc: 1.15 + lv * 0.06,
+    };
+  }
+  function seekerStats() {
+    const lv = weaponLv("seeker");
+    return {
+      cooldown: 0.9 / player.fireRateMul,
+      damage: (7 + lv * 3) * dmgMul(),
+      speed: 360 + lv * 10,
+      radius: 4.5 + lv * 0.3,
+      count: 3 + lv,
+      turn: 4.2 + lv * 0.3,
+      range: (560 + lv * 20) * player.rangeMul,
     };
   }
   function orbitCount() { const lv = weaponLv("orbit"); return lv === 0 ? 0 : 2 + Math.floor(lv * 0.9); }
@@ -963,7 +1057,7 @@
   }
 
   // weapon timers
-  const wt = { pulse: 0, nova: 0, spread: 0, beam: 0, chain: 0, homing: 0, aura: 0, gravity: 0, storm: 0, deadeye: 0, staticfield: 0, missile: 0, boomerang: 0, flak: 0, fork: 0 };
+  const wt = { pulse: 0, nova: 0, spread: 0, beam: 0, chain: 0, homing: 0, aura: 0, gravity: 0, storm: 0, deadeye: 0, staticfield: 0, missile: 0, boomerang: 0, flak: 0, fork: 0, plasmaorb: 0, frost: 0, cluster: 0, whip: 0, seeker: 0 };
 
   // ---------------------------------------------------------------------
   //  Enemy types
@@ -1127,6 +1221,10 @@
   function shockwave(x, y, radius, color) {
     shockwaves.push({ x, y, r: 8, max: radius, color, life: 1 });
     if (shockwaves.length > 120) shockwaves.shift();
+  }
+  function whipArc(dir, reach, arc, color) {
+    slashes.push({ x: player.x, y: player.y, dir, reach, arc, color, life: 1 });
+    if (slashes.length > 24) slashes.shift();
   }
   // Short-lived additive flash: kind = "muzzle" | "impact" | "kill".
   function spark(x, y, angle, color, kind, scale) {
@@ -1695,6 +1793,94 @@
             const off = (i - (s.count - 1) / 2) * 0.1;
             const b = fireBullet(base + off, s.speed, s.damage, s.radius, WEAPONS.fork.color, WEAPONS.fork.glow, 1, false);
             b.fork = s.forks; b.life = 1.2;
+          }
+          sfx.shoot();
+        }
+      }
+    }
+    // PLASMA ORB (slow, huge, high-pierce)
+    if (weaponLv("plasmaorb") > 0) {
+      wt.plasmaorb -= dt;
+      if (wt.plasmaorb <= 0) {
+        const s = plasmaorbStats();
+        const target = nearestEnemy(player.x, player.y, s.range * s.range);
+        if (target) {
+          wt.plasmaorb = s.cooldown;
+          const a = Math.atan2(target.y - player.y, target.x - player.x);
+          const b = fireBullet(a, s.speed, s.damage, s.radius, WEAPONS.plasmaorb.color, WEAPONS.plasmaorb.glow, s.pierce, false);
+          b.life = 2.4; b.long = true; b.orb = true;
+          sfx.shoot();
+        }
+      }
+    }
+    // FROST LANCE (piercing shard that chills)
+    if (weaponLv("frost") > 0) {
+      wt.frost -= dt;
+      if (wt.frost <= 0) {
+        const s = frostStats();
+        const target = nearestEnemy(player.x, player.y, s.range * s.range);
+        if (target) {
+          wt.frost = s.cooldown;
+          const a = Math.atan2(target.y - player.y, target.x - player.x);
+          const b = fireBullet(a, s.speed, s.damage, s.radius, WEAPONS.frost.color, WEAPONS.frost.glow, s.pierce, true);
+          b.long = true; b.chill = { mul: s.slowMul, t: s.slowT };
+          sfx.shoot();
+        }
+      }
+    }
+    // CLUSTER BOMB (detonates into radial shards)
+    if (weaponLv("cluster") > 0) {
+      wt.cluster -= dt;
+      if (wt.cluster <= 0) {
+        const s = clusterStats();
+        const target = nearestEnemy(player.x, player.y, s.range * s.range);
+        if (target) {
+          wt.cluster = s.cooldown;
+          const a = Math.atan2(target.y - player.y, target.x - player.x);
+          const b = fireBullet(a, s.speed, s.damage, s.radius, WEAPONS.cluster.color, WEAPONS.cluster.glow, 1, false);
+          b.explodeR = s.blast; b.explodeDmg = s.damage; b.life = s.life; b.long = true;
+          b.cluster = s.shards; b.clusterDmg = s.damage * 0.55;
+          sfx.shoot();
+        }
+      }
+    }
+    // ARC WHIP (melee cone sweep)
+    if (weaponLv("whip") > 0) {
+      wt.whip -= dt;
+      if (wt.whip <= 0) {
+        const s = whipStats();
+        const target = nearestEnemy(player.x, player.y, s.reach * s.reach);
+        const dir = target ? Math.atan2(target.y - player.y, target.x - player.x) : player.facing;
+        wt.whip = s.cooldown;
+        const r2 = s.reach * s.reach;
+        let hit = false;
+        for (const e of enemies) {
+          if (e.dead) continue;
+          if (dist2(player.x, player.y, e.x, e.y) > r2) continue;
+          let d = Math.atan2(e.y - player.y, e.x - player.x) - dir;
+          while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU;
+          if (Math.abs(d) <= s.arc / 2) {
+            const ka = Math.atan2(e.y - player.y, e.x - player.x);
+            damageEnemy(e, s.damage, Math.cos(ka) * 120, Math.sin(ka) * 120, false);
+            hit = true;
+          }
+        }
+        whipArc(dir, s.reach, s.arc, WEAPONS.whip.glow);
+        if (hit) sfx.shoot();
+      }
+    }
+    // SEEKER (swarm of micro homing darts)
+    if (weaponLv("seeker") > 0) {
+      wt.seeker -= dt;
+      if (wt.seeker <= 0) {
+        const s = seekerStats();
+        const target = nearestEnemy(player.x, player.y, s.range * s.range);
+        if (target) {
+          wt.seeker = s.cooldown;
+          for (let i = 0; i < s.count; i++) {
+            const a = player.facing + rand(-Math.PI, Math.PI);
+            const b = fireBullet(a, s.speed, s.damage, s.radius, WEAPONS.seeker.color, WEAPONS.seeker.glow, 1, false);
+            b.homing = true; b.turn = s.turn; b.life = 2.4;
           }
           sfx.shoot();
         }
@@ -2456,6 +2642,12 @@
           const a = Math.atan2(b.vy, b.vx);
           damageEnemy(e, b.damage, Math.cos(a) * 70, Math.sin(a) * 70, b.crit);
           b.hits.add(e);
+          // frost lance: chill/slow struck enemies
+          if (b.chill && !e.dead && e.hp > 0) {
+            e.slowT = Math.max(e.slowT || 0, b.chill.t);
+            e.slowMul = e.boss ? Math.max(0.6, b.chill.mul) : b.chill.mul;
+            e.frost = 0.4;
+          }
           burst(b.x, b.y, b.color, b.crit ? 8 : 4, b.crit ? 200 : 120, [1, b.crit ? 3 : 2.4], 0.3);
           spark(b.x, b.y, a + Math.PI / 2, b.crit ? "#fff2b0" : b.color, "impact", b.crit ? 1.7 : 1);
           if (b.crit) shockwave(b.x, b.y, 30, "rgba(255,220,120,0.6)");
@@ -2490,15 +2682,27 @@
       }
     }
     for (const sb of spawned) { bullets.push(sb); if (bullets.length > 260) bullets.shift(); }
-    // missiles detonate when they die (impact or timeout)
+    // missiles / bombs detonate when they die (impact or timeout)
+    const shards = [];
     for (const b of bullets) {
       if (b.life <= 0 && b.explodeR && !b._boomed) {
         b._boomed = true;
         aoeDamage(b.x, b.y, b.explodeR, b.explodeDmg, b.glow);
         burst(b.x, b.y, b.color, 14, 240, [1.5, 3.5], 0.5);
         game.shake = Math.max(game.shake, 3);
+        // cluster bomb: scatter secondary bullets radially on detonation
+        if (b.cluster > 0) {
+          const n = b.cluster, cs = 460;
+          for (let k = 0; k < n; k++) {
+            const ca = (k / n) * TAU + rand(-0.15, 0.15);
+            shards.push({ x: b.x, y: b.y, vx: Math.cos(ca) * cs, vy: Math.sin(ca) * cs, speed: cs,
+              damage: b.clusterDmg, crit: false, r: b.r * 0.7, color: b.color, glow: b.glow,
+              pierce: 1, hits: new Set(), life: 0.55, angle: ca, long: false, homing: false, turn: 0, bounces: 0, fork: 0, trail: [] });
+          }
+        }
       }
     }
+    for (const sb of shards) { bullets.push(sb); if (bullets.length > 260) bullets.shift(); }
     bullets = bullets.filter((b) => b.life > 0);
   }
 
@@ -2557,6 +2761,9 @@
 
     for (const ln of lightnings) ln.life -= dt * 4.5;
     lightnings = lightnings.filter((ln) => ln.life > 0);
+
+    for (const sl of slashes) sl.life -= dt * 5;
+    slashes = slashes.filter((sl) => sl.life > 0);
 
     updateSparks(dt);
     updateDebris(dt);
@@ -2784,6 +2991,7 @@
     drawEnemyBullets();
     drawBullets();
     drawLightnings();
+    drawSlashes();
     drawOrbiters();
     drawPlayer();
     drawSmoke();
@@ -4111,6 +4319,25 @@
     ctx.restore();
   }
 
+  function drawSlashes() {
+    if (!slashes.length) return;
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.lineCap = "round";
+    for (const s of slashes) {
+      const a = clamp(s.life, 0, 1);
+      const r = s.reach * (1.05 - a * 0.15); // sweep outward slightly as it fades
+      const a0 = s.dir - s.arc / 2, a1 = s.dir + s.arc / 2;
+      ctx.strokeStyle = s.color;
+      ctx.lineWidth = 7 * a;
+      ctx.beginPath(); ctx.arc(s.x, s.y, r, a0, a1); ctx.stroke();
+      ctx.strokeStyle = "rgba(255,245,252," + (a * 0.9) + ")";
+      ctx.lineWidth = 2.4 * a + 0.5;
+      ctx.beginPath(); ctx.arc(s.x, s.y, r, a0, a1); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   function drawGems() {
     ctx.globalCompositeOperation = "lighter";
     for (const g of gems) {
@@ -4270,7 +4497,7 @@
 
   function resetRun() {
     enemies = []; bullets = []; gems = []; particles = []; powerups = []; sparks = []; debris = []; booms = []; smoke = [];
-    floaters = []; shockwaves = []; orbiters = []; lightnings = []; enemyBullets = [];
+    floaters = []; shockwaves = []; orbiters = []; lightnings = []; slashes = []; enemyBullets = [];
     game.time = 0; game.kills = 0; game.bossKills = 0; game._committed = false; game.freeze = 0; game.slow = 0; game.expFlash = 0; game.shake = 0; game.hitFlash = 0;
     game.spawnTimer = 0; game.nextWaveAt = 30; game.waveCount = 0; game.bossIndex = 0;
     wt.pulse = 0; wt.nova = 0; wt.spread = 0; wt.beam = 0;
@@ -4302,8 +4529,8 @@
     player.vaporTrail = [];
     // open with a reliable rapid ranged weapon so the early game is viable;
     // fall back to any ranged, then any weapon.
-    const PREFERRED = ["pulse", "spread", "beam", "chain", "homing", "fork"];
-    const RANGED = PREFERRED.concat(["storm", "staticfield", "deadeye", "flak"]);
+    const PREFERRED = ["pulse", "spread", "beam", "chain", "homing", "fork", "frost", "seeker"];
+    const RANGED = PREFERRED.concat(["storm", "staticfield", "deadeye", "flak", "plasmaorb", "cluster"]);
     const startWeapon = costume.skills.find((id) => PREFERRED.indexOf(id) >= 0)
       || costume.skills.find((id) => RANGED.indexOf(id) >= 0)
       || costume.skills.find((id) => WEAPONS[id]) || "pulse";
