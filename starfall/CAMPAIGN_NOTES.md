@@ -87,5 +87,13 @@
 - 出荷: game.js コミット/プッシュ、プレイArtifact v34、サイト BUILD33（武器60+→64+、更新33回）。
 - 実装済み武器(24): pulse,orbit,nova,spread,beam,chain,homing,aura,missile,boomerang,gravity,storm,deadeye,staticfield,
   flak,fork,plasmaorb,frost,cluster,whip,seeker,flame,mine,disruptor。
-- 次候補(未実装): レールスパイク,ソウルサイス(周回鎌),バウンスボム,ツインファング,スキャッターガン,フレア(照明弾),
-  スタッフ(設置砲台/セントリー),ブラックホール,プリズムレイ等。
+### Round 3c（同覚醒・追加バッチ）— 新武器3種
+- レールスパイク(極超高速貫通レール) / セントリー(自律砲台・spawnedへ射撃委譲・回転クロスヘア描画) /
+  スキャッターガン(至近散弾)。boomerangが全プールから消えていたのでマンタへ復帰。
+- 実装: WEAPONS・stats・fire分岐・砲台自律射撃・砲台描画・開幕候補・機体配備(railspike→パイク/ノヴァスター,
+  sentry→ウォーデン/コロッサス, scattergun→マンタ/ファントム)。
+- 検証: force-equipでエラーゼロ・発火・59fps・砲台の自律射撃/描画確認。**武器27種**、最大Jaccard0.47、平均0.178。
+- 出荷: game.js コミット/プッシュ、プレイArtifact v35、サイト BUILD34（武器64+→67+、更新34回）。
+- 実装済み武器(27): …前記24 + railspike,sentry,scattergun。
+- 次候補(未実装): ソウルサイス(周回鎌),バウンスボム,ツインファング,ブラックホール(引力弾),プリズムレイ(分岐ビーム),
+  ボルテージ(自己中心チェイン),アイスミラー等。
