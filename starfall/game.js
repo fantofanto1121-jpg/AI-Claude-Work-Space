@@ -509,6 +509,21 @@
       desc: (lv) => lv === 0 ? "周囲の敵へ絶えず微弱な電撃を放つ帯電フィールド。"
         : "射程と電撃数・威力が増す。(Lv" + (lv + 1) + ")",
     },
+    // ---- extended weapons (widen playstyles / cut roster overlap) ----
+    flak: {
+      name: "フラックバースト", icon: "✺", tag: "WEAPON",
+      color: "rgba(255,170,90,1)", accent: "#ffaa5a", glow: "rgba(255,150,70,0.55)",
+      max: 6,
+      desc: (lv) => lv === 0 ? "低速の榴弾を撃ち、着弾点で炸裂して範囲の敵を薙ぐ。"
+        : "弾数・爆風・威力が拡大する。(Lv" + (lv + 1) + ")",
+    },
+    fork: {
+      name: "スプリットショット", icon: "Ψ", tag: "WEAPON",
+      color: "rgba(120,255,235,1)", accent: "#78ffeb", glow: "rgba(120,255,235,0.55)",
+      max: 6,
+      desc: (lv) => lv === 0 ? "命中した弾が分裂し、左右の敵へ二次弾を撒く速射砲。"
+        : "分裂数・連射・威力が増す。(Lv" + (lv + 1) + ")",
+    },
   };
 
   const PASSIVES = {
@@ -674,7 +689,7 @@
       name: "コロッサス", label: "COLOSSUS", swatch: "#ffa64d",
       desc: "超重量の砲塔要塞。重力場と範囲砲、対大型火力で戦線を踏み潰す。",
       ship: { glow: "rgba(255,160,80,0.6)", g0: "#fff0e0", g1: "#ffa64d", g2: "#b25a12", flame: "rgba(255,190,120,0.9)", shape: "titan" },
-      skills: ["nova", "gravity", "missile", "spread", "weakpoint", "bulwark", "armor", "power", "bigshot", "blast", "haste", "greed", "revive", "glass"],
+      skills: ["nova", "gravity", "flak", "spread", "weakpoint", "bulwark", "armor", "power", "bigshot", "blast", "haste", "greed", "revive", "glass"],
       unlock: { desc: "ボスを累計5体撃破", test: (p) => p.bosses >= 5 },
     },
     orbiter: {
@@ -688,7 +703,7 @@
       name: "マンタ", label: "MANTA", swatch: "#4fbfff",
       desc: "滑空型。誘導弾とミサイル、往復刃で広く弾幕を張る。",
       ship: { glow: "rgba(90,200,255,0.6)", g0: "#e8f8ff", g1: "#4fbfff", g2: "#1466c0", flame: "rgba(150,220,255,0.9)", shape: "manta" },
-      skills: ["homing", "missile", "boomerang", "spread", "aura", "velocity", "longshot", "multishot", "swift", "harvest", "swarm", "magnet", "greed", "revive"],
+      skills: ["homing", "missile", "boomerang", "fork", "aura", "velocity", "longshot", "multishot", "swift", "harvest", "swarm", "magnet", "greed", "revive"],
       unlock: { desc: "スコア30,000を達成", test: (p) => p.bestScore >= 30000 },
     },
     pike: {
@@ -709,14 +724,14 @@
       name: "ファルコン", label: "FALCON", swatch: "#ffd97a",
       desc: "熟練の万能エース。会心寄りの安定した攻めが持ち味。",
       ship: { glow: "rgba(255,225,150,0.6)", g0: "#fffdf5", g1: "#ffd97a", g2: "#c99a2a", flame: "rgba(255,235,170,0.9)", shape: "falcon" },
-      skills: ["pulse", "spread", "homing", "beam", "crit", "sniper", "haste", "velocity", "longshot", "swift", "magnet", "greed", "comboedge", "lucky", "harvest"],
+      skills: ["fork", "pulse", "spread", "homing", "crit", "sniper", "haste", "velocity", "longshot", "swift", "magnet", "greed", "comboedge", "harvest"],
       unlock: { desc: "ボスを累計20体撃破", test: (p) => p.bosses >= 20 },
     },
     seraph: {
       name: "セラフ", label: "SERAPH", swatch: "#ffcf5a",
       desc: "光輝の支援機。落雷と光輪、衝撃波で画面を制圧する。",
       ship: { glow: "rgba(255,210,110,0.65)", g0: "#fff7e6", g1: "#ffcf5a", g2: "#c98a1a", flame: "rgba(255,225,140,0.95)", shape: "seraph" },
-      skills: ["nova", "aura", "storm", "beam", "blast", "swarm", "power", "haste", "magnet", "greed", "lucky", "revive", "bigshot", "longshot"],
+      skills: ["nova", "aura", "storm", "flak", "blast", "swarm", "power", "haste", "magnet", "greed", "lucky", "revive", "bigshot", "longshot"],
       unlock: { desc: "レベル30に到達", test: (p) => p.maxLevel >= 30 },
     },
     novastar: {
@@ -738,7 +753,7 @@
       name: "リフレクス", label: "REFLEX", swatch: "#78ffbe",
       desc: "跳弾機。弾が敵から敵へ跳ね返り、密集を一掃する。",
       ship: { glow: "rgba(120,255,190,0.6)", g0: "#eafff4", g1: "#78ffbe", g2: "#1aa86e", flame: "rgba(160,255,210,0.9)", shape: "kite" },
-      skills: ["ricochet", "pulse", "spread", "beam", "homing", "multishot", "pierce", "velocity", "bigshot", "haste", "swift", "comboedge", "adrenaline", "crit"],
+      skills: ["ricochet", "pulse", "spread", "fork", "homing", "multishot", "pierce", "velocity", "bigshot", "haste", "swift", "comboedge", "adrenaline", "crit"],
       unlock: { desc: "スコア60,000を達成", test: (p) => p.bestScore >= 60000 },
     },
     ignis: {
@@ -752,7 +767,7 @@
       name: "ガーディアン", label: "GUARDIAN", swatch: "#9fd8ff",
       desc: "守勢の要塞。光輪と反射棘、再生と装甲で鉄壁を敷き耐え抜く。",
       ship: { glow: "rgba(120,180,255,0.6)", g0: "#eef4ff", g1: "#9fd8ff", g2: "#3a6ad0", flame: "rgba(170,205,255,0.9)", shape: "aegis" },
-      skills: ["orbit", "aura", "gravity", "homing", "thorns", "bulwark", "regen", "armor", "blast", "bigshot", "swift", "magnet", "greed", "revive"],
+      skills: ["orbit", "aura", "gravity", "homing", "flak", "thorns", "bulwark", "regen", "armor", "bigshot", "swift", "magnet", "greed", "revive"],
       unlock: { desc: "ハードで3分生存", test: (p) => p.bestTime.hard >= 180 },
     },
     arbiter: {
@@ -808,6 +823,31 @@
       count: 1 + Math.floor(lv / 3),
       out: 0.5 + lv * 0.02,
       range: (500 + lv * 20) * player.rangeMul,
+    };
+  }
+  function flakStats() {
+    const lv = weaponLv("flak");
+    return {
+      cooldown: 1.15 / player.fireRateMul,
+      damage: (15 + lv * 7) * dmgMul(),
+      speed: 300 + lv * 8,
+      radius: 7 + lv * 0.5,
+      count: 1 + Math.floor(lv / 3),
+      blast: 66 + lv * 11,
+      life: 0.78 + lv * 0.03,
+      range: (500 + lv * 20) * player.rangeMul,
+    };
+  }
+  function forkStats() {
+    const lv = weaponLv("fork");
+    return {
+      cooldown: 0.52 / player.fireRateMul,
+      damage: (9 + lv * 4) * dmgMul(),
+      speed: 560 + lv * 12,
+      radius: 5.5 + lv * 0.4,
+      count: player.projectiles,
+      forks: 2 + Math.floor(lv / 2),
+      range: (540 + lv * 20) * player.rangeMul,
     };
   }
   function orbitCount() { const lv = weaponLv("orbit"); return lv === 0 ? 0 : 2 + Math.floor(lv * 0.9); }
@@ -923,7 +963,7 @@
   }
 
   // weapon timers
-  const wt = { pulse: 0, nova: 0, spread: 0, beam: 0, chain: 0, homing: 0, aura: 0, gravity: 0, storm: 0, deadeye: 0, staticfield: 0, missile: 0, boomerang: 0 };
+  const wt = { pulse: 0, nova: 0, spread: 0, beam: 0, chain: 0, homing: 0, aura: 0, gravity: 0, storm: 0, deadeye: 0, staticfield: 0, missile: 0, boomerang: 0, flak: 0, fork: 0 };
 
   // ---------------------------------------------------------------------
   //  Enemy types
@@ -1622,6 +1662,42 @@
           b.boomerang = 0; b.boomOut = s.out; b.life = 2.2; b.long = true; b.spin = 0;
         }
         sfx.shoot();
+      }
+    }
+    // FLAK BURST (lobbed shell that detonates in an area)
+    if (weaponLv("flak") > 0) {
+      wt.flak -= dt;
+      if (wt.flak <= 0) {
+        const s = flakStats();
+        const target = nearestEnemy(player.x, player.y, s.range * s.range);
+        if (target) {
+          wt.flak = s.cooldown;
+          const base = Math.atan2(target.y - player.y, target.x - player.x);
+          for (let i = 0; i < s.count; i++) {
+            const a = base + (i - (s.count - 1) / 2) * 0.16 + rand(-0.05, 0.05);
+            const b = fireBullet(a, s.speed, s.damage, s.radius, WEAPONS.flak.color, WEAPONS.flak.glow, 1, false);
+            b.explodeR = s.blast; b.explodeDmg = s.damage; b.life = s.life; b.long = true;
+          }
+          sfx.shoot();
+        }
+      }
+    }
+    // SPLIT SHOT (fast bullets that fork into secondaries on hit)
+    if (weaponLv("fork") > 0) {
+      wt.fork -= dt;
+      if (wt.fork <= 0) {
+        const s = forkStats();
+        const target = nearestEnemy(player.x, player.y, s.range * s.range);
+        if (target) {
+          wt.fork = s.cooldown;
+          const base = Math.atan2(target.y - player.y, target.x - player.x);
+          for (let i = 0; i < s.count; i++) {
+            const off = (i - (s.count - 1) / 2) * 0.1;
+            const b = fireBullet(base + off, s.speed, s.damage, s.radius, WEAPONS.fork.color, WEAPONS.fork.glow, 1, false);
+            b.fork = s.forks; b.life = 1.2;
+          }
+          sfx.shoot();
+        }
       }
     }
     // PULSAR AURA (continuous field)
@@ -2336,6 +2412,7 @@
   }
 
   function updateBullets(dt) {
+    const spawned = []; // fork children, pushed after the main pass to avoid re-iteration
     for (const b of bullets) {
       // boomerang: fly out, decelerate, then curve back to the player
       if (b.boomerang !== undefined) {
@@ -2396,11 +2473,23 @@
                 break;
               }
             }
+            // split shot: spawn secondary bullets fanned off the travel line
+            if (b.fork > 0) {
+              const n = b.fork, baseA = Math.atan2(b.vy, b.vx), cs = b.speed * 0.9;
+              for (let k = 0; k < n; k++) {
+                const ca = baseA + (k - (n - 1) / 2) * 0.55 + (n === 1 ? 0.5 : 0);
+                spawned.push({ x: b.x, y: b.y, vx: Math.cos(ca) * cs, vy: Math.sin(ca) * cs, speed: cs,
+                  damage: b.damage * 0.6, crit: b.crit, r: b.r * 0.85, color: b.color, glow: b.glow,
+                  pierce: 1, hits: new Set([e]), life: 0.7, angle: ca, long: false, homing: false, turn: 0, bounces: 0, fork: 0, trail: [] });
+              }
+              spark(b.x, b.y, baseA, b.glow, "impact", 1.2);
+            }
             b.life = 0; break;
           }
         }
       }
     }
+    for (const sb of spawned) { bullets.push(sb); if (bullets.length > 260) bullets.shift(); }
     // missiles detonate when they die (impact or timeout)
     for (const b of bullets) {
       if (b.life <= 0 && b.explodeR && !b._boomed) {
@@ -4213,8 +4302,8 @@
     player.vaporTrail = [];
     // open with a reliable rapid ranged weapon so the early game is viable;
     // fall back to any ranged, then any weapon.
-    const PREFERRED = ["pulse", "spread", "beam", "chain", "homing"];
-    const RANGED = PREFERRED.concat(["storm", "staticfield", "deadeye"]);
+    const PREFERRED = ["pulse", "spread", "beam", "chain", "homing", "fork"];
+    const RANGED = PREFERRED.concat(["storm", "staticfield", "deadeye", "flak"]);
     const startWeapon = costume.skills.find((id) => PREFERRED.indexOf(id) >= 0)
       || costume.skills.find((id) => RANGED.indexOf(id) >= 0)
       || costume.skills.find((id) => WEAPONS[id]) || "pulse";
