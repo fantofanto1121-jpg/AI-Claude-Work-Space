@@ -217,6 +217,9 @@
   .ulship .code { font-family: var(--font-display); font-size: 10px; letter-spacing: 0.18em; color: var(--ink-dim); }
   .ulship h4 { font-family: var(--font-body); font-weight: 800; font-size: 15px; margin: 2px 0 6px; }
   .ulship .cond { font-size: 11px; color: var(--gold); line-height: 1.4; }
+  .ulship.sig { border-color: color-mix(in srgb, var(--cyan) 32%, var(--line)); background: linear-gradient(180deg, color-mix(in srgb, var(--cyan) 6%, var(--panel-2)), var(--panel-2)); }
+  .ulship.sig:hover { border-color: var(--cyan); box-shadow: 0 8px 30px -14px color-mix(in srgb, var(--cyan) 60%, transparent); }
+  .ulship .sigtag { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); font-size: 10px; letter-spacing: 0.02em; color: var(--cyan); line-height: 1.45; }
   .ships { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
   @media (max-width: 980px) { .ships { grid-template-columns: repeat(2, 1fr); } }
   @media (max-width: 520px) { .ships { grid-template-columns: 1fr; } }
@@ -352,7 +355,7 @@
       <a class="btn btn-ghost" href="#features">特徴を見る</a>
     </div>
     <div class="stat-row">
-      <div class="stat c1"><b>15</b><span>機体</span></div>
+      <div class="stat c1"><b>20</b><span>機体</span></div>
       <div class="stat c2"><b>10</b><span>系統のボス</span></div>
       <div class="stat c3"><b>4</b><span>難易度</span></div>
       <div class="stat c4"><b>∞</b><span>WAVE</span></div>
@@ -376,8 +379,8 @@
       </div>
       <div class="feat">
         <div class="feat-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 4v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V7z"/><path d="M12 8v6"/></svg></div>
-        <h3>15種の機体</h3>
-        <p>見た目もスキルプールも異なる15機体。うち10機体は条件達成で解放される。</p>
+        <h3>20種の機体</h3>
+        <p>見た目もスキルプールも異なる20機体。うち15機体は条件で解放。氷結・跳弾・過負荷など固有メカニクスを持つ機体も。</p>
       </div>
       <div class="feat">
         <div class="feat-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.5 5 5.5.8-4 3.9.9 5.5L12 20.5 7.1 17.2 8 11.7 4 7.8 9.5 7z"/></svg></div>
@@ -488,7 +491,7 @@
       </article>
     </div>
 
-    <div class="ships-sub">条件で解放される10機体</div>
+    <div class="ships-sub">条件で解放される15機体</div>
     <div class="ships-lock">
       <div class="ulship"><img src="img/ship-razor.png" alt="レイザー" loading="lazy"><div class="code">RAZOR</div><h4>レイザー</h4><div class="cond">累計500体を撃破</div></div>
       <div class="ulship"><img src="img/ship-nocturne.png" alt="ノクターン" loading="lazy"><div class="code">NOCTURNE</div><h4>ノクターン</h4><div class="cond">レベル15に到達</div></div>
@@ -500,6 +503,11 @@
       <div class="ulship"><img src="img/ship-falcon.png" alt="ファルコン" loading="lazy"><div class="code">FALCON</div><h4>ファルコン</h4><div class="cond">ボスを累計20体撃破</div></div>
       <div class="ulship"><img src="img/ship-seraph.png" alt="セラフ" loading="lazy"><div class="code">SERAPH</div><h4>セラフ</h4><div class="cond">レベル30に到達</div></div>
       <div class="ulship"><img src="img/ship-novastar.png" alt="ノヴァスター" loading="lazy"><div class="code">NOVASTAR</div><h4>ノヴァスター</h4><div class="cond">インフェルノで2分生存</div></div>
+      <div class="ulship sig"><img src="img/ship-glacia.png" alt="グレイシア" loading="lazy"><div class="code">GLACIA</div><h4>グレイシア</h4><div class="cond">ボスを累計12体撃破</div><div class="sigtag">氷結 — 命中で敵を凍結・鈍化</div></div>
+      <div class="ulship sig"><img src="img/ship-reflex.png" alt="リフレクス" loading="lazy"><div class="code">REFLEX</div><h4>リフレクス</h4><div class="cond">スコア60,000達成</div><div class="sigtag">跳弾 — 弾が次の敵へ跳ね返る</div></div>
+      <div class="ulship sig"><img src="img/ship-ignis.png" alt="イグニス" loading="lazy"><div class="code">IGNIS</div><h4>イグニス</h4><div class="cond">レベル25に到達</div><div class="sigtag">過負荷 — 連続撃破で火力が雪だるま式に</div></div>
+      <div class="ulship sig"><img src="img/ship-guardian.png" alt="ガーディアン" loading="lazy"><div class="code">GUARDIAN</div><h4>ガーディアン</h4><div class="cond">ハードで3分生存</div><div class="sigtag">要塞 — 周回する盾で身を固める</div></div>
+      <div class="ulship sig"><img src="img/ship-arbiter.png" alt="アービター" loading="lazy"><div class="code">ARBITER</div><h4>アービター</h4><div class="cond">累計3,500体を撃破</div><div class="sigtag">処刑 — 高クリティカルで確殺を狙う</div></div>
     </div>
   </div>
 </section>
@@ -516,16 +524,17 @@
         <p>始まりは、一機の機体と暗闇だけだった。PCで長く遊べるアリーナを目指し、移動に集中できる<span class="hl">自動攻撃のローグライト</span>として STARFALL ARENA は生まれた。</p>
         <p>すぐに手のひらでも遊べるよう、タッチの仮想スティックを載せた。強化の種類を増やし、敵の見た目を作り込み、単調だったボスを<span class="hl">4系統</span>へ広げた。派手すぎた復活や吸血は牙を抜き、イージーからハードまで難易度を選べるようにした。</p>
         <p>次に挑んだのは「個性」。5機体のコスチュームを用意し、それぞれに専用のスキルプールと固有の必殺機構を与えた。見た目も機体ごとに別のシルエットへ描き分け、選択専用ページで一覧できるようにした。機体の描画は多層化し、最終的には<span class="hl">パーツ構成の立体的なデザイン</span>へ全面刷新した。</p>
-        <p>遊びの流れも磨いた。ボス戦の最中にWAVEが重ならないよう整理し、序盤のレベルアップを軽くした。出現しなくなっていたボスを直し、最後に<span class="hl">ダッシュ</span>を加えた。加速して敵をひき殺す、一瞬の無敵。ネオンの闇は、まだ深くなっていく。</p>
+        <p>遊びの流れも磨いた。ボス戦の最中にWAVEが重ならないよう整理し、序盤のレベルアップを軽くした。出現しなくなっていたボスを直し、ダッシュを加えた。加速して敵をひき殺す、一瞬の無敵。</p>
+        <p>最後に手をかけたのは「手応え」だ。撃破と爆発のエフェクトを刷新し、煙とヒットストップ、ボス撃破のフリーズを重ねて一撃の重みを足した。被弾には<span class="hl">スローモーション</span>、爆発には<span class="hl">画面全体を焼く閃光</span>。そして機体を20種へ広げ、氷結・跳弾・過負荷・要塞・処刑という<span class="hl">固有メカニクス</span>を与えた。ネオンの闇は、まだ深くなっていく。</p>
       </div>
       <aside class="story-card">
         <h4>By the numbers</h4>
-        <div class="metric"><span>機体（コスチューム）</span><b>15</b></div>
+        <div class="metric"><span>機体（コスチューム）</span><b>20</b></div>
         <div class="metric"><span>武器・強化スキル</span><b>44+</b></div>
         <div class="metric"><span>ボスの系統</span><b>10</b></div>
         <div class="metric"><span>難易度</span><b>4</b></div>
         <div class="metric"><span>依存ライブラリ</span><b>0</b></div>
-        <div class="metric"><span>アップデート回数</span><b>24</b></div>
+        <div class="metric"><span>アップデート回数</span><b>28</b></div>
       </aside>
     </div>
   </div>
@@ -537,9 +546,13 @@
     <div class="sec-head">
       <p class="sec-eyebrow">Changelog</p>
       <h2 class="sec-title">更新履歴</h2>
-      <p class="sec-sub">最初の一歩から最新の機体まで。積み重ねてきた24回のアップデート。</p>
+      <p class="sec-sub">最初の一歩から最新の機体まで。積み重ねてきた28回のアップデート。</p>
     </div>
     <div class="log">
+      <div class="log-item boss"><div class="log-top"><span class="log-ver">BUILD 28</span><span class="log-date">2026-09-26</span></div><h4>固有メカニクスの新機体5種</h4><p>グレイシア（氷結）／リフレクス（跳弾）／イグニス（過負荷）／ガーディアン（要塞）／アービター（処刑）を追加し、計20機体に。それぞれ専用の必殺機構を持つ。</p></div>
+      <div class="log-item"><div class="log-top"><span class="log-ver">BUILD 27</span><span class="log-date">2026-09-26</span></div><h4>被弾スロー＆爆発光フラッシュ</h4><p>被弾の瞬間にスローモーションが入り、危機が肌で伝わる。爆発の光は画面全体を焼き、ボス撃破では特に強く閃く。</p></div>
+      <div class="log-item"><div class="log-top"><span class="log-ver">BUILD 26</span><span class="log-date">2026-09-26</span></div><h4>煙・ヒットストップ・撃破フリーズ</h4><p>被弾した敵が一瞬止まるヒットストップ、立ちのぼる煙、ボス撃破時の全体フリーズを追加。一撃ごとの重みを強化。</p></div>
+      <div class="log-item"><div class="log-top"><span class="log-ver">BUILD 25</span><span class="log-date">2026-09-26</span></div><h4>討伐・爆発エフェクト刷新</h4><p>撃破時の火花・破片、爆発の衝撃波と閃光を作り込み、連鎖爆発も追加。手応えのある破壊表現へ。</p></div>
       <div class="log-item"><div class="log-top"><span class="log-ver">BUILD 24</span><span class="log-date">2026-09-26</span></div><h4>機体10種を追加（条件解放）</h4><p>固有シルエットの新機体を10種追加し、計15機体に。累計キルや到達レベル、難易度別の生存などの条件で解放。</p></div>
       <div class="log-item"><div class="log-top"><span class="log-ver">BUILD 23</span><span class="log-date">2026-09-26</span></div><h4>攻撃エフェクト強化</h4><p>マズルフラッシュ、着弾スパーク、クリティカルの金色演出、白熱コアの弾道など、攻撃の見た目を一新。</p></div>
       <div class="log-item"><div class="log-top"><span class="log-ver">BUILD 22</span><span class="log-date">2026-09-25</span></div><h4>インフェルノ＆エンドレス強化</h4><p>最高難度インフェルノを追加。上限に達しても選べる無限強化を用意し、後半の敵をさらに苛烈に。極めても死にうる調整へ。</p></div>
