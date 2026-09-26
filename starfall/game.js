@@ -304,6 +304,11 @@
     voidburst: 0,         // enemies explode on death (level)
     bloodhitChance: 0,    // heal chance on hit
     vapor: 0,             // damaging move-trail (level)
+    // new signature mechanics
+    cryo: 0,              // chance to deep-freeze struck enemies (level)
+    ricochet: 0,          // bullets bounce to new targets (level = bounces)
+    overload: 0,          // kills build temporary damage stacks (level)
+    overStacks: 0, overTimer: 0,
     weapons: {},   // id -> level
     passives: {},  // id -> level
     trail: [],
@@ -322,6 +327,7 @@
     if (player.comboEdge && player.combo > 0) {
       m *= 1 + Math.min(player.comboEdge * 0.2, player.combo * 0.008 * player.comboEdge);
     }
+    if (player.overStacks > 0) m *= 1 + player.overStacks * 0.03; // overload snowball
     return m;
   }
 
@@ -545,6 +551,13 @@
       desc: () => "攻撃命中時に確率でHPを吸収する。" },
     vapor: { name: "ヴェイパートレイル", icon: "≈", tag: "ファントム専用", accent: "#ff9dc0", glow: "rgba(255,157,192,0.5)", max: 4,
       desc: () => "移動中に敵を焼く残像を残す。" },
+    // ---- new signature mechanics (drive the unlockable costumes' identities) ----
+    cryo: { name: "クライオバースト", icon: "❄", tag: "グレイシア専用", accent: "#8cdcff", glow: "rgba(140,220,255,0.55)", max: 5,
+      desc: (lv) => "命中時 " + (13 + (lv || 0) * 9) + "% で敵を氷結・鈍足化する。" },
+    ricochet: { name: "リコシェット", icon: "⟳", tag: "リフレクス専用", accent: "#78ffbe", glow: "rgba(120,255,190,0.55)", max: 5,
+      desc: (lv) => "弾が命中後、別の敵へ跳ね返る（" + ((lv || 0) + 1) + "回）。" },
+    overload: { name: "オーバーロード", icon: "≡", tag: "イグニス専用", accent: "#ffb84d", glow: "rgba(255,184,77,0.55)", max: 5,
+      desc: (lv) => "撃破ごとにダメージが累積上昇（最大 +" + ((lv || 0) + 1) * 12 * 3 + "%、止まると解除）。" },
     // ---- combo / power-up synergies ----
     comboedge: { name: "コンボエッジ", icon: "⟰", tag: "PASSIVE", accent: "#ff78d2", glow: "rgba(255,120,210,0.5)", max: 5,
       desc: (lv) => "コンボ中、コンボ数に応じてダメージ上昇（最大 +" + (((lv || 0) + 1) * 20) + "%）。" },
@@ -675,6 +688,42 @@
       ship: { glow: "rgba(255,90,200,0.6)", g0: "#ffe6f5", g1: "#ff5ac8", g2: "#c01590", flame: "rgba(255,140,220,0.9)", shape: "starcruiser" },
       skills: ["pulse", "nova", "chain", "homing", "missile", "boomerang", "deadeye", "gravity", "crit", "sniper", "power", "haste", "multishot", "comboedge", "lucky", "revive"],
       unlock: { desc: "インフェルノで2分生存", test: (p) => p.bestTime.inferno >= 120 },
+    },
+    // ---- signature-mechanic costumes (distinct playstyles) ----
+    glacia: {
+      name: "グレイシア", label: "GLACIA", swatch: "#8cdcff",
+      desc: "氷結制圧機。命中で敵を凍らせ鈍足化し、盤面を支配する。",
+      ship: { glow: "rgba(140,220,255,0.6)", g0: "#eafaff", g1: "#8cdcff", g2: "#2f7fd0", flame: "rgba(180,235,255,0.9)", shape: "crystal" },
+      skills: ["cryo", "beam", "chain", "staticfield", "gravity", "aura", "longshot", "velocity", "crit", "bigshot", "armor", "magnet", "greed", "comboedge", "revive"],
+      unlock: { desc: "ボスを累計12体撃破", test: (p) => p.bosses >= 12 },
+    },
+    reflex: {
+      name: "リフレクス", label: "REFLEX", swatch: "#78ffbe",
+      desc: "跳弾機。弾が敵から敵へ跳ね返り、密集を一掃する。",
+      ship: { glow: "rgba(120,255,190,0.6)", g0: "#eafff4", g1: "#78ffbe", g2: "#1aa86e", flame: "rgba(160,255,210,0.9)", shape: "kite" },
+      skills: ["ricochet", "pulse", "spread", "beam", "multishot", "velocity", "longshot", "haste", "crit", "sniper", "swift", "magnet", "greed", "comboedge", "lucky"],
+      unlock: { desc: "スコア60,000を達成", test: (p) => p.bestScore >= 60000 },
+    },
+    ignis: {
+      name: "イグニス", label: "IGNIS", swatch: "#ffb84d",
+      desc: "過負荷機。撃破を重ねるほど火力が雪だるま式に膨れ上がる。",
+      ship: { glow: "rgba(255,150,80,0.6)", g0: "#fff2e0", g1: "#ffb84d", g2: "#c05a12", flame: "rgba(255,190,120,0.95)", shape: "flare" },
+      skills: ["overload", "pulse", "spread", "nova", "chain", "power", "haste", "crit", "sniper", "multishot", "bigshot", "swift", "magnet", "greed", "comboedge"],
+      unlock: { desc: "レベル25に到達", test: (p) => p.maxLevel >= 25 },
+    },
+    guardian: {
+      name: "ガーディアン", label: "GUARDIAN", swatch: "#9fd8ff",
+      desc: "守勢の要塞。周回刃と光輪、シールドと反撃で鉄壁を敷く。",
+      ship: { glow: "rgba(120,180,255,0.6)", g0: "#eef4ff", g1: "#9fd8ff", g2: "#3a6ad0", flame: "rgba(170,205,255,0.9)", shape: "aegis" },
+      skills: ["orbit", "aura", "gravity", "shield", "counter", "thorns", "nova", "homing", "armor", "blast", "bigshot", "haste", "magnet", "greed", "revive", "lucky"],
+      unlock: { desc: "ハードで3分生存", test: (p) => p.bestTime.hard >= 180 },
+    },
+    arbiter: {
+      name: "アービター", label: "ARBITER", swatch: "#c9a6ff",
+      desc: "処刑執行機。会心と処刑、貫通狙撃で大型を即座に断罪する。",
+      ship: { glow: "rgba(190,150,255,0.6)", g0: "#f4ecff", g1: "#c9a6ff", g2: "#7a3ad0", flame: "rgba(210,180,255,0.9)", shape: "reaper" },
+      skills: ["deadeye", "beam", "execute", "critblast", "coldblood", "sniper", "crit", "glass", "longshot", "velocity", "bigshot", "magnet", "greed", "comboedge", "revive"],
+      unlock: { desc: "累計3,500体を撃破", test: (p) => p.kills >= 3500 },
     },
   };
   function maxBestTime(p) { return Math.max(p.bestTime.easy, p.bestTime.normal, p.bestTime.hard, p.bestTime.inferno); }
@@ -872,7 +921,7 @@
       speed: t.speed, dmg: t.dmg * enemyDmgScale(), xp: t.xp,
       color: t.color, glow: t.glow, shape: t.shape,
       splits: !!t.splits, boss: !!t.boss, bossKind: t.bossKind || null,
-      hitFlash: 0, hitStop: 0, phase: Math.random() * TAU, angle: 0,
+      hitFlash: 0, hitStop: 0, frost: 0, phase: Math.random() * TAU, angle: 0,
       knock: { x: 0, y: 0 },
       aTimer: 3, teleT: 0, dashT: 0, dvx: 0, dvy: 0,
       chargeState: "seek", chargeT: 0, chargeCd: rand(0.6, 1.6),
@@ -1198,6 +1247,16 @@
     }
     return best;
   }
+  // nearest live enemy not already hit by this bullet (for ricochet)
+  function nearestUnhit(x, y, hits, maxD) {
+    let best = null, bd = maxD * maxD;
+    for (const e of enemies) {
+      if (e.dead || hits.has(e)) continue;
+      const d = dist2(x, y, e.x, e.y);
+      if (d < bd) { bd = d; best = e; }
+    }
+    return best;
+  }
 
   // AoE damage helper (guarded so on-kill explosions can't chain infinitely).
   let inAoe = false;
@@ -1221,6 +1280,14 @@
     // hit-stop: freeze the struck enemy for a beat so hits land with weight
     // (bosses are exempt so sustained fire can't stall their attack patterns)
     if (!e.boss) e.hitStop = Math.max(e.hitStop || 0, isCrit ? 0.08 : 0.05);
+    // cryo: chance to deep-freeze / slow the struck enemy (signature)
+    if (player.cryo > 0 && e.hp > 0 && Math.random() < Math.min(0.55, 0.13 + player.cryo * 0.09)) {
+      e.slowT = Math.max(e.slowT || 0, 1.3);
+      e.slowMul = e.boss ? 0.6 : 0.22;
+      e.frost = 0.5;
+      spark(e.x, e.y, Math.random() * TAU, "rgba(150,225,255,0.9)", "impact", 1.2);
+      burst(e.x, e.y, "rgba(190,235,255,0.9)", 5, 120, [1, 2.4], 0.4);
+    }
     if (kx || ky) { e.knock.x += kx; e.knock.y += ky; }
     floater(e.x, e.y - e.r, Math.round(amount), isCrit ? "#ffd166" : "#ffffff", isCrit);
     // heal-on-hit (Phantom: ブラッドドリンカー)
@@ -1333,6 +1400,11 @@
     game.kills++;
     if (e.boss) game.bossKills++;
     scoreKill(e);
+    // overload: each kill adds a temporary damage stack (snowball) that decays
+    if (player.overload > 0) {
+      player.overStacks = Math.min(player.overload * 12, player.overStacks + (e.boss ? 8 : 1));
+      player.overTimer = 3.0;
+    }
     // power-up drops: bosses always, others rarely
     if (e.boss) { dropPowerup(e.x, e.y); dropPowerup(e.x + rand(-30, 30), e.y + rand(-30, 30)); }
     else if (Math.random() < 0.02 * (1 + player.luck * 0.7)) dropPowerup(e.x, e.y);
@@ -1647,6 +1719,7 @@
       r: radius * player.projectileSize, color, glow, pierce, hits: new Set(),
       life: isBeam ? 0.9 : 1.6, angle, long: false,
       homing: false, turn: 0,
+      bounces: player.ricochet || 0,
       trail: [],
     };
     bullets.push(b);
@@ -1744,6 +1817,8 @@
   function updatePlayer(dt) {
     // timed power-up buffs tick down (before any early return)
     updateBuffs(dt);
+    // overload snowball bleeds off if you stop killing
+    if (player.overStacks > 0) { player.overTimer -= dt; if (player.overTimer <= 0) player.overStacks = 0; }
     // dash cooldown always ticks down
     if (player.dashCd > 0) player.dashCd = Math.max(0, player.dashCd - dt);
 
@@ -1837,6 +1912,7 @@
     for (const e of enemies) {
       if (e.dead) continue;
       if (e.hitFlash > 0) e.hitFlash -= dt * 4;
+      if (e.frost > 0) e.frost -= dt;
       if (e._orbCd > 0) e._orbCd -= dt;
       e.phase += dt * 3;
 
@@ -2245,7 +2321,21 @@
           spark(b.x, b.y, a + Math.PI / 2, b.crit ? "#fff2b0" : b.color, "impact", b.crit ? 1.7 : 1);
           if (b.crit) shockwave(b.x, b.y, 30, "rgba(255,220,120,0.6)");
           b.pierce--;
-          if (b.pierce <= 0) { b.life = 0; break; }
+          if (b.pierce <= 0) {
+            // ricochet: bounce to a fresh target instead of dying
+            if (b.bounces > 0 && !b.explodeR) {
+              const t = nearestUnhit(b.x, b.y, b.hits, 340);
+              if (t) {
+                b.bounces--;
+                const ang = Math.atan2(t.y - b.y, t.x - b.x);
+                b.vx = Math.cos(ang) * b.speed; b.vy = Math.sin(ang) * b.speed;
+                b.pierce = 1; b.life = Math.max(b.life, 0.9);
+                spark(b.x, b.y, ang + Math.PI / 2, b.glow, "impact", 1.1);
+                break;
+              }
+            }
+            b.life = 0; break;
+          }
         }
       }
     }
@@ -2486,6 +2576,9 @@
         case "voidburst": player.voidburst += 1; break;
         case "bloodhit": player.bloodhitChance = clamp(player.bloodhitChance + 0.12, 0, 0.6); break;
         case "vapor": player.vapor += 1; break;
+        case "cryo": player.cryo += 1; break;
+        case "ricochet": player.ricochet += 1; break;
+        case "overload": player.overload += 1; break;
         case "comboedge": player.comboEdge += 1; break;
         case "lucky": player.luck += 1; break;
         // endless upgrades
@@ -2835,6 +2928,41 @@
       cockpit: [0,-0.4,0.16,0.38], engines: [[-0.13,1.1,0.13],[0.13,1.1,0.13]],
       stripes: [[[0,-1.15],[0,0.9]],[[-0.3,-0.1],[-0.8,-0.05]],[[0.3,-0.1],[0.8,-0.05]]], lights: [[-0.9,-0.05],[0.9,-0.05]],
     },
+    crystal: { // Glacia — faceted ice shard
+      hull: [[0,-1.45],[0.24,-0.5],[0.3,0.4],[0.16,1.05],[-0.16,1.05],[-0.3,0.4],[-0.24,-0.5]],
+      wings: [[[-0.2,-0.2],[-0.95,0.1],[-1.05,0.6],[-0.55,0.55],[-0.26,0.4]],[[0.2,-0.2],[0.95,0.1],[1.05,0.6],[0.55,0.55],[0.26,0.4]]],
+      fins: [[[-0.2,-0.55],[-0.55,-0.35],[-0.24,-0.1]],[[0.2,-0.55],[0.55,-0.35],[0.24,-0.1]]],
+      cockpit: [0,-0.6,0.14,0.44], engines: [[-0.14,1.03,0.13],[0.14,1.03,0.13]],
+      stripes: [[[0,-1.25],[0,0.9]],[[-0.28,0.1],[-0.85,0.35]],[[0.28,0.1],[0.85,0.35]]], lights: [[-1.05,0.6],[1.05,0.6]],
+    },
+    kite: { // Reflex — diamond kite with swept tips
+      hull: [[0,-1.35],[0.32,-0.1],[0.2,0.55],[0.12,1.05],[-0.12,1.05],[-0.2,0.55],[-0.32,-0.1]],
+      wings: [[[-0.28,-0.05],[-1.1,0.4],[-0.7,0.7],[-0.22,0.5]],[[0.28,-0.05],[1.1,0.4],[0.7,0.7],[0.22,0.5]]],
+      fins: [[[-0.12,0.75],[-0.4,1.1],[-0.12,0.95]],[[0.12,0.75],[0.4,1.1],[0.12,0.95]]],
+      cockpit: [0,-0.5,0.15,0.4], engines: [[-0.12,1.03,0.13],[0.12,1.03,0.13]],
+      stripes: [[[0,-1.15],[0,0.9]],[[-0.25,0.2],[-0.85,0.42]],[[0.25,0.2],[0.85,0.42]]], lights: [[-1.1,0.4],[1.1,0.4]],
+    },
+    flare: { // Ignis — upswept flame wings
+      hull: [[0,-1.4],[0.2,-0.45],[0.28,0.45],[0.16,1.05],[-0.16,1.05],[-0.28,0.45],[-0.2,-0.45]],
+      wings: [[[-0.22,-0.1],[-1.15,-0.5],[-0.85,0.05],[-0.5,0.2],[-0.26,0.35]],[[0.22,-0.1],[1.15,-0.5],[0.85,0.05],[0.5,0.2],[0.26,0.35]]],
+      fins: [[[-0.26,0.45],[-0.75,0.95],[-0.28,0.7]],[[0.26,0.45],[0.75,0.95],[0.28,0.7]]],
+      cockpit: [0,-0.55,0.15,0.4], engines: [[-0.18,1.03,0.15],[0.18,1.03,0.15]],
+      stripes: [[[0,-1.15],[0,0.9]],[[-0.3,0.05],[-0.9,-0.2]],[[0.3,0.05],[0.9,-0.2]]], lights: [[-1.15,-0.5],[1.15,-0.5],[-0.75,0.95],[0.75,0.95]],
+    },
+    aegis: { // Guardian — round shield fortress
+      hull: [[0,-1.05],[0.6,-0.55],[0.7,0.35],[0.45,1.0],[-0.45,1.0],[-0.7,0.35],[-0.6,-0.55]],
+      wings: [[[-0.6,-0.4],[-1.2,-0.05],[-1.2,0.55],[-0.8,0.85],[-0.62,0.5]],[[0.6,-0.4],[1.2,-0.05],[1.2,0.55],[0.8,0.85],[0.62,0.5]]],
+      fins: [[[-0.55,-0.55],[-0.95,-0.4],[-0.78,-0.12],[-0.5,-0.2]],[[0.55,-0.55],[0.95,-0.4],[0.78,-0.12],[0.5,-0.2]]],
+      cockpit: [0,-0.35,0.25,0.3], engines: [[-0.4,0.98,0.18],[0.4,0.98,0.18]],
+      stripes: [[[-0.5,-0.3],[0,-0.7]],[[0.5,-0.3],[0,-0.7]],[[-0.9,0.4],[-0.55,-0.05]],[[0.9,0.4],[0.55,-0.05]]], lights: [[-1.2,0.25],[1.2,0.25]],
+    },
+    reaper: { // Arbiter — long executioner dagger
+      hull: [[0,-1.7],[0.16,-0.35],[0.22,0.6],[0.13,1.1],[-0.13,1.1],[-0.22,0.6],[-0.16,-0.35]],
+      wings: [[[-0.18,0.0],[-1.0,0.55],[-0.7,0.85],[-0.2,0.55]],[[0.18,0.0],[1.0,0.55],[0.7,0.85],[0.2,0.55]]],
+      fins: [[[-0.16,-0.4],[-0.5,-0.15],[-0.2,0.02]],[[0.16,-0.4],[0.5,-0.15],[0.2,0.02]]],
+      cockpit: [0,-0.85,0.11,0.5], engines: [[0,1.1,0.17]],
+      stripes: [[[0,-1.4],[0,0.9]],[[-0.28,0.25],[-0.75,0.6]],[[0.28,0.25],[0.75,0.6]]], lights: [[-1.0,0.55],[1.0,0.55]],
+    },
   };
 
   // Tint a #rrggbb toward black (f<1) or white (f>1); returns an rgba() string.
@@ -3140,6 +3268,24 @@
         }
       }
       ctx.restore();
+
+      // frost overlay on cryo-frozen enemies
+      if (e.frost > 0 || (e.slowT > 0 && e.slowMul && e.slowMul <= 0.3)) {
+        const fa = clamp((e.frost || 0) * 1.4 + (e.slowT > 0 ? 0.35 : 0), 0, 0.7);
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        drawGlow(e.x, e.y, e.r * 1.6, "rgba(150,220,255,0.5)", fa * 0.7);
+        ctx.strokeStyle = "rgba(200,240,255," + (fa * 0.8).toFixed(2) + ")";
+        ctx.lineWidth = 1.6;
+        // little crystalline spikes
+        for (let i = 0; i < 6; i++) {
+          const a = e.phase * 0.2 + (TAU * i) / 6;
+          const x0 = e.x + Math.cos(a) * e.r * 0.9, y0 = e.y + Math.sin(a) * e.r * 0.9;
+          const x1 = e.x + Math.cos(a) * e.r * 1.35, y1 = e.y + Math.sin(a) * e.r * 1.35;
+          ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+        }
+        ctx.restore();
+      }
 
       if (e.boss) {
         const w = e.r * 2.4, h = 7;
@@ -3988,6 +4134,7 @@
     player.shieldMax = 0; player.shield = 0; player.shieldTimer = 0;
     player.counter = 0; player.executePct = 0; player.critblast = 0; player.coldblood = 0;
     player.stillTime = 0; player.voidburst = 0; player.bloodhitChance = 0; player.vapor = 0;
+    player.cryo = 0; player.ricochet = 0; player.overload = 0; player.overStacks = 0; player.overTimer = 0;
     player.vaporTrail = [];
     // open with a reliable rapid ranged weapon so the early game is viable;
     // fall back to any ranged, then any weapon.
