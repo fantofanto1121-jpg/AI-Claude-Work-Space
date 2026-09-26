@@ -560,6 +560,27 @@
       desc: (lv) => lv === 0 ? "多数の小型追尾弾を斉射し、敵を執拗に追い回す。"
         : "弾数・旋回・威力が増す。(Lv" + (lv + 1) + ")",
     },
+    flame: {
+      name: "フレイムジェット", icon: "⫸", tag: "WEAPON",
+      color: "rgba(255,150,70,1)", accent: "#ff9646", glow: "rgba(255,120,50,0.55)",
+      max: 6,
+      desc: (lv) => lv === 0 ? "前方へ火炎を噴射する近距離砲。密着した敵を焼き続ける。"
+        : "射程・噴射数・威力が増す。(Lv" + (lv + 1) + ")",
+    },
+    mine: {
+      name: "スキャッターマイン", icon: "⬗", tag: "WEAPON",
+      color: "rgba(255,90,120,1)", accent: "#ff5a78", glow: "rgba(255,90,120,0.55)",
+      max: 6,
+      desc: (lv) => lv === 0 ? "触れると炸裂する機雷を設置する。通り道を罠に変える。"
+        : "設置数・爆風・威力が増す。(Lv" + (lv + 1) + ")",
+    },
+    disruptor: {
+      name: "ディスラプター", icon: "⊗", tag: "WEAPON",
+      color: "rgba(120,200,255,1)", accent: "#78c8ff", glow: "rgba(120,200,255,0.55)",
+      max: 6,
+      desc: (lv) => lv === 0 ? "一定間隔で減速波を放ち、周囲の敵を鈍足化しつつ削る。"
+        : "範囲・威力・減速が強まる。(Lv" + (lv + 1) + ")",
+    },
   };
 
   const PASSIVES = {
@@ -692,7 +713,7 @@
       name: "テンペスト", label: "TEMPEST", swatch: "#a56bff",
       desc: "無差別掃射型。落雷と帯電で画面全体の敵を捌く。",
       ship: { glow: "rgba(165,107,255,0.6)", g0: "#f3eaff", g1: "#a56bff", g2: "#6a2bd0", flame: "rgba(200,150,255,0.9)", shape: "bolt" },
-      skills: ["chain", "storm", "staticfield", "beam", "boomerang", "swarm", "velocity", "longshot", "haste", "blast", "multishot", "magnet", "comboedge", "lucky"],
+      skills: ["chain", "storm", "staticfield", "beam", "mine", "swarm", "velocity", "longshot", "haste", "blast", "multishot", "magnet", "comboedge", "lucky"],
     },
     hunter: {
       name: "ハンター", label: "HUNTER", swatch: "#ffd166",
@@ -718,7 +739,7 @@
       name: "ノクターン", label: "NOCTURNE", swatch: "#8c7bff",
       desc: "闇の暗殺機。会心と処刑、撃破の連鎖爆発で静かに刈る。",
       ship: { glow: "rgba(140,120,255,0.6)", g0: "#efeaff", g1: "#8c7bff", g2: "#3a2a9e", flame: "rgba(170,150,255,0.9)", shape: "wraith" },
-      skills: ["deadeye", "chain", "voidburst", "execute", "coldblood", "crit", "sniper", "glass", "vapor", "velocity", "momentum", "harvest", "magnet", "revive"],
+      skills: ["deadeye", "mine", "voidburst", "execute", "coldblood", "crit", "sniper", "glass", "vapor", "velocity", "momentum", "harvest", "magnet", "revive"],
       unlock: { desc: "レベル15に到達", test: (p) => p.maxLevel >= 15 },
     },
     colossus: {
@@ -753,7 +774,7 @@
       name: "スカラベ", label: "SCARAB", swatch: "#c8f04d",
       desc: "甲殻の格闘機。吸血と反射、低HP火力で乱戦を制す。",
       ship: { glow: "rgba(200,255,90,0.6)", g0: "#f6ffe0", g1: "#c8f04d", g2: "#7aa815", flame: "rgba(220,255,140,0.9)", shape: "scarab" },
-      skills: ["chain", "aura", "whip", "lifesteal", "bloodhit", "thorns", "berserk", "adrenaline", "armor", "power", "bigshot", "harvest", "greed", "revive"],
+      skills: ["chain", "flame", "whip", "lifesteal", "bloodhit", "thorns", "berserk", "adrenaline", "armor", "power", "bigshot", "harvest", "greed", "revive"],
       unlock: { desc: "ハードで2分生存", test: (p) => p.bestTime.hard >= 120 },
     },
     falcon: {
@@ -782,7 +803,7 @@
       name: "グレイシア", label: "GLACIA", swatch: "#8cdcff",
       desc: "氷結制圧機。命中で敵を凍らせ鈍足化し、盤面を支配する。",
       ship: { glow: "rgba(140,220,255,0.6)", g0: "#eafaff", g1: "#8cdcff", g2: "#2f7fd0", flame: "rgba(180,235,255,0.9)", shape: "crystal" },
-      skills: ["cryo", "frost", "beam", "staticfield", "gravity", "aura", "weakpoint", "regen", "longshot", "crit", "bigshot", "armor", "magnet", "revive"],
+      skills: ["cryo", "frost", "beam", "disruptor", "gravity", "aura", "weakpoint", "regen", "longshot", "crit", "bigshot", "armor", "magnet", "revive"],
       unlock: { desc: "ボスを累計12体撃破", test: (p) => p.bosses >= 12 },
     },
     reflex: {
@@ -796,14 +817,14 @@
       name: "イグニス", label: "IGNIS", swatch: "#ffb84d",
       desc: "過負荷機。撃破を重ねるほど火力が雪だるま式に膨れ上がる。",
       ship: { glow: "rgba(255,150,80,0.6)", g0: "#fff2e0", g1: "#ffb84d", g2: "#c05a12", flame: "rgba(255,190,120,0.95)", shape: "flare" },
-      skills: ["overload", "pulse", "spread", "nova", "chain", "adrenaline", "swarm", "power", "haste", "crit", "multishot", "bigshot", "swift", "comboedge"],
+      skills: ["overload", "pulse", "spread", "nova", "flame", "adrenaline", "swarm", "power", "haste", "crit", "multishot", "bigshot", "swift", "comboedge"],
       unlock: { desc: "レベル25に到達", test: (p) => p.maxLevel >= 25 },
     },
     guardian: {
       name: "ガーディアン", label: "GUARDIAN", swatch: "#9fd8ff",
       desc: "守勢の要塞。光輪と反射棘、再生と装甲で鉄壁を敷き耐え抜く。",
       ship: { glow: "rgba(120,180,255,0.6)", g0: "#eef4ff", g1: "#9fd8ff", g2: "#3a6ad0", flame: "rgba(170,205,255,0.9)", shape: "aegis" },
-      skills: ["orbit", "aura", "gravity", "homing", "flak", "thorns", "bulwark", "regen", "armor", "bigshot", "swift", "magnet", "greed", "revive"],
+      skills: ["orbit", "aura", "gravity", "homing", "flak", "thorns", "bulwark", "regen", "armor", "disruptor", "swift", "magnet", "greed", "revive"],
       unlock: { desc: "ハードで3分生存", test: (p) => p.bestTime.hard >= 180 },
     },
     arbiter: {
@@ -944,6 +965,39 @@
       range: (560 + lv * 20) * player.rangeMul,
     };
   }
+  function flameStats() {
+    const lv = weaponLv("flame");
+    return {
+      cooldown: 0.11 / player.fireRateMul,
+      damage: (5 + lv * 2.5) * dmgMul(),
+      speed: 340 + lv * 10,
+      radius: 6 + lv * 0.6,
+      count: 2 + Math.floor(lv / 2),
+      spread: 0.34,
+      life: 0.3 + lv * 0.015,
+      range: (230 + lv * 14) * player.rangeMul,
+    };
+  }
+  function mineStats() {
+    const lv = weaponLv("mine");
+    return {
+      cooldown: 1.0 / player.fireRateMul,
+      damage: (16 + lv * 7) * dmgMul(),
+      radius: 8 + lv * 0.4,
+      blast: 60 + lv * 9,
+      count: 1 + Math.floor(lv / 3),
+    };
+  }
+  function disruptorStats() {
+    const lv = weaponLv("disruptor");
+    return {
+      cooldown: 1.7 / player.fireRateMul,
+      damage: (8 + lv * 4) * dmgMul(),
+      radius: (128 + lv * 14) * player.aoeMul,
+      slowMul: Math.max(0.35, 0.5 - lv * 0.03),
+      slowT: 1.3 + lv * 0.12,
+    };
+  }
   function orbitCount() { const lv = weaponLv("orbit"); return lv === 0 ? 0 : 2 + Math.floor(lv * 0.9); }
   function orbitStats() {
     const lv = weaponLv("orbit");
@@ -1057,7 +1111,7 @@
   }
 
   // weapon timers
-  const wt = { pulse: 0, nova: 0, spread: 0, beam: 0, chain: 0, homing: 0, aura: 0, gravity: 0, storm: 0, deadeye: 0, staticfield: 0, missile: 0, boomerang: 0, flak: 0, fork: 0, plasmaorb: 0, frost: 0, cluster: 0, whip: 0, seeker: 0 };
+  const wt = { pulse: 0, nova: 0, spread: 0, beam: 0, chain: 0, homing: 0, aura: 0, gravity: 0, storm: 0, deadeye: 0, staticfield: 0, missile: 0, boomerang: 0, flak: 0, fork: 0, plasmaorb: 0, frost: 0, cluster: 0, whip: 0, seeker: 0, flame: 0, mine: 0, disruptor: 0 };
 
   // ---------------------------------------------------------------------
   //  Enemy types
@@ -1884,6 +1938,54 @@
           }
           sfx.shoot();
         }
+      }
+    }
+    // FLAME JET (short-range forward stream)
+    if (weaponLv("flame") > 0) {
+      wt.flame -= dt;
+      if (wt.flame <= 0) {
+        const s = flameStats();
+        const target = nearestEnemy(player.x, player.y, s.range * s.range);
+        const dir = target ? Math.atan2(target.y - player.y, target.x - player.x) : player.facing;
+        wt.flame = s.cooldown;
+        for (let i = 0; i < s.count; i++) {
+          const a = dir + rand(-s.spread, s.spread);
+          const b = fireBullet(a, s.speed * rand(0.8, 1.1), s.damage, s.radius * rand(0.8, 1.2), WEAPONS.flame.color, WEAPONS.flame.glow, 2, false);
+          b.life = s.life;
+        }
+      }
+    }
+    // SCATTER MINE (stationary trap; detonates on contact)
+    if (weaponLv("mine") > 0) {
+      wt.mine -= dt;
+      if (wt.mine <= 0) {
+        const s = mineStats();
+        wt.mine = s.cooldown;
+        for (let i = 0; i < s.count; i++) {
+          const ang = Math.random() * TAU, off = 20 + Math.random() * 40;
+          const b = fireBullet(ang, 0, s.damage, s.radius, WEAPONS.mine.color, WEAPONS.mine.glow, 1, false);
+          b.x = player.x + Math.cos(ang) * off; b.y = player.y + Math.sin(ang) * off;
+          b.vx = 0; b.vy = 0; b.life = 6; b.mine = true; b.explodeR = s.blast; b.explodeDmg = s.damage;
+        }
+      }
+    }
+    // DISRUPTOR (periodic slowing shock pulse)
+    if (weaponLv("disruptor") > 0) {
+      wt.disruptor -= dt;
+      if (wt.disruptor <= 0) {
+        const s = disruptorStats();
+        wt.disruptor = s.cooldown;
+        shockwave(player.x, player.y, s.radius, WEAPONS.disruptor.glow);
+        shockwave(player.x, player.y, s.radius * 0.6, "rgba(200,230,255,0.6)");
+        const r2 = s.radius * s.radius;
+        for (const e of enemies) {
+          if (e.dead) continue;
+          if (dist2(player.x, player.y, e.x, e.y) < r2) {
+            damageEnemy(e, s.damage, 0, 0, false);
+            if (!e.dead && e.hp > 0) { e.slowT = Math.max(e.slowT || 0, s.slowT); e.slowMul = e.boss ? Math.max(0.6, s.slowMul) : s.slowMul; e.frost = 0.3; }
+          }
+        }
+        sfx.nova();
       }
     }
     // PULSAR AURA (continuous field)
@@ -4174,6 +4276,16 @@
         }
         ctx.fillStyle = "#ffffff";
         ctx.beginPath(); ctx.arc(0, 0, b.r * 0.4, 0, TAU); ctx.fill();
+        ctx.restore();
+      } else if (b.mine) {
+        // pulsing armed diamond
+        const pl = 0.7 + 0.3 * Math.sin(game.time * 8 + b.x * 0.1);
+        ctx.save();
+        ctx.translate(b.x, b.y);
+        ctx.rotate(Math.PI / 4);
+        ctx.fillStyle = "rgba(255,255,255," + (0.5 + 0.4 * pl) + ")";
+        const s2 = b.r * (0.9 + 0.25 * pl);
+        ctx.fillRect(-s2, -s2, s2 * 2, s2 * 2);
         ctx.restore();
       } else if (b.explodeR) {
         // missile dart pointing along travel
