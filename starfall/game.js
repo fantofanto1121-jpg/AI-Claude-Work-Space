@@ -252,6 +252,9 @@
     bossKills: 0,
     _committed: false,
     freeze: 0,
+    slow: 0,          // bullet-time on player hit
+    expFlash: 0,      // explosion-light screen flash
+    expFlashCol: "255,240,220",
     best: 0,
     bests: { easy: 0, normal: 0, hard: 0, inferno: 0 },
     shake: 0,
@@ -1148,14 +1151,21 @@
         burst(bm.x, bm.y, "rgba(255,255,255,0.9)", 4, 200, [1, 2.2], 0.4);
         debrisBurst(bm.x, bm.y, bm.color, 5, bm.scale, false);
         smokePuff(bm.x, bm.y, bm.color, 3, bm.scale);
+        flashScreen(0.12, "255,235,215");
         game.shake = Math.max(game.shake, 5);
       }
     }
     booms = booms.filter((bm) => !bm._done);
   }
+  // brief additive full-screen flash from explosion light (capped, decays fast)
+  function flashScreen(amt, col) {
+    game.expFlash = Math.min(0.62, game.expFlash + amt);
+    if (col) game.expFlashCol = col;
+  }
   function explodeEnemy(e) {
     const boss = e.boss;
     const sc = boss ? 1 : clamp(e.r / 15, 0.7, 1.9);
+    flashScreen(boss ? 0.5 : 0.05 * sc, boss ? "255,232,212" : "255,240,225");
     // fireball + layered rings + white star flash
     spark(e.x, e.y, 0, e.glow, "boom", boss ? 3.4 : 1.25 * sc);
     shockwave(e.x, e.y, (boss ? 175 : 46 * sc), e.glow);
@@ -2151,6 +2161,7 @@
     player.invuln = 0.6;
     game.shake = Math.max(game.shake, 10);
     game.hitFlash = 1;
+    game.slow = Math.max(game.slow, 0.26); // brief slow-motion beat on being hit
     burst(player.x, player.y, "rgba(255,90,90,1)", 12, 200, [2, 4], 0.5);
     sfx.hurt();
     // reactive nova (Warden: リアクティブノヴァ)
@@ -2312,6 +2323,7 @@
 
     if (game.shake > 0) game.shake = Math.max(0, game.shake - dt * 34);
     if (game.hitFlash > 0) game.hitFlash = Math.max(0, game.hitFlash - dt * 2.4);
+    if (game.expFlash > 0) game.expFlash = Math.max(0, game.expFlash - dt * 3.4);
     flashEl.style.opacity = game.hitFlash * 0.6;
 
     if (waveTimer > 0) {
@@ -2528,6 +2540,15 @@
     drawFloaters();
 
     ctx.restore();
+
+    // explosion-light screen flash (screen space, additive)
+    if (game.expFlash > 0.01) {
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      ctx.fillStyle = "rgba(" + game.expFlashCol + "," + (game.expFlash * 0.5).toFixed(3) + ")";
+      ctx.fillRect(0, 0, viewW, viewH);
+      ctx.restore();
+    }
 
     drawScoreHud();
     drawJoystick();
@@ -3943,7 +3964,7 @@
   function resetRun() {
     enemies = []; bullets = []; gems = []; particles = []; powerups = []; sparks = []; debris = []; booms = []; smoke = [];
     floaters = []; shockwaves = []; orbiters = []; lightnings = []; enemyBullets = [];
-    game.time = 0; game.kills = 0; game.bossKills = 0; game._committed = false; game.freeze = 0; game.shake = 0; game.hitFlash = 0;
+    game.time = 0; game.kills = 0; game.bossKills = 0; game._committed = false; game.freeze = 0; game.slow = 0; game.expFlash = 0; game.shake = 0; game.hitFlash = 0;
     game.spawnTimer = 0; game.nextWaveAt = 30; game.waveCount = 0; game.bossIndex = 0;
     wt.pulse = 0; wt.nova = 0; wt.spread = 0; wt.beam = 0;
     wt.chain = 0; wt.homing = 0; wt.aura = 0;
@@ -4068,19 +4089,26 @@
       if (game.freeze > 0) {
         game.freeze -= dt;
       } else {
-        game.time += dt;
-        updatePlayer(dt);
-        fireWeapons(dt);
-        updateOrbiters(dt);
-        updateBullets(dt);
-        updateEnemies(dt);
-        updateEnemyBullets(dt);
-        updateGems(dt);
-        updatePowerups(dt);
-        updateSpawner(dt);
+        // slow-motion on player hit: ease the world time scale back up to 1
+        let ts = 1;
+        if (game.slow > 0) {
+          game.slow = Math.max(0, game.slow - dt);
+          ts = 1 - clamp(game.slow / 0.26, 0, 1) * 0.66; // ~0.34x at peak
+        }
+        const wdt = dt * ts;
+        game.time += wdt;
+        updatePlayer(wdt);
+        fireWeapons(wdt);
+        updateOrbiters(wdt);
+        updateBullets(wdt);
+        updateEnemies(wdt);
+        updateEnemyBullets(wdt);
+        updateGems(wdt);
+        updatePowerups(wdt);
+        updateSpawner(wdt);
         // combo decays if you stop killing
-        if (player.comboTimer > 0) { player.comboTimer -= dt; if (player.comboTimer <= 0) player.combo = 0; }
-        updateEffects(dt);
+        if (player.comboTimer > 0) { player.comboTimer -= wdt; if (player.comboTimer <= 0) player.combo = 0; }
+        updateEffects(wdt);
         updateHud();
       }
     } else {
