@@ -4825,10 +4825,24 @@
   function drawEnemyBullets() {
     if (!enemyBullets.length) return;
     ctx.globalCompositeOperation = "lighter";
+    ctx.lineCap = "round";
     for (const b of enemyBullets) {
-      drawGlow(b.x, b.y, b.r * 2.6, b.glow, 0.9);
-      ctx.fillStyle = "#fff2f2";
-      ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 0.6, 0, TAU); ctx.fill();
+      const sp = Math.hypot(b.vx, b.vy) || 1;
+      const ux = b.vx / sp, uy = b.vy / sp;
+      // motion streak trailing behind the bolt
+      const tl = Math.min(b.r * 3.4, sp * 0.05);
+      ctx.strokeStyle = b.glow;
+      ctx.lineWidth = b.r * 1.4;
+      ctx.beginPath();
+      ctx.moveTo(b.x - ux * tl, b.y - uy * tl);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+      // outer plasma glow + layered hot core
+      drawGlow(b.x, b.y, b.r * 2.7, b.glow, 0.9);
+      ctx.fillStyle = b.color;
+      ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 0.85, 0, TAU); ctx.fill();
+      ctx.fillStyle = "#fff6f6";
+      ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 0.42, 0, TAU); ctx.fill();
     }
     ctx.globalCompositeOperation = "source-over";
   }
