@@ -581,6 +581,27 @@
       desc: (lv) => lv === 0 ? "一定間隔で減速波を放ち、周囲の敵を鈍足化しつつ削る。"
         : "範囲・威力・減速が強まる。(Lv" + (lv + 1) + ")",
     },
+    railspike: {
+      name: "レールスパイク", icon: "⌁", tag: "WEAPON",
+      color: "rgba(120,220,255,1)", accent: "#78dcff", glow: "rgba(120,220,255,0.6)",
+      max: 6,
+      desc: (lv) => lv === 0 ? "極超高速の貫通レール弾。敵の列を一直線に撃ち抜く。"
+        : "威力・貫通・連射が上がる。(Lv" + (lv + 1) + ")",
+    },
+    sentry: {
+      name: "セントリー", icon: "⌖", tag: "WEAPON",
+      color: "rgba(255,209,102,1)", accent: "#ffd166", glow: "rgba(255,209,102,0.55)",
+      max: 6,
+      desc: (lv) => lv === 0 ? "自律砲台を設置する。一定時間、近くの敵を自動で撃つ。"
+        : "設置数・連射・威力が増す。(Lv" + (lv + 1) + ")",
+    },
+    scattergun: {
+      name: "スキャッターガン", icon: "⁘", tag: "WEAPON",
+      color: "rgba(255,180,90,1)", accent: "#ffb45a", glow: "rgba(255,170,80,0.55)",
+      max: 6,
+      desc: (lv) => lv === 0 ? "至近距離へ多数の散弾を撒く。密着した敵を一掃する。"
+        : "散弾数・威力・範囲が増す。(Lv" + (lv + 1) + ")",
+    },
   };
 
   const PASSIVES = {
@@ -707,7 +728,7 @@
       name: "ウォーデン", label: "WARDEN", swatch: "#46f0a0",
       desc: "要塞型。シールドと反撃、重力場で敵を抱え込んで潰す。",
       ship: { glow: "rgba(80,255,170,0.6)", g0: "#eafff4", g1: "#46f0a0", g2: "#12b070", flame: "rgba(120,255,190,0.9)", shape: "fortress" },
-      skills: ["gravity", "orbit", "nova", "homing", "cluster", "shield", "counter", "armor", "bigshot", "blast", "power", "haste", "magnet", "revive"],
+      skills: ["gravity", "orbit", "nova", "homing", "cluster", "shield", "counter", "armor", "bigshot", "sentry", "power", "haste", "magnet", "revive"],
     },
     tempest: {
       name: "テンペスト", label: "TEMPEST", swatch: "#a56bff",
@@ -725,7 +746,7 @@
       name: "ファントム", label: "PHANTOM", swatch: "#ff5a7a",
       desc: "自壊高火力型。撃破の連鎖爆発と吸血で押し切る紅の機体。",
       ship: { glow: "rgba(255,90,120,0.6)", g0: "#ffe6ea", g1: "#ff5a7a", g2: "#c01530", flame: "rgba(255,140,160,0.9)", shape: "scythe" },
-      skills: ["chain", "aura", "voidburst", "bloodhit", "vapor", "whip", "berserk", "glass", "lifesteal", "adrenaline", "power", "swift", "magnet", "comboedge"],
+      skills: ["chain", "scattergun", "voidburst", "bloodhit", "vapor", "whip", "berserk", "glass", "lifesteal", "adrenaline", "power", "swift", "magnet", "comboedge"],
     },
     // ---- unlockable costumes (condition-gated) ----
     razor: {
@@ -746,7 +767,7 @@
       name: "コロッサス", label: "COLOSSUS", swatch: "#ffa64d",
       desc: "超重量の砲塔要塞。重力場と範囲砲、対大型火力で戦線を踏み潰す。",
       ship: { glow: "rgba(255,160,80,0.6)", g0: "#fff0e0", g1: "#ffa64d", g2: "#b25a12", flame: "rgba(255,190,120,0.9)", shape: "titan" },
-      skills: ["nova", "gravity", "flak", "spread", "weakpoint", "bulwark", "armor", "power", "bigshot", "blast", "haste", "greed", "revive", "glass"],
+      skills: ["nova", "gravity", "flak", "sentry", "weakpoint", "bulwark", "armor", "power", "bigshot", "blast", "haste", "greed", "revive", "glass"],
       unlock: { desc: "ボスを累計5体撃破", test: (p) => p.bosses >= 5 },
     },
     orbiter: {
@@ -760,14 +781,14 @@
       name: "マンタ", label: "MANTA", swatch: "#4fbfff",
       desc: "滑空型。誘導弾とミサイル、往復刃で広く弾幕を張る。",
       ship: { glow: "rgba(90,200,255,0.6)", g0: "#e8f8ff", g1: "#4fbfff", g2: "#1466c0", flame: "rgba(150,220,255,0.9)", shape: "manta" },
-      skills: ["homing", "missile", "boomerang", "fork", "aura", "velocity", "longshot", "multishot", "swift", "harvest", "swarm", "magnet", "greed", "revive"],
+      skills: ["homing", "missile", "scattergun", "fork", "boomerang", "velocity", "longshot", "multishot", "swift", "harvest", "swarm", "magnet", "greed", "revive"],
       unlock: { desc: "スコア30,000を達成", test: (p) => p.bestScore >= 30000 },
     },
     pike: {
       name: "パイク", label: "PIKE", swatch: "#ff4d6d",
       desc: "純粋な狙撃槍。貫通と会心で硬い敵を一直線に貫く。",
       ship: { glow: "rgba(255,80,110,0.6)", g0: "#ffe6ea", g1: "#ff4d6d", g2: "#b01030", flame: "rgba(255,130,150,0.9)", shape: "pike" },
-      skills: ["beam", "deadeye", "frost", "sniper", "execute", "pierce", "longshot", "bigshot", "glass", "power", "momentum", "swift", "revive", "velocity"],
+      skills: ["beam", "deadeye", "frost", "sniper", "execute", "pierce", "railspike", "bigshot", "glass", "power", "momentum", "swift", "revive", "velocity"],
       unlock: { desc: "累計2,000体を撃破", test: (p) => p.kills >= 2000 },
     },
     scarab: {
@@ -795,7 +816,7 @@
       name: "ノヴァスター", label: "NOVASTAR", swatch: "#ff5ac8",
       desc: "全兵装の頂点。あらゆる武器を束ねる究極の星艦。",
       ship: { glow: "rgba(255,90,200,0.6)", g0: "#ffe6f5", g1: "#ff5ac8", g2: "#c01590", flame: "rgba(255,140,220,0.9)", shape: "starcruiser" },
-      skills: ["pulse", "nova", "chain", "homing", "missile", "plasmaorb", "deadeye", "gravity", "weakpoint", "crit", "power", "haste", "multishot", "comboedge"],
+      skills: ["pulse", "nova", "chain", "homing", "railspike", "plasmaorb", "deadeye", "gravity", "weakpoint", "crit", "power", "haste", "multishot", "comboedge"],
       unlock: { desc: "インフェルノで2分生存", test: (p) => p.bestTime.inferno >= 120 },
     },
     // ---- signature-mechanic costumes (distinct playstyles) ----
@@ -998,6 +1019,42 @@
       slowT: 1.3 + lv * 0.12,
     };
   }
+  function railspikeStats() {
+    const lv = weaponLv("railspike");
+    return {
+      cooldown: 0.85 / player.fireRateMul,
+      damage: (18 + lv * 8) * dmgMul(),
+      speed: 1150 + lv * 40,
+      radius: 5 + lv * 0.4,
+      pierce: 8 + lv * 2,
+      range: (700 + lv * 30) * player.rangeMul,
+    };
+  }
+  function sentryStats() {
+    const lv = weaponLv("sentry");
+    return {
+      cooldown: 2.6 / player.fireRateMul,
+      life: 5 + lv * 0.4,
+      fire: 0.42 / player.fireRateMul,
+      shotDamage: (10 + lv * 5) * dmgMul(),
+      shotSpeed: 640,
+      shotR: 5,
+      range: (420 + lv * 24) * player.rangeMul,
+    };
+  }
+  function scattergunStats() {
+    const lv = weaponLv("scattergun");
+    return {
+      cooldown: 0.8 / player.fireRateMul,
+      damage: (7 + lv * 3) * dmgMul(),
+      speed: 560 + lv * 12,
+      radius: 4.5 + lv * 0.3,
+      count: 6 + lv,
+      arc: 1.1 + lv * 0.05,
+      life: 0.3 + lv * 0.015,
+      range: (320 + lv * 16) * player.rangeMul,
+    };
+  }
   function orbitCount() { const lv = weaponLv("orbit"); return lv === 0 ? 0 : 2 + Math.floor(lv * 0.9); }
   function orbitStats() {
     const lv = weaponLv("orbit");
@@ -1111,7 +1168,7 @@
   }
 
   // weapon timers
-  const wt = { pulse: 0, nova: 0, spread: 0, beam: 0, chain: 0, homing: 0, aura: 0, gravity: 0, storm: 0, deadeye: 0, staticfield: 0, missile: 0, boomerang: 0, flak: 0, fork: 0, plasmaorb: 0, frost: 0, cluster: 0, whip: 0, seeker: 0, flame: 0, mine: 0, disruptor: 0 };
+  const wt = { pulse: 0, nova: 0, spread: 0, beam: 0, chain: 0, homing: 0, aura: 0, gravity: 0, storm: 0, deadeye: 0, staticfield: 0, missile: 0, boomerang: 0, flak: 0, fork: 0, plasmaorb: 0, frost: 0, cluster: 0, whip: 0, seeker: 0, flame: 0, mine: 0, disruptor: 0, railspike: 0, sentry: 0, scattergun: 0 };
 
   // ---------------------------------------------------------------------
   //  Enemy types
@@ -1988,6 +2045,51 @@
         sfx.nova();
       }
     }
+    // RAIL SPIKE (ultra-fast piercing lance)
+    if (weaponLv("railspike") > 0) {
+      wt.railspike -= dt;
+      if (wt.railspike <= 0) {
+        const s = railspikeStats();
+        const target = nearestEnemy(player.x, player.y, s.range * s.range);
+        if (target) {
+          wt.railspike = s.cooldown;
+          const a = Math.atan2(target.y - player.y, target.x - player.x);
+          const b = fireBullet(a, s.speed, s.damage, s.radius, WEAPONS.railspike.color, WEAPONS.railspike.glow, s.pierce, true);
+          b.long = true; b.life = 0.7;
+          sfx.shoot();
+        }
+      }
+    }
+    // SENTRY (deployable auto-turret)
+    if (weaponLv("sentry") > 0) {
+      wt.sentry -= dt;
+      if (wt.sentry <= 0) {
+        const s = sentryStats();
+        wt.sentry = s.cooldown;
+        const ang = Math.random() * TAU, off = 24;
+        const b = fireBullet(0, 0, 0, s.shotR, WEAPONS.sentry.color, WEAPONS.sentry.glow, 1, false);
+        b.x = player.x + Math.cos(ang) * off; b.y = player.y + Math.sin(ang) * off;
+        b.vx = 0; b.vy = 0; b.life = s.life;
+        b.sentry = true; b.sentryFireCd = s.fire; b.sentryFire = s.fire;
+        b.sentryDmg = s.shotDamage; b.sentryShotSpeed = s.shotSpeed; b.sentryRange = s.range; b.spin = 0;
+      }
+    }
+    // SCATTER GUN (short-range shotgun spread)
+    if (weaponLv("scattergun") > 0) {
+      wt.scattergun -= dt;
+      if (wt.scattergun <= 0) {
+        const s = scattergunStats();
+        const target = nearestEnemy(player.x, player.y, s.range * s.range);
+        const dir = target ? Math.atan2(target.y - player.y, target.x - player.x) : player.facing;
+        wt.scattergun = s.cooldown;
+        for (let i = 0; i < s.count; i++) {
+          const a = dir + rand(-s.arc / 2, s.arc / 2);
+          const b = fireBullet(a, s.speed * rand(0.82, 1.12), s.damage, s.radius, WEAPONS.scattergun.color, WEAPONS.scattergun.glow, 1, false);
+          b.life = s.life;
+        }
+        sfx.shoot();
+      }
+    }
     // PULSAR AURA (continuous field)
     if (weaponLv("aura") > 0) {
       wt.aura -= dt;
@@ -2700,8 +2802,27 @@
   }
 
   function updateBullets(dt) {
-    const spawned = []; // fork children, pushed after the main pass to avoid re-iteration
+    const spawned = []; // fork children / sentry shots, pushed after the main pass to avoid re-iteration
     for (const b of bullets) {
+      // sentry turret: stationary, ticks down, auto-fires at the nearest enemy
+      if (b.sentry) {
+        b.life -= dt;
+        b.spin = (b.spin || 0) + dt * 3;
+        b.sentryFireCd -= dt;
+        if (b.sentryFireCd <= 0) {
+          const t = nearestEnemy(b.x, b.y, b.sentryRange * b.sentryRange);
+          if (t) {
+            b.sentryFireCd = b.sentryFire;
+            const a = Math.atan2(t.y - b.y, t.x - b.x);
+            const crit = Math.random() < critChanceNow();
+            spawned.push({ x: b.x, y: b.y, vx: Math.cos(a) * b.sentryShotSpeed, vy: Math.sin(a) * b.sentryShotSpeed, speed: b.sentryShotSpeed,
+              damage: crit ? b.sentryDmg * player.critMul : b.sentryDmg, crit, r: 5 * player.projectileSize, color: b.color, glow: b.glow,
+              pierce: 1, hits: new Set(), life: 1.4, angle: a, long: false, homing: false, turn: 0, bounces: 0, fork: 0, trail: [] });
+            spark(b.x, b.y, a, b.glow, "muzzle", 0.9);
+          }
+        }
+        continue; // sentries don't move or collide as projectiles
+      }
       // boomerang: fly out, decelerate, then curve back to the player
       if (b.boomerang !== undefined) {
         b.boomerang += dt;
@@ -4262,7 +4383,20 @@
         ctx.stroke();
       }
       drawGlow(b.x, b.y, b.r * 3, b.glow, 0.9);
-      if (b.boomerang !== undefined) {
+      if (b.sentry) {
+        // deployed turret: rotating crosshair ring
+        ctx.save();
+        ctx.translate(b.x, b.y);
+        ctx.strokeStyle = "rgba(255,240,200,0.95)"; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(0, 0, b.r * 1.5, 0, TAU); ctx.stroke();
+        ctx.rotate(b.spin || 0);
+        ctx.beginPath();
+        for (let k = 0; k < 4; k++) { ctx.rotate(TAU / 4); ctx.moveTo(b.r * 0.9, 0); ctx.lineTo(b.r * 2.1, 0); }
+        ctx.stroke();
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath(); ctx.arc(0, 0, b.r * 0.5, 0, TAU); ctx.fill();
+        ctx.restore();
+      } else if (b.boomerang !== undefined) {
         // spinning three-blade glaive
         ctx.save();
         ctx.translate(b.x, b.y);
@@ -4641,8 +4775,8 @@
     player.vaporTrail = [];
     // open with a reliable rapid ranged weapon so the early game is viable;
     // fall back to any ranged, then any weapon.
-    const PREFERRED = ["pulse", "spread", "beam", "chain", "homing", "fork", "frost", "seeker"];
-    const RANGED = PREFERRED.concat(["storm", "staticfield", "deadeye", "flak", "plasmaorb", "cluster"]);
+    const PREFERRED = ["pulse", "spread", "beam", "chain", "homing", "fork", "frost", "seeker", "railspike"];
+    const RANGED = PREFERRED.concat(["storm", "staticfield", "deadeye", "flak", "plasmaorb", "cluster", "scattergun", "sentry"]);
     const startWeapon = costume.skills.find((id) => PREFERRED.indexOf(id) >= 0)
       || costume.skills.find((id) => RANGED.indexOf(id) >= 0)
       || costume.skills.find((id) => WEAPONS[id]) || "pulse";
