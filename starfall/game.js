@@ -324,6 +324,7 @@
   let bullets = [];
   let gems = [];
   let powerups = []; // timed power-up drops
+  let sparks = [];   // muzzle flashes / impact sparks / kill flashes (additive)
   let particles = [];
   let floaters = []; // damage numbers / text
   let shockwaves = [];
@@ -914,6 +915,62 @@
   function shockwave(x, y, radius, color) {
     shockwaves.push({ x, y, r: 8, max: radius, color, life: 1 });
   }
+  // Short-lived additive flash: kind = "muzzle" | "impact" | "kill".
+  function spark(x, y, angle, color, kind, scale) {
+    sparks.push({ x, y, angle: angle || 0, color, kind: kind || "impact", scale: scale || 1, life: 1 });
+    if (sparks.length > 180) sparks.shift();
+  }
+  function updateSparks(dt) {
+    for (const s of sparks) {
+      const rate = s.kind === "muzzle" ? 10 : s.kind === "kill" ? 4.5 : 6.5;
+      s.life -= dt * rate;
+    }
+    sparks = sparks.filter((s) => s.life > 0);
+  }
+  function drawSparks() {
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    for (const s of sparks) {
+      const a = clamp(s.life, 0, 1), sc = s.scale;
+      if (s.kind === "muzzle") {
+        ctx.save();
+        ctx.translate(s.x, s.y); ctx.rotate(s.angle);
+        const len = (24 + 14 * (1 - a)) * sc;
+        const g = ctx.createLinearGradient(0, 0, len, 0);
+        g.addColorStop(0, "rgba(255,255,255," + (0.9 * a) + ")");
+        g.addColorStop(0.4, s.color);
+        g.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.moveTo(0, -6 * a * sc); ctx.lineTo(len, 0); ctx.lineTo(0, 6 * a * sc); ctx.closePath(); ctx.fill();
+        drawGlow(0, 0, 13 * a * sc, s.color, a);
+        ctx.strokeStyle = "rgba(255,255,255," + (0.7 * a) + ")"; ctx.lineWidth = 1.4;
+        for (let i = -1; i <= 1; i++) { const ang = i * 0.55; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(ang) * len * 0.72, Math.sin(ang) * len * 0.72); ctx.stroke(); }
+        ctx.restore();
+      } else if (s.kind === "kill") {
+        const rr = (1 - a) * 34 * sc + 8;
+        drawGlow(s.x, s.y, 20 * a * sc, s.color, a * 0.9);
+        ctx.strokeStyle = "rgba(255,255,255," + (0.75 * a) + ")"; ctx.lineWidth = 2.2 * a + 0.6;
+        ctx.beginPath(); ctx.arc(s.x, s.y, rr, 0, TAU); ctx.stroke();
+        ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(s.angle);
+        const r = 16 * a * sc + 4;
+        ctx.strokeStyle = "rgba(255,255,255," + a + ")"; ctx.lineWidth = 1.6;
+        for (let i = 0; i < 4; i++) { ctx.rotate(Math.PI / 2); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -r); ctx.stroke(); }
+        ctx.restore();
+      } else { // impact
+        const rr = (1 - a) * 16 * sc + 3;
+        drawGlow(s.x, s.y, 13 * a * sc, s.color, a);
+        ctx.strokeStyle = "rgba(255,255,255," + (0.8 * a) + ")"; ctx.lineWidth = 1.8 * a + 0.4;
+        ctx.beginPath(); ctx.arc(s.x, s.y, rr, 0, TAU); ctx.stroke();
+        ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(s.angle);
+        const r = (10 * a + 4) * sc;
+        ctx.strokeStyle = "rgba(255,255,255," + a + ")"; ctx.lineWidth = 1.3;
+        ctx.beginPath(); ctx.moveTo(-r, 0); ctx.lineTo(r, 0); ctx.moveTo(0, -r * 0.55); ctx.lineTo(0, r * 0.55); ctx.stroke();
+        ctx.restore();
+      }
+    }
+    ctx.restore();
+    ctx.globalCompositeOperation = "source-over";
+  }
 
   // ---------------------------------------------------------------------
   //  Combat
@@ -1071,6 +1128,7 @@
     }
     burst(e.x, e.y, e.color, e.boss ? 46 : 14, e.boss ? 320 : 190, [1.5, e.boss ? 5 : 3.5], e.boss ? 0.9 : 0.55);
     shockwave(e.x, e.y, e.boss ? 180 : 46, e.glow);
+    spark(e.x, e.y, Math.random() * TAU, e.boss ? "#ffffff" : e.color, "kill", e.boss ? 2.4 : 1);
     if (e.boss) { game.shake = Math.max(game.shake, 14); sfx.nova(); }
     else sfx.kill();
 
@@ -1151,7 +1209,10 @@
       if (wt.nova <= 0) {
         const s = novaStats();
         wt.nova = s.cooldown;
+        // layered expanding rings + a bright central flash
         shockwave(player.x, player.y, s.radius, WEAPONS.nova.glow);
+        shockwave(player.x, player.y, s.radius * 0.7, "rgba(255,255,255,0.7)");
+        spark(player.x, player.y, 0, WEAPONS.nova.color, "kill", 2.2);
         game.shake = Math.max(game.shake, 5);
         sfx.nova();
         const r2 = s.radius * s.radius;
@@ -1161,7 +1222,7 @@
             damageEnemy(e, s.damage, Math.cos(a) * 160, Math.sin(a) * 160, false);
           }
         }
-        burst(player.x, player.y, WEAPONS.nova.color, 26, 260, [2, 4], 0.6);
+        burst(player.x, player.y, WEAPONS.nova.color, 30, 300, [2, 4.5], 0.6);
       }
     }
     // CHAIN LIGHTNING
@@ -1373,6 +1434,8 @@
     };
     bullets.push(b);
     if (bullets.length > 260) bullets.shift();
+    // muzzle flash at the ship, along the firing direction
+    spark(player.x + Math.cos(angle) * player.r * 0.9, player.y + Math.sin(angle) * player.r * 0.9, angle, glow, "muzzle", isBeam ? 1.5 : 1);
     return b;
   }
 
@@ -1956,7 +2019,9 @@
           const a = Math.atan2(b.vy, b.vx);
           damageEnemy(e, b.damage, Math.cos(a) * 70, Math.sin(a) * 70, b.crit);
           b.hits.add(e);
-          burst(b.x, b.y, b.color, 4, 120, [1, 2.4], 0.3);
+          burst(b.x, b.y, b.color, b.crit ? 8 : 4, b.crit ? 200 : 120, [1, b.crit ? 3 : 2.4], 0.3);
+          spark(b.x, b.y, a + Math.PI / 2, b.crit ? "#fff2b0" : b.color, "impact", b.crit ? 1.7 : 1);
+          if (b.crit) shockwave(b.x, b.y, 30, "rgba(255,220,120,0.6)");
           b.pierce--;
           if (b.pierce <= 0) { b.life = 0; break; }
         }
@@ -2028,6 +2093,8 @@
 
     for (const ln of lightnings) ln.life -= dt * 4.5;
     lightnings = lightnings.filter((ln) => ln.life > 0);
+
+    updateSparks(dt);
 
     if (game.shake > 0) game.shake = Math.max(0, game.shake - dt * 34);
     if (game.hitFlash > 0) game.hitFlash = Math.max(0, game.hitFlash - dt * 2.4);
@@ -2241,6 +2308,7 @@
     drawPlayer();
     drawShockwaves();
     drawParticles();
+    drawSparks();
     drawFloaters();
 
     ctx.restore();
@@ -3251,15 +3319,18 @@
   function drawBullets() {
     ctx.globalCompositeOperation = "lighter";
     for (const b of bullets) {
-      // trail
+      // trail: soft colored glow with a hot white core
       if (b.trail.length > 1) {
-        ctx.strokeStyle = b.glow;
-        ctx.lineWidth = b.r * (b.long ? 1.8 : 1.2);
-        ctx.lineCap = "round";
+        ctx.lineCap = "round"; ctx.lineJoin = "round";
         ctx.beginPath();
         ctx.moveTo(b.trail[0].x, b.trail[0].y);
         for (let i = 1; i < b.trail.length; i++) ctx.lineTo(b.trail[i].x, b.trail[i].y);
         ctx.lineTo(b.x, b.y);
+        ctx.strokeStyle = b.glow;
+        ctx.lineWidth = b.r * (b.long ? 2.4 : 1.7);
+        ctx.stroke();
+        ctx.strokeStyle = "rgba(255,255,255,0.85)";
+        ctx.lineWidth = b.r * (b.long ? 0.9 : 0.6);
         ctx.stroke();
       }
       drawGlow(b.x, b.y, b.r * 3, b.glow, 0.9);
@@ -3580,7 +3651,7 @@
   }
 
   function resetRun() {
-    enemies = []; bullets = []; gems = []; particles = []; powerups = [];
+    enemies = []; bullets = []; gems = []; particles = []; powerups = []; sparks = [];
     floaters = []; shockwaves = []; orbiters = []; lightnings = []; enemyBullets = [];
     game.time = 0; game.kills = 0; game.shake = 0; game.hitFlash = 0;
     game.spawnTimer = 0; game.nextWaveAt = 30; game.waveCount = 0; game.bossIndex = 0;
