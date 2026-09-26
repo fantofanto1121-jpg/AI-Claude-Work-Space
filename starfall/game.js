@@ -369,6 +369,7 @@
   let scythes = [];    // orbiting reaper blades (soul scythe weapon)
   let scytheAngle = 0;
   let waves = [];      // expanding damage rings (pulse wave weapon)
+  let zones = [];      // lingering burning ground (flare launcher weapon)
   let enemyBullets = []; // hostile projectiles (sentry boss)
 
   // ---------------------------------------------------------------------
@@ -647,6 +648,27 @@
       desc: (lv) => lv === 0 ? "外周へ広がる衝撃の輪。通過する敵を弾き飛ばし削る。"
         : "範囲・威力・波数が増す。(Lv" + (lv + 1) + ")",
     },
+    bouncebomb: {
+      name: "バウンスボム", icon: "⇌", tag: "WEAPON",
+      color: "rgba(255,140,90,1)", accent: "#ff8c5a", glow: "rgba(255,120,70,0.55)",
+      max: 6,
+      desc: (lv) => lv === 0 ? "敵に当たって跳ね回り、最後に大きく炸裂する爆弾。"
+        : "跳弾数・爆風・威力が増す。(Lv" + (lv + 1) + ")",
+    },
+    swordstorm: {
+      name: "ホーミングソード", icon: "⤨", tag: "WEAPON",
+      color: "rgba(200,220,255,1)", accent: "#c8dcff", glow: "rgba(180,205,255,0.55)",
+      max: 6,
+      desc: (lv) => lv === 0 ? "追尾する光の剣を展開し、敵を貫きながら舞う。"
+        : "剣数・貫通・威力が増す。(Lv" + (lv + 1) + ")",
+    },
+    flare: {
+      name: "フレアランチャー", icon: "⁕", tag: "WEAPON",
+      color: "rgba(255,160,70,1)", accent: "#ffa046", glow: "rgba(255,140,60,0.55)",
+      max: 6,
+      desc: (lv) => lv === 0 ? "着弾で燃焼地帯を生む照明弾。その場に居る敵を焼き続ける。"
+        : "範囲・持続・威力が増す。(Lv" + (lv + 1) + ")",
+    },
   };
 
   const PASSIVES = {
@@ -812,7 +834,7 @@
       name: "コロッサス", label: "COLOSSUS", swatch: "#ffa64d",
       desc: "超重量の砲塔要塞。重力場と範囲砲、対大型火力で戦線を踏み潰す。",
       ship: { glow: "rgba(255,160,80,0.6)", g0: "#fff0e0", g1: "#ffa64d", g2: "#b25a12", flame: "rgba(255,190,120,0.9)", shape: "titan" },
-      skills: ["nova", "gravity", "flak", "sentry", "weakpoint", "bulwark", "armor", "power", "bigshot", "blast", "haste", "greed", "revive", "glass"],
+      skills: ["nova", "gravity", "flak", "sentry", "weakpoint", "bulwark", "armor", "power", "bigshot", "bouncebomb", "haste", "greed", "revive", "glass"],
       unlock: { desc: "ボスを累計5体撃破", test: (p) => p.bosses >= 5 },
     },
     orbiter: {
@@ -826,7 +848,7 @@
       name: "マンタ", label: "MANTA", swatch: "#4fbfff",
       desc: "滑空型。誘導弾とミサイル、往復刃で広く弾幕を張る。",
       ship: { glow: "rgba(90,200,255,0.6)", g0: "#e8f8ff", g1: "#4fbfff", g2: "#1466c0", flame: "rgba(150,220,255,0.9)", shape: "manta" },
-      skills: ["homing", "missile", "scattergun", "fork", "boomerang", "velocity", "longshot", "multishot", "swift", "harvest", "swarm", "magnet", "greed", "revive"],
+      skills: ["homing", "missile", "scattergun", "fork", "boomerang", "velocity", "longshot", "bouncebomb", "swift", "harvest", "swarm", "magnet", "greed", "revive"],
       unlock: { desc: "スコア30,000を達成", test: (p) => p.bestScore >= 30000 },
     },
     pike: {
@@ -847,7 +869,7 @@
       name: "ファルコン", label: "FALCON", swatch: "#ffd97a",
       desc: "熟練の万能エース。会心寄りの安定した攻めが持ち味。",
       ship: { glow: "rgba(255,225,150,0.6)", g0: "#fffdf5", g1: "#ffd97a", g2: "#c99a2a", flame: "rgba(255,235,170,0.9)", shape: "falcon" },
-      skills: ["fork", "pulse", "spread", "seeker", "crit", "sniper", "haste", "velocity", "longshot", "swift", "magnet", "greed", "comboedge", "harvest"],
+      skills: ["fork", "pulse", "spread", "seeker", "crit", "sniper", "haste", "velocity", "swordstorm", "swift", "magnet", "greed", "comboedge", "harvest"],
       unlock: { desc: "ボスを累計20体撃破", test: (p) => p.bosses >= 20 },
     },
     seraph: {
@@ -861,7 +883,7 @@
       name: "ノヴァスター", label: "NOVASTAR", swatch: "#ff5ac8",
       desc: "全兵装の頂点。あらゆる武器を束ねる究極の星艦。",
       ship: { glow: "rgba(255,90,200,0.6)", g0: "#ffe6f5", g1: "#ff5ac8", g2: "#c01590", flame: "rgba(255,140,220,0.9)", shape: "starcruiser" },
-      skills: ["pulse", "nova", "chain", "homing", "railspike", "plasmaorb", "deadeye", "gravity", "weakpoint", "crit", "power", "haste", "multishot", "comboedge"],
+      skills: ["pulse", "nova", "chain", "homing", "railspike", "plasmaorb", "deadeye", "gravity", "weakpoint", "crit", "power", "haste", "swordstorm", "comboedge"],
       unlock: { desc: "インフェルノで2分生存", test: (p) => p.bestTime.inferno >= 120 },
     },
     // ---- signature-mechanic costumes (distinct playstyles) ----
@@ -883,14 +905,14 @@
       name: "イグニス", label: "IGNIS", swatch: "#ffb84d",
       desc: "過負荷機。撃破を重ねるほど火力が雪だるま式に膨れ上がる。",
       ship: { glow: "rgba(255,150,80,0.6)", g0: "#fff2e0", g1: "#ffb84d", g2: "#c05a12", flame: "rgba(255,190,120,0.95)", shape: "flare" },
-      skills: ["overload", "pulse", "spread", "nova", "flame", "adrenaline", "swarm", "power", "haste", "crit", "multishot", "bigshot", "swift", "comboedge"],
+      skills: ["overload", "pulse", "spread", "nova", "flame", "adrenaline", "swarm", "power", "haste", "crit", "flare", "bigshot", "swift", "comboedge"],
       unlock: { desc: "レベル25に到達", test: (p) => p.maxLevel >= 25 },
     },
     guardian: {
       name: "ガーディアン", label: "GUARDIAN", swatch: "#9fd8ff",
       desc: "守勢の要塞。光輪と反射棘、再生と装甲で鉄壁を敷き耐え抜く。",
       ship: { glow: "rgba(120,180,255,0.6)", g0: "#eef4ff", g1: "#9fd8ff", g2: "#3a6ad0", flame: "rgba(170,205,255,0.9)", shape: "aegis" },
-      skills: ["orbit", "aura", "gravity", "homing", "flak", "thorns", "bulwark", "regen", "armor", "disruptor", "pulsewave", "magnet", "greed", "revive"],
+      skills: ["orbit", "aura", "gravity", "homing", "flak", "thorns", "bulwark", "regen", "armor", "disruptor", "pulsewave", "magnet", "flare", "revive"],
       unlock: { desc: "ハードで3分生存", test: (p) => p.bestTime.hard >= 180 },
     },
     arbiter: {
@@ -1166,6 +1188,45 @@
       waves: 1 + Math.floor(lv / 3),
     };
   }
+  function bouncebombStats() {
+    const lv = weaponLv("bouncebomb");
+    return {
+      cooldown: 1.0 / player.fireRateMul,
+      damage: (14 + lv * 6) * dmgMul(),
+      speed: 470 + lv * 10,
+      radius: 7 + lv * 0.5,
+      blast: 56 + lv * 8,
+      bounces: 2 + Math.floor(lv / 2),
+      range: (540 + lv * 20) * player.rangeMul,
+    };
+  }
+  function swordstormStats() {
+    const lv = weaponLv("swordstorm");
+    return {
+      cooldown: 1.1 / player.fireRateMul,
+      damage: (13 + lv * 5) * dmgMul(),
+      speed: 300 + lv * 10,
+      radius: 9 + lv * 0.6,
+      count: 2 + Math.floor(lv / 2),
+      turn: 3.0 + lv * 0.2,
+      pierce: 3 + lv,
+      range: (600 + lv * 20) * player.rangeMul,
+    };
+  }
+  function flareStats() {
+    const lv = weaponLv("flare");
+    return {
+      cooldown: 1.6 / player.fireRateMul,
+      speed: 320 + lv * 8,
+      radius: 8 + lv * 0.4,
+      blast: 40,
+      zoneR: (68 + lv * 8) * player.aoeMul,
+      zoneLife: 3 + lv * 0.25,
+      zoneCd: 0.35,
+      tickDmg: (5 + lv * 2.5) * dmgMul(),
+      range: (500 + lv * 20) * player.rangeMul,
+    };
+  }
   function orbitCount() { const lv = weaponLv("orbit"); return lv === 0 ? 0 : 2 + Math.floor(lv * 0.9); }
   function orbitStats() {
     const lv = weaponLv("orbit");
@@ -1279,7 +1340,7 @@
   }
 
   // weapon timers
-  const wt = { pulse: 0, nova: 0, spread: 0, beam: 0, chain: 0, homing: 0, aura: 0, gravity: 0, storm: 0, deadeye: 0, staticfield: 0, missile: 0, boomerang: 0, flak: 0, fork: 0, plasmaorb: 0, frost: 0, cluster: 0, whip: 0, seeker: 0, flame: 0, mine: 0, disruptor: 0, railspike: 0, sentry: 0, scattergun: 0, twinfang: 0, prism: 0, blackhole: 0, scythe: 0, voltage: 0, pulsewave: 0 };
+  const wt = { pulse: 0, nova: 0, spread: 0, beam: 0, chain: 0, homing: 0, aura: 0, gravity: 0, storm: 0, deadeye: 0, staticfield: 0, missile: 0, boomerang: 0, flak: 0, fork: 0, plasmaorb: 0, frost: 0, cluster: 0, whip: 0, seeker: 0, flame: 0, mine: 0, disruptor: 0, railspike: 0, sentry: 0, scattergun: 0, twinfang: 0, prism: 0, blackhole: 0, scythe: 0, voltage: 0, pulsewave: 0, bouncebomb: 0, swordstorm: 0, flare: 0 };
 
   // ---------------------------------------------------------------------
   //  Enemy types
@@ -2287,6 +2348,55 @@
         sfx.nova();
       }
     }
+    // BOUNCE BOMB (ricochets between foes, then detonates)
+    if (weaponLv("bouncebomb") > 0) {
+      wt.bouncebomb -= dt;
+      if (wt.bouncebomb <= 0) {
+        const s = bouncebombStats();
+        const target = nearestEnemy(player.x, player.y, s.range * s.range);
+        if (target) {
+          wt.bouncebomb = s.cooldown;
+          const a = Math.atan2(target.y - player.y, target.x - player.x);
+          const b = fireBullet(a, s.speed, s.damage, s.radius, WEAPONS.bouncebomb.color, WEAPONS.bouncebomb.glow, 1, false);
+          b.explodeR = s.blast; b.explodeDmg = s.damage; b.life = 2.6; b.long = true;
+          b.bounceBomb = true; b.bounces = s.bounces;
+          sfx.shoot();
+        }
+      }
+    }
+    // SWORD STORM (homing piercing blades)
+    if (weaponLv("swordstorm") > 0) {
+      wt.swordstorm -= dt;
+      if (wt.swordstorm <= 0) {
+        const s = swordstormStats();
+        const target = nearestEnemy(player.x, player.y, s.range * s.range);
+        if (target) {
+          wt.swordstorm = s.cooldown;
+          for (let i = 0; i < s.count; i++) {
+            const a = player.facing + (i - (s.count - 1) / 2) * 0.7 + rand(-0.2, 0.2);
+            const b = fireBullet(a, s.speed, s.damage, s.radius, WEAPONS.swordstorm.color, WEAPONS.swordstorm.glow, s.pierce, false);
+            b.homing = true; b.turn = s.turn; b.life = 3.4; b.sword = true; b.spin = 0;
+          }
+          sfx.shoot();
+        }
+      }
+    }
+    // FLARE LAUNCHER (creates a lingering burning zone)
+    if (weaponLv("flare") > 0) {
+      wt.flare -= dt;
+      if (wt.flare <= 0) {
+        const s = flareStats();
+        const target = nearestEnemy(player.x, player.y, s.range * s.range);
+        if (target) {
+          wt.flare = s.cooldown;
+          const a = Math.atan2(target.y - player.y, target.x - player.x);
+          const b = fireBullet(a, s.speed, s.tickDmg, s.radius, WEAPONS.flare.color, WEAPONS.flare.glow, 1, false);
+          b.explodeR = s.blast; b.explodeDmg = s.tickDmg; b.life = 0.9; b.long = true;
+          b.flareZone = { r: s.zoneR, life: s.zoneLife, cd: s.zoneCd, damage: s.tickDmg };
+          sfx.shoot();
+        }
+      }
+    }
     // PULSAR AURA (continuous field)
     if (weaponLv("aura") > 0) {
       wt.aura -= dt;
@@ -2505,6 +2615,22 @@
       }
     }
     waves = waves.filter((w) => w.r < w.maxR);
+  }
+
+  function updateZones(dt) {
+    for (const z of zones) {
+      z.life -= dt;
+      z.cd -= dt;
+      if (z.cd <= 0) {
+        z.cd = z.dmgCd;
+        const r2 = z.r * z.r;
+        for (const e of enemies) {
+          if (e.dead) continue;
+          if (dist2(z.x, z.y, e.x, e.y) < r2) damageEnemy(e, z.damage, 0, 0, false);
+        }
+      }
+    }
+    zones = zones.filter((z) => z.life > 0);
   }
 
   // ---------------------------------------------------------------------
@@ -3145,6 +3271,18 @@
                 break;
               }
             }
+            // bounce bomb: ricochet between foes (even though it explodes) until spent
+            if (b.bounceBomb && b.bounces > 0) {
+              const t = nearestUnhit(b.x, b.y, b.hits, 360);
+              if (t) {
+                b.bounces--;
+                const ang = Math.atan2(t.y - b.y, t.x - b.x);
+                b.vx = Math.cos(ang) * b.speed; b.vy = Math.sin(ang) * b.speed;
+                b.pierce = 1; b.life = Math.max(b.life, 1.0);
+                spark(b.x, b.y, ang + Math.PI / 2, b.glow, "impact", 1.2);
+                break;
+              }
+            }
             // split shot: spawn secondary bullets fanned off the travel line
             if (b.fork > 0) {
               const n = b.fork, baseA = Math.atan2(b.vy, b.vx), cs = b.speed * 0.9;
@@ -3179,6 +3317,10 @@
               damage: b.clusterDmg, crit: false, r: b.r * 0.7, color: b.color, glow: b.glow,
               pierce: 1, hits: new Set(), life: 0.55, angle: ca, long: false, homing: false, turn: 0, bounces: 0, fork: 0, trail: [] });
           }
+        }
+        // flare: leave a lingering burning zone on detonation
+        if (b.flareZone) {
+          zones.push({ x: b.x, y: b.y, r: b.flareZone.r, life: b.flareZone.life, maxLife: b.flareZone.life, cd: 0, dmgCd: b.flareZone.cd, damage: b.flareZone.damage, color: b.glow });
         }
       }
     }
@@ -3472,6 +3614,7 @@
     drawBullets();
     drawLightnings();
     drawSlashes();
+    drawZones();
     drawOrbiters();
     drawScythe();
     drawWaves();
@@ -4669,6 +4812,17 @@
         ctx.fillStyle = "#ffffff";
         ctx.beginPath(); ctx.arc(0, 0, b.r * 0.5, 0, TAU); ctx.fill();
         ctx.restore();
+      } else if (b.sword) {
+        // spinning blade
+        b.spin = (b.spin || 0) + 0.4;
+        ctx.save();
+        ctx.translate(b.x, b.y);
+        ctx.rotate(Math.atan2(b.vy, b.vx) + b.spin);
+        ctx.fillStyle = "#eef4ff";
+        ctx.beginPath();
+        ctx.moveTo(0, -b.r * 1.8); ctx.lineTo(b.r * 0.5, 0); ctx.lineTo(0, b.r * 1.8); ctx.lineTo(-b.r * 0.5, 0);
+        ctx.closePath(); ctx.fill();
+        ctx.restore();
       } else if (b.boomerang !== undefined) {
         // spinning three-blade glaive
         ctx.save();
@@ -4755,6 +4909,24 @@
       ctx.restore();
     }
     ctx.globalCompositeOperation = "source-over";
+  }
+
+  function drawZones() {
+    if (!zones.length) return;
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    for (const z of zones) {
+      const a = clamp(z.life / z.maxLife, 0, 1);
+      const pulse = 0.75 + 0.25 * Math.sin(game.time * 10 + z.x * 0.05);
+      drawGlow(z.x, z.y, z.r * pulse, z.color, 0.5 * a);
+      ctx.strokeStyle = z.color;
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = a * 0.6;
+      ctx.beginPath(); ctx.arc(z.x, z.y, z.r * 0.92, 0, TAU); ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    ctx.globalCompositeOperation = "source-over";
+    ctx.restore();
   }
 
   function drawWaves() {
@@ -5051,7 +5223,7 @@
 
   function resetRun() {
     enemies = []; bullets = []; gems = []; particles = []; powerups = []; sparks = []; debris = []; booms = []; smoke = [];
-    floaters = []; shockwaves = []; orbiters = []; lightnings = []; slashes = []; scythes = []; scytheAngle = 0; waves = []; enemyBullets = [];
+    floaters = []; shockwaves = []; orbiters = []; lightnings = []; slashes = []; scythes = []; scytheAngle = 0; waves = []; zones = []; enemyBullets = [];
     game.time = 0; game.kills = 0; game.bossKills = 0; game._committed = false; game.freeze = 0; game.slow = 0; game.expFlash = 0; game.shake = 0; game.hitFlash = 0;
     game.spawnTimer = 0; game.nextWaveAt = 30; game.waveCount = 0; game.bossIndex = 0;
     wt.pulse = 0; wt.nova = 0; wt.spread = 0; wt.beam = 0;
@@ -5209,6 +5381,7 @@
         updateOrbiters(wdt);
         updateScythe(wdt);
         updateWaves(wdt);
+        updateZones(wdt);
         updateBullets(wdt);
         updateEnemies(wdt);
         updateEnemyBullets(wdt);
