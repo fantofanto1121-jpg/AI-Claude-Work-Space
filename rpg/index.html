@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0e1a">
+<title>クリスタルの塔 — 光の勇者</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <canvas id="game"></canvas>
+
+  <!-- 探索時のHUD -->
+  <div id="field-hud" class="hud hidden">
+    <div class="stat-card">
+      <div class="portrait" id="hud-portrait"></div>
+      <div class="stat-lines">
+        <div class="stat-name">勇者アルト <span id="hud-lv" class="lv">Lv.1</span></div>
+        <div class="bar hp"><span class="bar-label">HP</span><div class="bar-track"><i id="hud-hp" style="width:100%"></i></div><span id="hud-hp-num" class="bar-num">30/30</span></div>
+        <div class="bar mp"><span class="bar-label">MP</span><div class="bar-track"><i id="hud-mp" style="width:100%"></i></div><span id="hud-mp-num" class="bar-num">10/10</span></div>
+      </div>
+      <div class="gold-badge"><span class="coin"></span><b id="hud-gold">0</b></div>
+    </div>
+  </div>
+
+  <!-- タッチ操作 -->
+  <div id="pad" class="hidden">
+    <div class="dpad">
+      <button class="dbtn up"    data-dir="up"    aria-label="上"></button>
+      <button class="dbtn left"  data-dir="left"  aria-label="左"></button>
+      <button class="dbtn right" data-dir="right" aria-label="右"></button>
+      <button class="dbtn down"  data-dir="down"  aria-label="下"></button>
+      <div class="dcenter"></div>
+    </div>
+  </div>
+
+  <!-- バトルUI -->
+  <div id="battle-ui" class="hidden">
+    <div id="battle-msg" class="battle-msg"></div>
+    <div id="battle-menu" class="battle-menu">
+      <button class="cmd" data-cmd="attack"><span class="cmd-ico atk"></span>たたかう</button>
+      <button class="cmd" data-cmd="fire"><span class="cmd-ico fire"></span>ファイア<em>MP4</em></button>
+      <button class="cmd" data-cmd="heal"><span class="cmd-ico heal"></span>ヒール<em>MP3</em></button>
+      <button class="cmd" data-cmd="run"><span class="cmd-ico run"></span>にげる</button>
+    </div>
+  </div>
+
+  <!-- タイトル -->
+  <div id="title-screen" class="overlay">
+    <div class="title-art">
+      <canvas id="title-canvas"></canvas>
+    </div>
+    <div class="title-panel">
+      <h1 class="game-title"><span>クリスタルの塔</span><small>光の勇者アルト</small></h1>
+      <p class="lead">闇に沈んだ森を抜け、<br>塔の頂きに眠るクリスタルを取り戻せ。</p>
+      <button id="start-btn" class="btn primary">冒険をはじめる</button>
+      <p class="hint-line">スワイプ / 十字キーで移動</p>
+    </div>
+  </div>
+
+  <!-- 汎用オーバーレイ（勝利・敗北・レベルアップ） -->
+  <div id="event-screen" class="overlay hidden">
+    <div class="panel event-panel">
+      <h2 id="event-title"></h2>
+      <div id="event-body"></div>
+      <button id="event-btn" class="btn primary"></button>
+    </div>
+  </div>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>
