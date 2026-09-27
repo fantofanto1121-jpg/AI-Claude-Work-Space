@@ -115,14 +115,14 @@
   const BX0 = 10, BROWY0 = 20, BW = 20, BH = 8, COLS = 8;
   const PADY = VH - 18, PAD_W0 = 30, PAD_H = 5;
   const BALL_R = 2;
-  const BOOST_MULT = 1.22;   // speed gain per tap
-  const BALL_SPEED_MAX = 300; // cap so the ball stays catchable
+  const BOOST_FACTOR = 1.9;  // speed multiplier while the input is held
 
   // ---------- state ----------
   const S = {
     mode: 'title',   // title | stagestart | ready | play | clear | over
     score: 0, hi: 0, stage: 0, lives: 3,
-    t: 0, timer: 0, flash: 0, shake: 0, blink: 0, boost: 0,
+    t: 0, timer: 0, flash: 0, shake: 0, blink: 0,
+    boosting: false, boostEmit: 0,
   };
   try { S.hi = parseInt(localStorage.getItem('block_quest_hi') || '0', 10) || 0; } catch (e) {}
 
@@ -135,20 +135,26 @@
   // ---------- input ----------
   const keys = {};
   let pointerX = null;
+  let pointerDown = false;   // held state -> boost while pressing during play
 
   function toVirtX(clientX) {
     const rect = canvas.getBoundingClientRect();
     return (clientX - rect.left) / (rect.width / VW);
   }
+  // discrete "press" actions (start / launch / retry); play uses hold-to-boost
   function press() {
     if (S.mode === 'title') startStage(1);
     else if (S.mode === 'ready') launch();
-    else if (S.mode === 'play') accelerate();
     else if (S.mode === 'over') { S.mode = 'title'; S.blink = 0; }
-    // 'clear' and 'stagestart' advance on their own timers
+    // 'play', 'clear' and 'stagestart' need no discrete action here
+  }
+  function endHold(e) {
+    pointerDown = false;
+    if (e && canvas.releasePointerCapture) { try { canvas.releasePointerCapture(e.pointerId); } catch (_) {} }
   }
   canvas.addEventListener('pointerdown', (e) => {
     pointerX = toVirtX(e.clientX);
+    pointerDown = true;
     movePaddleTo(pointerX);
     press();
     if (canvas.setPointerCapture) { try { canvas.setPointerCapture(e.pointerId); } catch (_) {} }
@@ -159,6 +165,10 @@
     movePaddleTo(pointerX);
     e.preventDefault();
   }, { passive: false });
+  canvas.addEventListener('pointerup', endHold, { passive: true });
+  canvas.addEventListener('pointercancel', endHold, { passive: true });
+  window.addEventListener('pointerup', () => { pointerDown = false; }, { passive: true });
+  window.addEventListener('blur', () => { pointerDown = false; });
 
   window.addEventListener('keydown', (e) => {
     keys[e.key] = true;
@@ -168,6 +178,10 @@
     }
   });
   window.addEventListener('keyup', (e) => { keys[e.key] = false; });
+
+  function boostHeld() {
+    return pointerDown || keys[' '] || keys['ArrowUp'] || keys['Enter'];
+  }
 
   function movePaddleTo(vx) {
     paddle.x = clamp(vx - paddle.w / 2, WALL_L, WALL_R - paddle.w);
@@ -225,23 +239,6 @@
     S.mode = 'play';
   }
 
-  function accelerate() {
-    let boosted = false;
-    for (const b of balls) {
-      if (b.stuck) continue;
-      const sp = Math.hypot(b.vx, b.vy);
-      if (sp <= 0) continue;
-      const nsp = Math.min(sp * BOOST_MULT, BALL_SPEED_MAX);
-      if (nsp > sp + 0.01) {
-        b.vx = (b.vx / sp) * nsp;
-        b.vy = (b.vy / sp) * nsp;
-        burst(b.x, b.y, '#bfeaff', 5);
-        boosted = true;
-      }
-    }
-    if (boosted) { S.boost = 0.5; S.shake = Math.max(S.shake, 3); }
-  }
-
   function loseLife() {
     S.lives--;
     S.flash = 0.5; S.shake = 6;
@@ -281,7 +278,7 @@
     S.blink += dt;
     S.flash = Math.max(0, S.flash - dt * 1.5);
     S.shake = Math.max(0, S.shake - dt * 18);
-    S.boost = Math.max(0, S.boost - dt);
+    S.boosting = (S.mode === 'play') && boostHeld();
 
     // keyboard paddle control
     const kv = 150 * dt;
@@ -325,6 +322,18 @@
     balls = balls.filter((b) => b.alive !== false);
     if (balls.length === 0) { loseLife(); return; }
 
+    // boost feedback: emit a little exhaust behind each ball while held
+    if (S.boosting) {
+      S.boostEmit -= dt;
+      if (S.boostEmit <= 0) {
+        S.boostEmit = 0.02;
+        for (const b of balls) {
+          if (b.stuck) continue;
+          parts.push({ x: b.x, y: b.y, vx: rand(-15, 15), vy: rand(-15, 15), life: rand(0.15, 0.3), color: '#bfeaff' });
+        }
+      }
+    }
+
     updateCapsules(dt);
     updateParticles(dt);
 
@@ -339,9 +348,10 @@
     b.trail.push({ x: b.x, y: b.y });
     if (b.trail.length > 6) b.trail.shift();
 
+    const bf = S.boosting ? BOOST_FACTOR : 1;
     const px = b.x, py = b.y;
-    b.x += b.vx * dt;
-    b.y += b.vy * dt;
+    b.x += b.vx * bf * dt;
+    b.y += b.vy * bf * dt;
 
     // walls
     if (b.x - BALL_R < WALL_L) { b.x = WALL_L + BALL_R; b.vx = Math.abs(b.vx); }
@@ -573,13 +583,9 @@
       drawTextCenter('READY', 180, 2, '#f2d43f');
     } else if (S.mode === 'ready') {
       if (blinkOn) drawTextCenter('TAP TO LAUNCH', 244, 1, '#ffffff');
-      drawTextCenter('THEN TAP TO SPEED UP', 258, 1, '#7c86a8');
+      drawTextCenter('HOLD TO SPEED UP', 258, 1, '#7c86a8');
     } else if (S.mode === 'play') {
-      if (S.boost > 0) {
-        ctx.globalAlpha = clamp(S.boost * 2, 0, 1);
-        drawTextCenter('SPEED UP!', 236, 1, '#bfeaff');
-        ctx.globalAlpha = 1;
-      }
+      if (S.boosting && blinkOn) drawTextCenter('SPEED UP!', 236, 1, '#bfeaff');
     } else if (S.mode === 'clear') {
       drawTextCenter('STAGE', 140, 3, '#3fc0d6');
       drawTextCenter('CLEAR!', 172, 3, '#f2d43f');
