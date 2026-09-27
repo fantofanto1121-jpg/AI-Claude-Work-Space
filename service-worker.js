@@ -1,4 +1,4 @@
-const CACHE_NAME = 'neon-voyager-v1';
+const CACHE_NAME = 'stack-tower-v1';
 const APP_SHELL = [
   './',
   'index.html',

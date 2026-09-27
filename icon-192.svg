@@ -1,34 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
   <defs>
-    <radialGradient id="bg" cx="0.5" cy="0.35" r="0.85">
-      <stop offset="0" stop-color="#16224f"/>
-      <stop offset="0.6" stop-color="#0a0f27"/>
-      <stop offset="1" stop-color="#05060f"/>
-    </radialGradient>
-    <linearGradient id="hull" x1="0.5" y1="0" x2="0.5" y2="1">
-      <stop offset="0" stop-color="#ffffff"/>
-      <stop offset="0.5" stop-color="#38f5ff"/>
-      <stop offset="1" stop-color="#9b6bff"/>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6ea8ff"/>
+      <stop offset="1" stop-color="#b48bff"/>
     </linearGradient>
-    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="4" result="b"/>
-      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
   </defs>
-  <rect width="192" height="192" rx="42" fill="url(#bg)"/>
-  <g fill="#ffffff">
-    <circle cx="42" cy="50" r="1.6" opacity="0.9"/>
-    <circle cx="152" cy="40" r="2" opacity="0.8"/>
-    <circle cx="56" cy="136" r="1.6" opacity="0.7"/>
-    <circle cx="148" cy="146" r="1.8" opacity="0.8"/>
-  </g>
-  <g filter="url(#glow)">
-    <path d="M96 40 L129 140 L96 120 L63 140 Z" fill="url(#hull)"/>
-    <ellipse cx="96" cy="80" rx="6" ry="10" fill="#ff3ca6"/>
-  </g>
-  <g fill="#38f5ff" opacity="0.85" filter="url(#glow)">
-    <circle cx="96" cy="147" r="4"/>
-    <circle cx="85" cy="141" r="2.4"/>
-    <circle cx="107" cy="141" r="2.4"/>
+  <rect width="192" height="192" rx="32" fill="#0b1020"/>
+  <g fill="url(#g)">
+    <rect x="48" y="128" width="96" height="20" rx="4"/>
+    <rect x="52" y="102" width="88" height="20" rx="4" opacity="0.92"/>
+    <rect x="58" y="76"  width="76" height="20" rx="4" opacity="0.86"/>
+    <rect x="66" y="50"  width="60" height="20" rx="4" opacity="0.78"/>
+    <rect x="76" y="26"  width="40" height="18" rx="4" opacity="0.68"/>
   </g>
 </svg>

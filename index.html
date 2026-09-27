@@ -6,8 +6,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#05060f">
-<title>NEON VOYAGER</title>
+<meta name="theme-color" content="#0b1020">
+<title>スタックタワー</title>
 <link rel="stylesheet" href="style.css">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.svg">
@@ -19,46 +19,34 @@
   <canvas id="game"></canvas>
 
   <div id="hud">
-    <div class="hud-left">
-      <div class="stat">
-        <div class="stat-label">SCORE</div>
-        <div id="score" class="stat-value">0</div>
-      </div>
-      <div class="stat small">
-        <div class="stat-label">BEST</div>
-        <div id="best" class="stat-value">0</div>
-      </div>
+    <div class="score-block">
+      <div class="score-label">SCORE</div>
+      <div id="score" class="score-value">0</div>
     </div>
-    <div class="hud-right">
-      <div id="combo" class="combo hidden">x1</div>
-      <div class="shield-wrap">
-        <div class="shield-label">SHIELD</div>
-        <div class="shield-bar"><div id="shield-fill" class="shield-fill"></div></div>
-      </div>
+    <div class="best-block">
+      <div class="best-label">BEST</div>
+      <div id="best" class="best-value">0</div>
     </div>
   </div>
 
-  <div id="hint" class="hint">ドラッグ / マウスで機体を動かそう</div>
+  <div id="tap-hint" class="hint">タップして積み上げよう</div>
 
   <div id="start-screen" class="overlay">
     <div class="panel">
-      <div class="logo">
-        <span class="logo-neon">NEON</span>
-        <span class="logo-sub">VOYAGER</span>
-      </div>
-      <p class="lead">流れる星屑の海を駆け抜けろ</p>
+      <h1>スタックタワー</h1>
+      <p class="lead">動くブロックをタップして<br>ぴったり重ねよう</p>
       <ul class="rules">
-        <li>機体は指 / マウスに追従して自動で連射</li>
-        <li>敵を撃ち落とし、光のかけらを集める</li>
-        <li>連続撃破で<b>COMBO</b>ボーナス</li>
+        <li>タップでブロックを落とす</li>
+        <li>ズレると幅がどんどん小さくなる</li>
+        <li>ぴったり重ねると<b>PERFECT!</b></li>
       </ul>
-      <button id="start-btn" class="btn primary">START</button>
+      <button id="start-btn" class="btn primary">スタート</button>
     </div>
   </div>
 
   <div id="gameover-screen" class="overlay hidden">
     <div class="panel">
-      <h2 class="go-title">GAME OVER</h2>
+      <h2>GAME OVER</h2>
       <div class="result-row">
         <span>SCORE</span>
         <b id="final-score">0</b>
@@ -67,8 +55,7 @@
         <span>BEST</span>
         <b id="final-best">0</b>
       </div>
-      <div id="new-record" class="new-record hidden">NEW RECORD!</div>
-      <button id="retry-btn" class="btn primary">RETRY</button>
+      <button id="retry-btn" class="btn primary">もう一度</button>
     </div>
   </div>
 </div>
