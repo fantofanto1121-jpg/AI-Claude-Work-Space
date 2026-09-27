@@ -1,16 +1,36 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#6ea8ff"/>
-      <stop offset="1" stop-color="#b48bff"/>
+    <radialGradient id="bg" cx="0.5" cy="0.35" r="0.85">
+      <stop offset="0" stop-color="#16224f"/>
+      <stop offset="0.6" stop-color="#0a0f27"/>
+      <stop offset="1" stop-color="#05060f"/>
+    </radialGradient>
+    <linearGradient id="hull" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.5" stop-color="#38f5ff"/>
+      <stop offset="1" stop-color="#9b6bff"/>
     </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="10" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
   </defs>
-  <rect width="512" height="512" rx="86" fill="#0b1020"/>
-  <g fill="url(#g)">
-    <rect x="128" y="342" width="256" height="54" rx="10"/>
-    <rect x="138" y="272" width="236" height="54" rx="10" opacity="0.92"/>
-    <rect x="154" y="202" width="204" height="54" rx="10" opacity="0.86"/>
-    <rect x="176" y="132" width="160" height="54" rx="10" opacity="0.78"/>
-    <rect x="204" y="68"  width="104" height="48" rx="10" opacity="0.68"/>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <g fill="#ffffff">
+    <circle cx="112" cy="132" r="3" opacity="0.9"/>
+    <circle cx="404" cy="108" r="4" opacity="0.8"/>
+    <circle cx="150" cy="360" r="3" opacity="0.7"/>
+    <circle cx="392" cy="388" r="3.5" opacity="0.8"/>
+    <circle cx="86" cy="256" r="2.5" opacity="0.6"/>
+    <circle cx="440" cy="270" r="2.5" opacity="0.6"/>
+  </g>
+  <g filter="url(#glow)">
+    <path d="M256 108 L344 372 L256 320 L168 372 Z" fill="url(#hull)"/>
+    <ellipse cx="256" cy="216" rx="16" ry="26" fill="#ff3ca6"/>
+  </g>
+  <g fill="#38f5ff" opacity="0.85" filter="url(#glow)">
+    <circle cx="256" cy="392" r="10"/>
+    <circle cx="228" cy="378" r="6"/>
+    <circle cx="284" cy="378" r="6"/>
   </g>
 </svg>

@@ -1,13 +1,13 @@
 {
-  "name": "スタックタワー",
-  "short_name": "Stack",
-  "description": "動くブロックをタップして、ぴったり重ねて積み上げるシンプルなタワーゲーム。",
+  "name": "NEON VOYAGER",
+  "short_name": "Voyager",
+  "description": "ネオンに輝く星屑の海を駆け抜ける、指でもマウスでも遊べるスペースシューター。",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0b1020",
-  "theme_color": "#0b1020",
+  "background_color": "#05060f",
+  "theme_color": "#05060f",
   "icons": [
     {
       "src": "icon-192.svg",
