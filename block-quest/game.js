@@ -108,6 +108,10 @@
     [ 'X......X', 'RRRRRRRR', 'OOSSSSOO', 'X.YYYY.X', 'GGGGGGGG' ],
     [ 'SXSXSXSX', 'PPPPPPPP', 'C.CC.C.C', 'YYYYYYYY', 'R.RRRR.R' ],
     [ 'BXBXBXBX', 'SSSSSSSS', 'P.P..P.P', 'OOOOOOOO', 'G.GGGG.G', 'XSXSXSXS' ],
+    [ 'R......R', 'RO....OR', 'ROY..YOR', 'ROYGGYOR', 'ROYGGYOR', 'ROY..YOR' ],
+    [ '.C.SS.C.', 'CCC..CCC', '.C.SS.C.', 'BBBBBBBB', 'P.P..P.P', 'YYYYYYYY' ],
+    [ 'GXG.GXG.', '.PYPYP.P', 'C.C.C.C.', '.SXS.SXS', 'OOOOOOOO', 'R.R.R.R.' ],
+    [ 'SXSXSXSX', 'X.XXXX.X', 'ROYGCBPS', 'SPBCGYOR', 'X.XXXX.X', 'SXSXSXSX' ],
   ];
 
   // ---------- geometry ----------
@@ -115,7 +119,11 @@
   const BX0 = 10, BROWY0 = 20, BW = 20, BH = 8, COLS = 8;
   const PADY = VH - 18, PAD_W0 = 30, PAD_H = 5;
   const BALL_R = 2;
-  const BOOST_FACTOR = 1.9;  // speed multiplier while the input is held
+  const BOOST_FACTOR = 1.9;   // speed multiplier while the input is held
+  const BALL_SPEED_CAP = 200; // keep the ball catchable at high stages
+  const SUBSTEP_MAX = 2.5;    // max px a ball may move per collision substep
+  const MIN_VY_FRAC = 0.30;   // floor on vertical speed (anti near-horizontal stall)
+  const MIN_VX_FRAC = 0.14;   // floor on horizontal speed (anti vertical rut)
 
   // ---------- state ----------
   const S = {
@@ -123,6 +131,7 @@
     score: 0, hi: 0, stage: 0, lives: 3,
     t: 0, timer: 0, flash: 0, shake: 0, blink: 0,
     boosting: false, boostEmit: 0,
+    combo: 0, comboBest: 0, comboFlash: 0,
   };
   try { S.hi = parseInt(localStorage.getItem('block_quest_hi') || '0', 10) || 0; } catch (e) {}
 
@@ -143,7 +152,7 @@
   }
   // discrete "press" actions (start / launch / retry); play uses hold-to-boost
   function press() {
-    if (S.mode === 'title') startStage(1);
+    if (S.mode === 'title') startGame();
     else if (S.mode === 'ready') launch();
     else if (S.mode === 'over') { S.mode = 'title'; S.blink = 0; }
     // 'play', 'clear' and 'stagestart' need no discrete action here
@@ -195,10 +204,14 @@
   function buildStage(n) {
     bricks = [];
     const layout = STAGES[(n - 1) % STAGES.length];
+    const loop = Math.floor((n - 1) / STAGES.length); // 0 on first pass, then climbs
+    const upgradeChance = Math.min(0.14 * loop, 0.6);  // harden normal bricks on later loops
     for (let r = 0; r < layout.length; r++) {
       for (let c = 0; c < COLS; c++) {
-        const ch = layout[r][c];
+        let ch = layout[r][c];
         if (!ch || ch === '.') continue;
+        // escalation: on later loops some normal bricks become 2-hit silver
+        if (loop > 0 && ch !== 'X' && ch !== 'S' && Math.random() < upgradeChance) ch = 'S';
         bricks.push({
           x: BX0 + c * BW, y: BROWY0 + r * BH, w: BW, h: BH,
           ch, color: PAL[ch] || '#fff',
@@ -209,8 +222,15 @@
     }
   }
 
+  function startGame() {
+    S.score = 0; S.lives = 3;
+    S.combo = 0; S.comboBest = 0; S.comboFlash = 0;
+    startStage(1);
+  }
+
   function startStage(n) {
     S.stage = n;
+    S.combo = 0;
     buildStage(n);
     paddle.w = PAD_W0; paddle.expire = 0;
     caps = []; parts = [];
@@ -226,7 +246,7 @@
     S.mode = 'ready';
   }
 
-  function ballSpeed() { return 96 + (S.stage - 1) * 9; }
+  function ballSpeed() { return Math.min(116 + (S.stage - 1) * 8, BALL_SPEED_CAP); }
 
   function launch() {
     const b = balls[0];
@@ -241,6 +261,7 @@
 
   function loseLife() {
     S.lives--;
+    S.combo = 0;
     S.flash = 0.5; S.shake = 6;
     if (S.lives <= 0) {
       if (S.score > S.hi) { S.hi = S.score; try { localStorage.setItem('block_quest_hi', String(S.hi)); } catch (e) {} }
@@ -278,6 +299,7 @@
     S.blink += dt;
     S.flash = Math.max(0, S.flash - dt * 1.5);
     S.shake = Math.max(0, S.shake - dt * 18);
+    S.comboFlash = Math.max(0, S.comboFlash - dt);
     S.boosting = (S.mode === 'play') && boostHeld();
 
     // keyboard paddle control
@@ -344,14 +366,43 @@
     }
   }
 
+  // keep the ball from settling into a near-horizontal drift or a pure
+  // vertical rut: enforce a minimum |vy| and |vx| while preserving speed.
+  function enforceMinAngles(b) {
+    const sp = Math.hypot(b.vx, b.vy);
+    if (sp < 1) return;
+    const vyMin = sp * MIN_VY_FRAC, vxMin = sp * MIN_VX_FRAC;
+    let vx = b.vx, vy = b.vy;
+    if (Math.abs(vy) < vyMin) {
+      vy = (vy < 0 ? -1 : 1) * vyMin;
+      vx = (vx < 0 ? -1 : 1) * Math.sqrt(Math.max(0, sp * sp - vy * vy));
+    }
+    if (Math.abs(vx) < vxMin) {
+      vx = (vx === 0 ? (Math.random() < 0.5 ? -1 : 1) : (vx < 0 ? -1 : 1)) * vxMin;
+      vy = (vy < 0 ? -1 : 1) * Math.sqrt(Math.max(0, sp * sp - vx * vx));
+    }
+    b.vx = vx; b.vy = vy;
+  }
+
   function stepBall(b, dt) {
     b.trail.push({ x: b.x, y: b.y });
     if (b.trail.length > 6) b.trail.shift();
 
     const bf = S.boosting ? BOOST_FACTOR : 1;
+    const dx = b.vx * bf * dt, dy = b.vy * bf * dt;
+    // sub-step so a fast ball can never skip past a brick in one frame
+    const steps = Math.max(1, Math.ceil(Math.hypot(dx, dy) / SUBSTEP_MAX));
+    const sdx = dx / steps, sdy = dy / steps;
+    for (let s = 0; s < steps && b.alive !== false; s++) {
+      collideStep(b, sdx, sdy);
+    }
+    enforceMinAngles(b);
+    if (b.y - BALL_R > VH) b.alive = false;
+  }
+
+  function collideStep(b, sdx, sdy) {
     const px = b.x, py = b.y;
-    b.x += b.vx * bf * dt;
-    b.y += b.vy * bf * dt;
+    b.x += sdx; b.y += sdy;
 
     // walls
     if (b.x - BALL_R < WALL_L) { b.x = WALL_L + BALL_R; b.vx = Math.abs(b.vx); }
@@ -367,6 +418,7 @@
       b.vx = Math.sin(ang) * sp;
       b.vy = -Math.abs(Math.cos(ang) * sp);
       b.y = PADY - BALL_R - 1;
+      S.combo = 0; // returning to the paddle ends the combo chain
     }
 
     // bricks
@@ -387,17 +439,20 @@
       k.hp--;
       if (k.hp <= 0) {
         bricks.splice(i, 1);
-        S.score += (k.ch === 'S' ? 20 : 10);
+        S.combo++;
+        if (S.combo > S.comboBest) S.comboBest = S.combo;
+        const base = (k.ch === 'S' ? 20 : 10);
+        const mult = Math.min(1 + Math.floor((S.combo - 1) / 3), 5); // 1x..5x
+        S.score += base * mult;
+        if (S.combo >= 3) S.comboFlash = 0.6;
         burst(k.x + k.w / 2, k.y + k.h / 2, k.color, 7);
         maybeDropCapsule(k.x + k.w / 2, k.y + k.h / 2);
       } else {
         S.score += 5;
         burst(b.x, b.y, k.color, 3);
       }
-      break; // one brick per frame keeps physics stable
+      break; // at most one brick per sub-step keeps reflection stable
     }
-
-    if (b.y - BALL_R > VH) b.alive = false;
   }
 
   function updateCapsules(dt) {
@@ -568,6 +623,13 @@
       ctx.fillStyle = '#3fc0d6';
       ctx.fillRect(lx + 1, 11, 5, 1);
     }
+    // combo readout on the right of the HUD band
+    if (S.combo >= 2 && (S.mode === 'play' || S.mode === 'clear')) {
+      const txt = 'COMBO X' + S.combo;
+      ctx.globalAlpha = S.comboFlash > 0 ? 1 : 0.8;
+      drawText(txt, VW - textWidth(txt, 1) - 6, 11, 1, '#ff5aa8');
+      ctx.globalAlpha = 1;
+    }
   }
 
   function drawOverlays() {
@@ -590,12 +652,14 @@
       drawTextCenter('STAGE', 140, 3, '#3fc0d6');
       drawTextCenter('CLEAR!', 172, 3, '#f2d43f');
     } else if (S.mode === 'over') {
-      panel(120, 90);
-      drawTextCenter('GAME', 130, 3, '#e8402e');
-      drawTextCenter('OVER', 158, 3, '#e8402e');
-      drawTextCenter('SCORE ' + pad6(S.score), 190, 1, '#ffffff');
-      if (S.score >= S.hi && S.score > 0) drawTextCenter('NEW RECORD!', 204, 1, '#f2d43f');
-      if (blinkOn) drawTextCenter('TAP TO RETRY', 224, 1, '#7c86a8');
+      panel(112, 120);
+      drawTextCenter('GAME', 120, 3, '#e8402e');
+      drawTextCenter('OVER', 146, 3, '#e8402e');
+      drawTextCenter('STAGE ' + S.stage, 176, 1, '#c2c6d6');
+      drawTextCenter('SCORE ' + pad6(S.score), 188, 1, '#ffffff');
+      drawTextCenter('MAX COMBO X' + S.comboBest, 200, 1, '#ff5aa8');
+      if (S.score >= S.hi && S.score > 0) drawTextCenter('NEW RECORD!', 214, 1, '#f2d43f');
+      if (blinkOn) drawTextCenter('TAP TO RETRY', 244, 1, '#7c86a8');
     }
   }
 
